@@ -8,19 +8,19 @@ stable-diffusion images for free without running a colab notebook
 or a local server. Please check the section "Limitations" to better
 understand where the limits are.
 
-Please check [../CHANGELOG.md](../CHANGELOG.md) for the latest
+Please check [CHANGELOG.md](../CHANGELOG.md) for the latest
 changes.
 
 ## Installation
 ### Download the macro
 
-Download [../src/](../src/StableHordeForLibreOffice.py).
+Download [StableHordeForLibreOffice.py](https://raw.githubusercontent.com/ikks/libreoffice-stable-diffusion/refs/heads/main/src/StableHordeForLibreOffice.py).
 
 ### LibreOffice
 
 This Macro is known to work from LibreOffice 7.4 and upwards
 
-1. [Download](https://github.com/ikks/libreoffice-stable-diffusion/blob/main/src/StableHordeForLibreOffice.py)
+1. [Download](https://raw.githubusercontent.com/ikks/libreoffice-stable-diffusion/refs/heads/main/src/StableHordeForLibreOffice.py)
   the macro
 2. Copy the downloaded file `StableHordeLibreOffice.py` to
   your LibreOffice .config directory
@@ -31,10 +31,13 @@ This Macro is known to work from LibreOffice 7.4 and upwards
     * C:\Users\username... for Windows
     * /home/username... for Linux
     * /Users/username... for Mac.
+<img width="1920" height="1080" alt="determinepath" src="https://github.com/user-attachments/assets/08c5ce95-4171-4d4c-9a5b-491d4874f92b" />
+
 3. Reopen LibreOffice.
 4. Invoke the macro going to Tools -> Macros -> Run Macro... |
   My Macros > stablediffusion > StableHordeForLibreOffice ->
   create_image and push Run button.
+<img width="1920" height="1080" alt="runmacro" src="https://github.com/user-attachments/assets/5e344742-eae3-4647-b0d6-c1876e911c24" />
 5. Optionally add a shortcut going to Tools -> Customize... |
   1. Tab Keyboard,
   2. on Category > Application Macros > My Macros >
@@ -43,6 +46,7 @@ This Macro is known to work from LibreOffice 7.4 and upwards
   4. On Shortcuts Keys select your preferred combination, for
     example Ctrl+Shift+h and push the Button `Assign` and
     finally `OK`.
+<img width="1920" height="1080" alt="shortcut" src="https://github.com/user-attachments/assets/518ccb75-81a3-4698-8dc4-1fb5611d5e58" />
 
 
 ## Generate images
