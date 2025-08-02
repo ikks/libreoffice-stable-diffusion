@@ -10,7 +10,7 @@ generates images with stable-diffusion:
 
 It uses [StableHorde](https://stablehorde.net) as its backend.
 StableHorde is a cluster of stable-diffusion servers run by
-volunteers. [Check it out](https://github.com/blueturtleai/gimp-stable-diffusion/tree/main/stablehorde).
+volunteers. [get the macro](https://github.com/ikks/libreoffice-stable-diffusion/blob/main/src/StableHordeForLibreOffice.py).
 
 Head to [instructions](/docs/README.md) for installing and using it.
 
