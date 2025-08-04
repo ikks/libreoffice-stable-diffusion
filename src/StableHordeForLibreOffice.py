@@ -61,7 +61,9 @@ REGISTER_URL = "https://aihorde.net/register"
 
 URL_VERSION_UPDATE = "https://raw.githubusercontent.com/ikks/libreoffice-stable-diffusion/main/version.json"
 
-URL_DOWNLOAD = "https://github.com/ikks/libreoffice-stable-diffusion/blob/main/src/StableHordeForLibreOffice.py"
+URL_DOWNLOAD = (
+    "https://github.com/ikks/libreoffice-stable-diffusion/blob/main/loshd.oxt"
+)
 """
 Download URL for libreoffice-stable-diffusion
 """
@@ -678,7 +680,7 @@ class LibreOfficeInteraction:
         dlg = CreateScriptService(
             "NewDialog", "StableHordeOptionsDialog", (47, 10, 265, 206)
         )
-        dlg.Caption = "Stable Horde Configuration"
+        dlg.Caption = "Stable Horde - " + VERSION
         dlg.CreateGroupBox("framebox", (16, 11, 236, 163))
         # Labels
         lbl = dlg.CreateFixedText("label_prompt", (29, 31, 39, 13))
