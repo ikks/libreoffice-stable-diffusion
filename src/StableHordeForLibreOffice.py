@@ -21,6 +21,7 @@
 import base64
 import json
 import locale
+import logging
 import os
 import sched
 import tempfile
@@ -38,7 +39,14 @@ from urllib.error import HTTPError, URLError
 from urllib.request import urlopen, Request
 
 DEBUG = False
-VERSION = "0.2"
+VERSION = "0.2.1"
+
+log_file = os.path.join(tempfile.gettempdir(), "libreoffice_shotd.log")
+logging.basicConfig(
+    filename=log_file,
+    level=logging.DEBUG,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
 
 HELP_URL = "https://aihorde.net/faq"
 """
@@ -869,7 +877,6 @@ class LibreOfficeInteraction:
     def __msg_usr__(self, message, buttons=0, title="", url=""):
         if url:
             buttons = self.bas.MB_OKCANCEL | buttons
-            print(buttons)
             res = self.bas.MsgBox(
                 message,
                 buttons=buttons,
@@ -1016,16 +1023,16 @@ def show_debugging_data(information, additional=""):
     dnow = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     if isinstance(information, Exception):
         ln = information.__traceback__.tb_lineno
-        print(f"[{ dnow }]{ln}: { information }")
-        print(
+        logging.error(f"[{ dnow }]{ln}: { information }")
+        logging.error(
             "".join(
                 traceback.format_exception(None, information, information.__traceback__)
             )
         )
     else:
-        print(f"[{ dnow }] { information }")
+        logging.debug(f"[{ dnow }] { information }")
     if additional:
-        print(additional)
+        logging.debug(f"[{ dnow }]{additional}")
 
 
 def create_image():
@@ -1066,7 +1073,6 @@ if __name__ == "__main__":
 # TODO:
 #    - Determine the correct place to store the options saved
 #    - Recommend to use a shared key
-# * [ ] Replace scheduler by threading
 # * [ ] Issue bugs for Impress with placeholdertext
 #    - Wayland transparent png
 #    - Wishlist to have right alignment for numeric control option
@@ -1077,9 +1083,6 @@ if __name__ == "__main__":
 #    - Menus
 #    - Toolbar
 #    - Dialog
-# * [ ] Use styles support from Horde
-#    -  Show Styles and Advanced View
-#    -  Download and cache Styles
 # * [ ] Add to Calc
 # * [ ] Add to Draw
 # * [ ] Publish the extension
@@ -1087,6 +1090,10 @@ if __name__ == "__main__":
 #   - Create extension
 #   - Upload extension
 # * [ ] Announce in stablehorde
+# * [ ] Port structure and model update to gimp plugin
+# * [ ] Use styles support from Horde
+#    -  Show Styles and Advanced View
+#    -  Download and cache Styles
 #
 # Local documentation
 # file:///usr/share/doc/libreoffice-dev-doc/api/
