@@ -17,6 +17,7 @@
 #   the License at http://www.apache.org/licenses/LICENSE-2.0 .
 #
 
+import abc
 import base64
 import json
 import locale
@@ -155,11 +156,91 @@ Initial list of models, new ones are downloaded from StableHorde API
 """
 
 
+class InformerFrontendInterface(metaclass=abc.ABCMeta):
+    """
+    Adds interaction between HordeClient and Frontend Application
+    """
+
+    @classmethod
+    def __subclasshook__(cls, subclass):
+        return (
+            hasattr(subclass, "show_message")
+            and callable(subclass.show_message)
+            and hasattr(subclass, "show_error")
+            and callable(subclass.show_error)
+            and hasattr(subclass, "get_frontend_property")
+            and callable(subclass.get_frontend_property)
+            and hasattr(subclass, "set_frontend_property")
+            and callable(subclass.set_frontend_property)
+            and hasattr(subclass, "update_status")
+            and callable(subclass.set_frontend_property)
+            and hasattr(subclass, "set_finished")
+            and callable(subclass.set_finished)
+            or NotImplemented
+        )
+
+    @abc.abstractclassmethod
+    def show_message(
+        self, message: str, url: str = "", title: str = "", buttons: int = 0
+    ):
+        """
+        Shows an informative message dialog
+        if url is given, shows OK, Cancel, when the user presses OK, opens the URL in the
+        browser
+        title is the title of the dialog to be shown
+        buttons are the options that the user can have
+        """
+        raise NotImplementedError
+
+    @abc.abstractclassmethod
+    def show_error(self, message, url="", title="", buttons=0):
+        """
+        Shows an error message dialog
+        if url is given, shows OK, Cancel, when the user presses OK, opens the URL in the
+        browser
+        title is the title of the dialog to be shown
+        buttons are the options that the user can have
+        """
+        raise NotImplementedError
+
+    @abc.abstractclassmethod
+    def get_frontend_property(self, property_name: str) -> str | bool | None:
+        """
+        Gets a property from the frontend application, used to retrieved stored
+        information during this session.  Used when checking for update.
+        """
+        raise NotImplementedError
+
+    @abc.abstractclassmethod
+    def set_frontend_property(self, property_name: str, value: str | bool):
+        """
+        Sets a property in the frontend application, used to retrieved stored
+        information during this session.  Used when checking for update.
+        """
+        raise NotImplementedError
+
+    @abc.abstractclassmethod
+    def update_status(self, text: str, progress: float = 0.0):
+        """
+        Updates the status to the frontend and the progress from 0 to 100
+        """
+        raise NotImplementedError
+
+    @abc.abstractclassmethod
+    def set_finished(self):
+        """
+        Tells the frontend that the process has finished successfully
+        """
+        raise NotImplementedError
+
+
 class IdentifiedError(Exception):
     """
     Exception raised for identified problems
+
     Attributes:
         message -- explanation of the error
+        url -- Resource to understand and fix the problem
     """
 
     def __init__(self, message: str = "A custom error occurred", url: str = ""):
@@ -172,20 +253,31 @@ class IdentifiedError(Exception):
 
 
 class StableHordeClient:
+    """
+    Interaction with Stable Horde platform, currently supports:
+    * Fetch the most used models in the month
+    * Review the credits of an api_key
+    * Request an image async and go all the way down until getting the image
+    * Check if there is a newer version of the frontend client
+
+    Attributes:
+        settings -- configured in the constructor and later updated
+    """
+
     def __init__(
         self, settings: json = {"api_key": ANONYMOUS}, platform: str = HORDE_CLIENT_NAME
     ):
         self.settings: json = settings
         self.api_key: str = self.settings["api_key"]
         self.client_name: str = platform
-        self.headers = {
+        self.headers: json = {
             "Content-Type": "application/json",
             "Accept": "application/json",
             "apikey": self.api_key,
             "Client-Agent": self.client_name,
         }
-        self.informer: LibreOfficeInteraction = None
-        self.progress = 0
+        self.informer: InformerFrontendInterface = None
+        self.progress = 0.0
         self.progress_text = "Starting"
         self.scheduler = sched.scheduler(time.time, time.sleep)
         self.warnings: list[json] = []
@@ -278,7 +370,9 @@ class StableHordeClient:
         """
         Inform the user regarding a plugin update
         """
-        already_asked = self.informer.get_property_value("stable_horde_checked_update")
+        already_asked = self.informer.get_frontend_property(
+            "stable_horde_checked_update"
+        )
         message = ""
         if already_asked:
             show_debugging_data("We already checked for update in this session")
@@ -290,7 +384,7 @@ class StableHordeClient:
             url = URL_VERSION_UPDATE
             with urlopen(url) as response:
                 data = json.loads(response.read())
-            self.informer.set_property("stable_horde_checked_update", True)
+            self.informer.set_frontend_property("stable_horde_checked_update", True)
 
             local_version = (*(int(i) for i in VERSION.split(".")),)
             incoming_version = (*(int(i) for i in data["version"].split(".")),)
@@ -617,7 +711,7 @@ def popup_click(poEvent: uno = None):
     my_popup.Dispose()
 
 
-class LibreOfficeInteraction:
+class LibreOfficeInteraction(InformerFrontendInterface):
     def get_type_doc(self, doc):
         TYPE_DOC = {
             "writer": "com.sun.star.text.TextDocument",
@@ -873,15 +967,26 @@ class LibreOfficeInteraction:
         self.session.Dispose()
         self.set_finished()
 
-    def update_status(self, text: str, progress: int = None):
+    def update_status(self, text: str, progress: float = 0.0):
+        """
+        Updates the status to the frontend and the progress from 0 to 100
+        """
         if progress:
             self.progress = progress
         self.ui.SetStatusbar(text, self.progress)
 
     def set_finished(self):
+        """
+        Tells the frontend that the process has finished successfully
+        """
         self.ui.SetStatusbar("")
 
     def __msg_usr__(self, message, buttons=0, title="", url=""):
+        """
+        Shows a message dialog, if url is given, shows
+        OK, Cancel, when the user presses OK, opens the URL in the
+        browser
+        """
         if url:
             buttons = self.bas.MB_OKCANCEL | buttons
             res = self.bas.MsgBox(
@@ -895,22 +1000,26 @@ class LibreOfficeInteraction:
 
         self.bas.MsgBox(message, buttons=buttons, title=title)
 
-    def show_error(self, message, buttons=0, title="", url=""):
+    def show_error(self, message, url="", title="", buttons=0):
         """
-        Show an error dialog with a message, if url is given, shows
-        OK, Cancel, when the user presses OK, opens the URL in the
+        Shows an error message dialog
+        if url is given, shows OK, Cancel, when the user presses OK, opens the URL in the
         browser
+        title is the title of the dialog to be shown
+        buttons are the options that the user can have
         """
         if title == "":
             title = _("Watch out!")
         buttons = buttons | self.bas.MB_ICONSTOP
         self.__msg_usr__(message, buttons=buttons, title=title, url=url)
 
-    def show_message(self, message, buttons=0, title="", url=""):
+    def show_message(self, message, url="", title="", buttons=0):
         """
-        Show an informative message dialog, if url is given, shows
-        OK, Cancel, when the user presses OK, opens the URL in the
+        Shows an informative message dialog
+        if url is given, shows OK, Cancel, when the user presses OK, opens the URL in the
         browser
+        title is the title of the dialog to be shown
+        buttons are the options that the user can have
         """
         if title == "":
             title = _("Good")
@@ -976,7 +1085,11 @@ class LibreOfficeInteraction:
         self.doc.Text.insertTextContent(curview, image, False)
         os.unlink(img_path)
 
-    def get_property_value(self, property_name: str) -> str | bool | None:
+    def get_frontend_property(self, property_name: str) -> str | bool | None:
+        """
+        Gets a property from the frontend application, used to retrieved stored
+        information during this session.  Used when checking for update
+        """
         value = None
         oDocProps = self.model.getDocumentProperties()
         self.userProps = oDocProps.getUserDefinedProperties()
@@ -987,7 +1100,11 @@ class LibreOfficeInteraction:
             return None
         return value
 
-    def set_property(self, property_name: str, value: str | bool):
+    def set_frontend_property(self, property_name: str, value: str | bool):
+        """
+        Sets a property in the frontend application, used to retrieved stored
+        information during this session.  Used when checking for update.
+        """
         oDocProps = self.model.getDocumentProperties()
         self.userProps = oDocProps.getUserDefinedProperties()
         if value is None:
@@ -1076,7 +1193,7 @@ def create_image(desktop=None, context=None):
         lo_manager.free()
         return
     elif len(options["prompt"]) < MIN_PROMPT_LENGTH:
-        lo_manager.show_error(_("Please provide a prompt at least with 5 words"))
+        lo_manager.show_error(_("Please provide a prompt with at least 5 words"))
         lo_manager.free()
         return
 
@@ -1140,7 +1257,7 @@ g_ImplementationHelper.addImplementation(
 # * [ ] Publish the extension
 # *  - https://extensions.libreoffice.org/en/home/using-this-site-as-an-extension-maintainer
 # * [X] Move from print to logging
-# * [ ] Upload extension
+# * [X] Upload extension
 # * [ ] Add option on the Dialog to show debug
 # * [ ] Determine the correct place to store the options saved
 # * [ ] Recommend to use a shared key to users
