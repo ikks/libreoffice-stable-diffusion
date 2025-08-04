@@ -26,13 +26,14 @@ This Extension is known to work from LibreOffice 7.4 and upwards
   the extension.
 2. Open LibreOffice, go to Tools > Extensions...
   in the Dialog push the button Add , browse and select
-  the Downloaded file `loshd.oxt`.
+  the Downloaded file `loshd.oxt`. Accept the License, Close and Restart LibreOffice.
+<img width="1366" height="768" alt="annotated01" src="https://github.com/user-attachments/assets/8b8a5996-3dc8-48eb-bea2-4522afe584ab" />
 3. Reopen LibreOffice. You should see a menu entry under `Insert`
   Menu that reads `Image from Text...` and a new colorful button
   in the toolbar to trigger the action. Additionally, you
   will have the shortcut `Ctrl+Shift+h` (Cmd+Shift+h on Mac)
   configured to launch the extension.
-
+<img width="1366" height="768" alt="annotated03" src="https://github.com/user-attachments/assets/b7d83df2-a129-460a-86c6-d8bdd7041454" />
 You are ready to
 
 ## Generate images
@@ -41,11 +42,12 @@ You are ready to
 the button toolbar, a dialog will appear allowing you
 to write a prompt and generate the image, if you don't have a
 Writer document opened, the extension will open it for you.
+<img width="1920" height="1080" alt="do1" src="https://github.com/user-attachments/assets/f4a772ff-890b-4a51-9897-7ee8b103d13d" />
 
 You can select a text, and when the macro is launched, the text
 will be used as a prompt.  The progress bar will guide you on what
 is happening; at the end of the process, an image will be inserted
-above your selected text or in the cursor position.
+before your selected text or in the cursor position.
 
 <details>
   <summary>Details on using the plugin</summary>
