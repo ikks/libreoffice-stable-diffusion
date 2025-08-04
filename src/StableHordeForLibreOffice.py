@@ -2,8 +2,6 @@
 # Igor Támara 2025
 # No Warranties, use on your own risk
 #
-# This file is part of the LibreOffice project.
-#
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -18,6 +16,7 @@
 #   except in compliance with the License. You may obtain a copy of
 #   the License at http://www.apache.org/licenses/LICENSE-2.0 .
 #
+
 import base64
 import json
 import locale
@@ -28,9 +27,12 @@ import tempfile
 import time
 import traceback
 import uno
+import unohelper
 from com.sun.star.beans import PropertyExistException
 from com.sun.star.beans import UnknownPropertyException
 from com.sun.star.beans.PropertyAttribute import TRANSIENT
+from com.sun.star.document import XEventListener
+from com.sun.star.task import XJobExecutor
 from com.sun.star.text.TextContentAnchorType import AS_CHARACTER
 from datetime import date
 from datetime import datetime
@@ -39,7 +41,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import urlopen, Request
 
 DEBUG = False
-VERSION = "0.2.1"
+VERSION = "0.3"
 
 log_file = os.path.join(tempfile.gettempdir(), "libreoffice_shotd.log")
 logging.basicConfig(
@@ -78,11 +80,12 @@ MIN_WIDTH = 384
 MIN_HEIGHT = 384
 MAX_WIDTH = 1024
 MAX_HEIGHT = 1024
+MIN_PROMPT_LENGTH = 10
 HORDE_CLIENT_NAME = "StableHordeForLibreOffice"
 
 
-onaction = "vnd.sun.star.script:stablediffusion|StableHordeForLibreOffice.py$validate_form?language=Python&location=user"
-onhelp = "vnd.sun.star.script:stablediffusion|StableHordeForLibreOffice.py$get_help?language=Python&location=user"
+# onaction = "service:org.fectp.StableHordeForLibreOffice$validate_form?language=Python"
+# onhelp = "service:org.fectp.StableHordeForLibreOffice$get_help?language=Python&location=application"
 # onmenupopup = "vnd.sun.star.script:stablediffusion|StableHordeForLibreOffice.py$popup_click?language=Python&location=user"
 
 # https://wiki.documentfoundation.org/Documentation/DevGuide/Scripting_Framework#Python_script When migrating to extension, change this one
@@ -624,8 +627,9 @@ class LibreOfficeInteraction:
                 return k
         return "new-writer"
 
-    def __init__(self):
-        self.desktop = XSCRIPTCONTEXT.getDesktop()
+    def __init__(self, desktop, context):
+        self.desktop = desktop
+        self.context = context
         self.image_insert_to = {
             "impress": self.__insert_image_in_presentation__,
             "writer": self.__insert_image_in_text__,
@@ -703,11 +707,11 @@ class LibreOfficeInteraction:
         button_cancel = dlg.CreateButton("btn_cancel", (78, 182, 49, 12), push="CANCEL")
         button_cancel.Caption = "Cancel"
         button_ok.TabIndex = 13
-        button_help = dlg.CreateButton("CommandButton1", (23, 15, 13, 10))
-        button_help.Caption = "?"
-        button_help.TipText = _("About Horde")
-        button_help.OnMouseReleased = onhelp
-        button_ok.TabIndex = 14
+        # button_help = dlg.CreateButton("CommandButton1", (23, 15, 13, 10))
+        # button_help.Caption = "?"
+        # button_help.TipText = _("About Horde")
+        # button_help.OnMouseReleased = onhelp
+        # button_ok.TabIndex = 14
 
         # Controls
         ctrl = dlg.CreateComboBox(
@@ -723,8 +727,8 @@ class LibreOfficeInteraction:
         ctrl.TabIndex = 1
         ctrl.TipText = _(
             "Let your imagination run wild or put a proper description of your desired output."
-        )
-        ctrl.OnTextChanged = onaction
+        ) + _(" Write at least 5 words or 10 characters.")
+        # ctrl.OnTextChanged = onaction
         ctrl = dlg.CreateTextField("txt_token", (155, 147, 90, 13))
         ctrl.TabIndex = 11
         ctrl.TipText = _("Get yours at https://stablehorde.net/ for free")
@@ -819,7 +823,7 @@ class LibreOfficeInteraction:
             "local_settings", {"models": MODELS}
         ).get("models")
         dlg.Controls("lst_model").Value = DEFAULT_MODEL
-        dlg.Controls("btn_ok").Enabled = len(self.selected) > 10
+        # dlg.Controls("btn_ok").Enabled = len(self.selected) > MIN_PROMPT_LENGTH
 
         dlg.Controls("int_width").Value = options.get("image_width", MIN_WIDTH)
         dlg.Controls("int_height").Value = options.get("image_height", MIN_HEIGHT)
@@ -1035,13 +1039,13 @@ def show_debugging_data(information, additional=""):
         logging.debug(f"[{ dnow }]{additional}")
 
 
-def create_image():
+def create_image(desktop=None, context=None):
     """Creates an image from a prompt provided by the user, making use
     of Stable Horde"""
 
     st_manager = Settings()
     saved_options = st_manager.load()
-    lo_manager = LibreOfficeInteraction()
+    lo_manager = LibreOfficeInteraction(desktop, context)
     sh_client = StableHordeClient(saved_options, lo_manager.base_info)
 
     show_debugging_data(lo_manager.base_info)
@@ -1050,6 +1054,10 @@ def create_image():
 
     if options is None:
         # User cancelled, nothing to be done
+        lo_manager.free()
+        return
+    elif len(options["prompt"]) < MIN_PROMPT_LENGTH:
+        lo_manager.show_error(_("Please provide a prompt at least with 5 words"))
         lo_manager.free()
         return
 
@@ -1065,19 +1073,61 @@ def create_image():
     lo_manager.free()
 
 
-g_exportedScripts = (create_image,)
+class StableHordeForLibreOffice(unohelper.Base, XJobExecutor, XEventListener):
+    """Service that creates images from text. The url to be invoked is:
+    service:org.fectp.StableHordeForLibreOffice
+    """
 
-if __name__ == "__main__":
-    create_image()
+    def trigger(self, args):
+        if args == "create_image":
+            create_image(self.desktop, self.context)
+        # if args == "validate_form":
+        #     print(dir(self))
+        # if args == "get_help":
+        #     print(dir(self))
+
+    def __init__(self, context):
+        self.context = context
+        # see https://api.libreoffice.org/docs/idl/ref/servicecom_1_1sun_1_1star_1_1frame_1_1Desktop.html
+        self.desktop = self.createUnoService("com.sun.star.frame.Desktop")
+        # see https://api.libreoffice.org/docs/idl/ref/servicecom_1_1sun_1_1star_1_1frame_1_1DispatchHelper.html
+        self.dispatchhelper = self.createUnoService("com.sun.star.frame.DispatchHelper")
+
+    def createUnoService(self, name):
+        """little helper function to create services in our context"""
+        # see https://api.libreoffice.org/docs/idl/ref/servicecom_1_1sun_1_1star_1_1lang_1_1ServiceManager.html
+        # see https://api.libreoffice.org/docs/idl/ref/interfacecom_1_1sun_1_1star_1_1lang_1_1XMultiComponentFactory.html#a77f975d2f28df6d1e136819f78a57353
+        return self.context.ServiceManager.createInstanceWithContext(name, self.context)
+
+    def disposing(self, args):
+        pass
+
+    def notifyEvent(self, args):
+        pass
+
+
+g_ImplementationHelper = unohelper.ImplementationHelper()
+g_ImplementationHelper.addImplementation(
+    StableHordeForLibreOffice,
+    "org.fectp.StableHordeForLibreOffice",
+    ("com.sun.star.task.JobExecutor",),
+)
 
 # TODO:
-#    - Determine the correct place to store the options saved
-#    - Recommend to use a shared key
+# * [X] Add to menu: Insert > Image from Text...    [xcu]
+# * [X] Toolbar: Insert Image from Text             [xcu]
+# * [X] Add shortcut                                [xcu]
+# * [X] Create extension
+# * [ ] Publish the extension
+# *  - https://extensions.libreoffice.org/en/home/using-this-site-as-an-extension-maintainer
+# * [X] Move from print to logging
+# * [ ] Upload extension
+# * [ ] Add option on the Dialog to show debug
+# * [ ] Determine the correct place to store the options saved
+# * [ ] Recommend to use a shared key to users
 # * [ ] Issue bugs for Impress with placeholdertext
 #    - Wayland transparent png
 #    - Wishlist to have right alignment for numeric control option
-# * [ ] Add to menu: Insert > Image from Text...    [xcu]
-# * [ ] Toolbar: Insert Image from Text             [xcu]
 # * [ ] Add a popup context menu: Generate Image... [programming] https://wiki.documentfoundation.org/Macros/ScriptForge/PopupMenuExample
 # * [ ] Internationalization
 #    - Menus
@@ -1085,10 +1135,6 @@ if __name__ == "__main__":
 #    - Dialog
 # * [ ] Add to Calc
 # * [ ] Add to Draw
-# * [ ] Publish the extension
-#   - https://extensions.libreoffice.org/en/home/using-this-site-as-an-extension-maintainer
-#   - Create extension
-#   - Upload extension
 # * [ ] Announce in stablehorde
 # * [ ] Port structure and model update to gimp plugin
 # * [ ] Use styles support from Horde
@@ -1099,3 +1145,6 @@ if __name__ == "__main__":
 # file:///usr/share/doc/libreoffice-dev-doc/api/
 # /usr/lib/libreoffice/share/Scripts/python/
 # /usr/lib/libreoffice/sdk/examples/html
+#
+# oxt/build && unopkg add -s -f loshd.oxt && libreoffice --writer >> /tmp/libreoffice.log
+#

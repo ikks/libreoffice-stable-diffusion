@@ -1,0 +1,34 @@
+#!/usr/bin/env python
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+import os
+import os.path
+import sys
+import shutil
+from pathlib import Path
+from zipfile import ZipFile
+
+scriptdir = os.path.dirname(os.path.abspath(sys.argv[0]))
+license_source = Path(scriptdir, "..", "LICENSE")
+license_destination = Path(scriptdir, "description", "license.txt")
+shutil.copy(license_source, license_destination)
+
+macro_source = Path(scriptdir, "..", "src", "StableHordeForLibreOffice.py")
+macro_destination = scriptdir
+shutil.copy(macro_source, macro_destination)
+
+macro_source = Path(scriptdir, "..", "docs", "README.md")
+macro_destination = Path(scriptdir, "README")
+shutil.copy(macro_source, macro_destination)
+
+extensionname = (
+    open(os.path.join(scriptdir, "extensionname.txt")).readlines()[0].rstrip("\n")
+)
+with ZipFile(extensionname, "w") as zipfile:
+    os.chdir(scriptdir)
+    for root, dirs, files in os.walk("."):
+        for name in files:
+            if not name == extensionname:
+                zipfile.write(os.path.join(root, name))

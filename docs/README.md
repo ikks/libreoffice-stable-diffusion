@@ -1,61 +1,46 @@
 # libreoffice-stable-diffusion-horde
 
-This repository includes a
-[LibreOffice](https://libreoffice.org) plugin to make use of
-[StableHorde](https://stablehorde.net). Stablehorde is a cluster
-of stable-diffusion servers run by volunteers. You can create
-stable-diffusion images for free without running a colab notebook
-or a local server. Please check the section "Limitations" to better
-understand where the limits are.
+Creating images from text. That is what this extension for
+[LibreOffice](https://libreoffice.org) does. Making use of
+[StableHorde](https://stablehorde.net).
+
+Stablehorde is a cluster of stable-diffusion servers run by
+volunteers. You can create stable-diffusion images for free without
+running a colab notebook or a local server. Please check the section
+[Limitations](README#Limitations) to better understand where the
+limits are.
 
 Please check [CHANGELOG.md](../CHANGELOG.md) for the latest
 changes.
 
 ## Installation
-### Download the macro
+### Download the extension 
 
-Download [StableHordeForLibreOffice.py](https://raw.githubusercontent.com/ikks/libreoffice-stable-diffusion/refs/heads/main/src/StableHordeForLibreOffice.py).
+Download [loshd.oxt](https://raw.githubusercontent.com/ikks/libreoffice-stable-diffusion/refs/heads/main/loshd.oxt).
 
 ### LibreOffice
 
-This Macro is known to work from LibreOffice 7.4 and upwards
+This Extension is known to work from LibreOffice 7.4 and upwards
 
-1. [Download](https://raw.githubusercontent.com/ikks/libreoffice-stable-diffusion/refs/heads/main/src/StableHordeForLibreOffice.py)
-  the macro
-2. Copy the downloaded file `StableHordeLibreOffice.py` to
-  your LibreOffice .config directory
-  `libreoffice/4/user/Scripts/python/stablediffusion`.  If you
-  are in doubt about where is your .config directory go to
-  Tools -> Options... | LibreOffice > Paths to find yours.
-  For each Operating System is different:
-    * C:\Users\username... for Windows
-    * /home/username... for Linux
-    * /Users/username... for Mac.
-<img width="1920" height="1080" alt="determinepath" src="https://github.com/user-attachments/assets/08c5ce95-4171-4d4c-9a5b-491d4874f92b" />
+1. Once you [Downloaded](https://raw.githubusercontent.com/ikks/libreoffice-stable-diffusion/refs/heads/main/src/loshd.oxt)
+  the extension.
+2. Open LibreOffice, go to Tools > Extensions...
+  in the Dialog push the button Add , browse and select
+  the Downloaded file `loshd.oxt`.
+3. Reopen LibreOffice. You should see a menu entry under `Insert`
+  Menu that reads `Image from Text...` and a new colorful button
+  in the toolbar to trigger the action. Additionally, you
+  will have the shortcut `Ctrl+Shift+h` (Cmd+Shift+h on Mac)
+  configured to launch the extension.
 
-3. Reopen LibreOffice.
-4. Invoke the macro going to Tools -> Macros -> Run Macro... |
-  My Macros > stablediffusion > StableHordeForLibreOffice ->
-  create_image and push Run button.
-<img width="1920" height="1080" alt="runmacro" src="https://github.com/user-attachments/assets/5e344742-eae3-4647-b0d6-c1876e911c24" />
-5. Optionally add a shortcut going to Tools -> Customize... |
-  1. Tab Keyboard,
-  2. on Category > Application Macros > My Macros >
-    stablediffusion > StableHordeForLibreOffice
-  3. Select Function | create_image
-  4. On Shortcuts Keys select your preferred combination, for
-    example Ctrl+Shift+h and push the Button `Assign` and
-    finally `OK`.
-<img width="1920" height="1080" alt="shortcut" src="https://github.com/user-attachments/assets/518ccb75-81a3-4698-8dc4-1fb5611d5e58" />
-
+You are ready to
 
 ## Generate images
 
-Now we are ready for generating images.
-
-1. Launch the macro and run it, a dialog will appear allowing you
+1. Launch the extension with `Ctrl+Shift+h`, the menu or
+the button toolbar, a dialog will appear allowing you
 to write a prompt and generate the image, if you don't have a
-Writer document opened, the macro will open it for you.
+Writer document opened, the extension will open it for you.
 
 You can select a text, and when the macro is launched, the text
 will be used as a prompt.  The progress bar will guide you on what
@@ -136,10 +121,12 @@ inpainting consider the
 
 ##### macOS/Linux
 
+## Known Issues
+
 ## FAQ
 
 **How do I report an error or request a new feature?** Please open
-a new issue in this repository.
+a new issue [here](). If you have questions, head to []().
 
 ## Internals
 

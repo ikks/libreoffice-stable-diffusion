@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<description xmlns="http://openoffice.org/extensions/description/2006" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <version value="0.3"/>
+    <identifier value="org.fectp.StableHordeForLibreOffice"/>
+    <icon>
+        <default xlink:href="description/extensionicon_42.png" />
+    </icon>
+    <display-name>
+        <name>Stable Horde Client for LibreOffice</name>
+    </display-name>
+    <extension-description>
+        <src xlink:href="description/description_en.txt"/>
+    </extension-description>
+    <dependencies xmlns:lo="http://libreoffice.org/extensions/description/2011">
+        <lo:LibreOffice-minimal-version xmlns:d="http://openoffice.org/extensions/description/2006" d:name="LibreOffice 7.4" value="7.4"/>
+    </dependencies>
+    <publisher>
+        <name xlink:href="https://github.com/ikks">Igor Támara</name>
+    </publisher>
+    <registration>
+        <simple-license accept-by="admin" >
+            <license-text xlink:href="description/license.txt" />
+        </simple-license>
+    </registration>
+</description>
