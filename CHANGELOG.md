@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 This project is [semver](https://semver.org/) based
 
+## [0.3.1] - Bugfix that prevented using Windows, Mac and Older Python Version
+
+
 ## [0.3] - Converted macro to extension
 
 ### Added

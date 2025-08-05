@@ -36,12 +36,13 @@ from com.sun.star.task import XJobExecutor
 from com.sun.star.text.TextContentAnchorType import AS_CHARACTER
 from datetime import date
 from datetime import datetime
+from pathlib import Path
 from scriptforge import CreateScriptService
 from urllib.error import HTTPError, URLError
 from urllib.request import urlopen, Request
 
 DEBUG = False
-VERSION = "0.3"
+VERSION = "0.3.1"
 
 log_file = os.path.join(tempfile.gettempdir(), "libreoffice_shotd.log")
 logging.basicConfig(
@@ -830,7 +831,7 @@ class LibreOfficeInteraction:
         dlg.Controls("int_width").Value = options.get("image_width", MIN_WIDTH)
         dlg.Controls("int_height").Value = options.get("image_height", MIN_HEIGHT)
         dlg.Controls("lst_model").Value = options.get("model", DEFAULT_MODEL)
-        dlg.Controls("int_strength").Value = options.get("prompt_strength", 0.3)
+        dlg.Controls("int_strength").Value = options.get("prompt_strength", 6.3)
         dlg.Controls("int_steps").Value = options.get("steps", 25)
         dlg.Controls("bool_nsfw").Value = options.get("nsfw", 0)
         dlg.Controls("bool_censure").Value = options.get("censor_nsfw", 1)
@@ -950,7 +951,7 @@ class LibreOfficeInteraction:
 
         added_image.setPropertyValue("Title", "Stable Horde Generated Image")
         added_image.setPropertyValue(
-            "Description", f"{ self.options["prompt"] } by { self.options["model"] }"
+            "Description", self.options["prompt"] + " by " + self.options["model"]
         )
         added_image.Visible = True
         self.model.Modified = True
@@ -999,16 +1000,32 @@ class LibreOfficeInteraction:
         except PropertyExistException:
             self.userProps.setPropertyValue(property_name, str_value)
 
+    def path_store_directory(self) -> str:
+        """
+        Returns the basepath for the directory offered by the frontend
+        to store data for the plugin, cache and user settings
+        """
+        # https://api.libreoffice.org/docs/idl/ref/servicecom_1_1sun_1_1star_1_1util_1_1PathSubstitution.html
+
+        create_service = self.context.ServiceManager.createInstance
+        path_finder = create_service("com.sun.star.util.PathSubstitution")
+
+        config_url = path_finder.substituteVariables("$(user)/config", True)
+        config_path = uno.fileUrlToSystemPath(config_url)
+        return Path(config_path)
+
 
 class Settings:
     """
     Store and load settings
     """
 
-    def __init__(self):
-        self.base_directory = "/tmp"
+    def __init__(self, base_directory: Path = None):
+        if base_directory is None:
+            base_directory = tempfile.gettempdir()
+        self.base_directory = base_directory
         self.settingsfile = "stablehordesettings.json"
-        self.file = self.base_directory + "/" + self.settingsfile
+        self.file = base_directory / self.settingsfile
 
     def load(self) -> json:
         if not os.path.exists(self.file):
@@ -1045,9 +1062,9 @@ def create_image(desktop=None, context=None):
     """Creates an image from a prompt provided by the user, making use
     of Stable Horde"""
 
-    st_manager = Settings()
-    saved_options = st_manager.load()
     lo_manager = LibreOfficeInteraction(desktop, context)
+    st_manager = Settings(lo_manager.path_store_directory())
+    saved_options = st_manager.load()
     sh_client = StableHordeClient(saved_options, lo_manager.base_info)
 
     show_debugging_data(lo_manager.base_info)

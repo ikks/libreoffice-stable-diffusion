@@ -1,7 +1,7 @@
 {
-  "version": "0.3",
+  "version": "0.3.1",
   "message": {
-    "en": "We have a new version. Now as extension, please read the installation process",
-    "es": "Descarga la versión más reciente. Ahora como extensión, por favor lee las instrucciones para instalar"
+    "en": "We have a new version. Check it out",
+    "es": "Descarga la versión más reciente. Descárgala ahora"
   }
 }
