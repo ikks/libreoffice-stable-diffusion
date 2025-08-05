@@ -125,6 +125,11 @@ inpainting consider the
 
 ## Known Issues
 
+### On impress when the image is added, a placeholder is shown
+
+To overcome this, create the image from writer and paste it in impress.
+A [bug was filled](https://bugs.documentfoundation.org/show_bug.cgi?id=167809).
+
 ## FAQ
 
 **How do I report an error or request a new feature?** Please open

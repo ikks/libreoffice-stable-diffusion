@@ -42,8 +42,8 @@ from scriptforge import CreateScriptService
 from urllib.error import HTTPError, URLError
 from urllib.request import urlopen, Request
 
-DEBUG = False
-VERSION = "0.3.1"
+DEBUG = True
+VERSION = "0.4"
 
 log_file = os.path.join(tempfile.gettempdir(), "libreoffice_shotd.log")
 logging.basicConfig(
@@ -54,14 +54,13 @@ logging.basicConfig(
 
 HELP_URL = "https://aihorde.net/faq"
 """
-Help url for the macro
+Help url for the extension
 """
 
-API_ROOT = "https://stablehorde.net/api/v2/"
-
-REGISTER_URL = "https://aihorde.net/register"
-
 URL_VERSION_UPDATE = "https://raw.githubusercontent.com/ikks/libreoffice-stable-diffusion/main/version.json"
+"""
+Latest version for the extension
+"""
 
 URL_DOWNLOAD = (
     "https://github.com/ikks/libreoffice-stable-diffusion/blob/main/loshd.oxt"
@@ -70,31 +69,18 @@ URL_DOWNLOAD = (
 Download URL for libreoffice-stable-diffusion
 """
 
-ANONYMOUS = "0000000000"
-
-# check model updates
-MAX_DAYS_MODEL_UPDATE = 5
-MAX_MODELS_LIST = 50
-DEFAULT_MODEL = "stable_diffusion"
-
-# check between 5 and 15 seconds
-CHECK_WAIT = 5
-MAX_TIME_REFRESH = 15
-MIN_WIDTH = 384
-MIN_HEIGHT = 384
-MAX_WIDTH = 1024
-MAX_HEIGHT = 1024
-MIN_PROMPT_LENGTH = 10
 HORDE_CLIENT_NAME = "StableHordeForLibreOffice"
-
+"""
+Name of the client sent to API
+"""
 
 # onaction = "service:org.fectp.StableHordeForLibreOffice$validate_form?language=Python"
 # onhelp = "service:org.fectp.StableHordeForLibreOffice$get_help?language=Python&location=application"
 # onmenupopup = "vnd.sun.star.script:stablediffusion|StableHordeForLibreOffice.py$popup_click?language=Python&location=user"
-
 # https://wiki.documentfoundation.org/Documentation/DevGuide/Scripting_Framework#Python_script When migrating to extension, change this one
 
 ######## Fix this
+# https://help.libreoffice.org/latest/en-US/text/sbasic/shared/03/sf_l10n.html?DbPAR=BASIC
 import gettext  # noqa: E402
 
 gettext.bindtextdomain("StableHordeForLibreOffice", "/path/to/my/language/directory")
@@ -102,63 +88,18 @@ gettext.textdomain("StableHordeForLibreOffice")
 _ = gettext.gettext
 ########
 
-MODELS = [
-    "AbsoluteReality",
-    "AlbedoBase XL (SDXL)",
-    "AlbedoBase XL 3.1",
-    "AMPonyXL",
-    "Analog Madness",
-    "Anything Diffusion",
-    "Babes",
-    "BB95 Furry Mix",
-    "BB95 Furry Mix v14",
-    "BlenderMix Pony",
-    "Counterfeit",
-    "CyberRealistic Pony",
-    "Deliberate",
-    "Deliberate 3.0",
-    "Dreamshaper",
-    "DreamShaper XL",
-    "DucHaiten GameArt (Unreal) Pony",
-    "Flux.1-Schnell fp8 (Compact)",
-    "Fustercluck",
-    "Hassaku XL",
-    "HolyMix ILXL",
-    "ICBINP - I Can't Believe It's Not Photography",
-    "ICBINP XL",
-    "Juggernaut XL",
-    "KaynegIllustriousXL",
-    "majicMIX realistic",
-    "NatViS",
-    "noobEvo",
-    "Nova Anime XL",
-    "Nova Furry Pony",
-    "NTR MIX IL-Noob XL",
-    "Pony Diffusion XL",
-    "Pony Realism",
-    "Prefect Pony",
-    "Realistic Vision",
-    "SDXL 1.0",
-    "Stable Cascade 1.0",
-    "stable_diffusion",
-    "SwamPonyXL",
-    "TUNIX Pony",
-    "Unstable Diffusers XL",
-    "WAI-ANI-NSFW-PONYXL",
-    "WAI-CUTE Pony",
-    "waifu_diffusion",
-    "White Pony Diffusion 4",
-    "Yiffy",
-    "ZavyChromaXL",
-]
-"""
-Initial list of models, new ones are downloaded from StableHorde API
-"""
+API_ROOT = "https://stablehorde.net/api/v2/"
+
+REGISTER_STABLE_HORDE_URL = "https://aihorde.net/register"
 
 
 class InformerFrontendInterface(metaclass=abc.ABCMeta):
     """
-    Adds interaction between HordeClient and Frontend Application
+    Implementing this interface for an application frontend
+    gives StableHordeClient a way to inform progress.  It's
+    expected that StableHordeClient receives as parameter
+    an instance of this Interface to be able to send messages
+    and updates to the user.
     """
 
     @classmethod
@@ -176,6 +117,8 @@ class InformerFrontendInterface(metaclass=abc.ABCMeta):
             and callable(subclass.set_frontend_property)
             and hasattr(subclass, "set_finished")
             and callable(subclass.set_finished)
+            and hasattr(subclass, "path_store_directory")
+            and callable(subclass.path_store_directory)
             or NotImplemented
         )
 
@@ -233,6 +176,14 @@ class InformerFrontendInterface(metaclass=abc.ABCMeta):
         """
         raise NotImplementedError
 
+    @abc.abstractclassmethod
+    def path_store_directory(self) -> str:
+        """
+        Returns the basepath for the directory offered by the frontend
+        to store data for the plugin, cache and user settings
+        """
+        raise NotImplementedError
+
 
 class IdentifiedError(Exception):
     """
@@ -252,6 +203,45 @@ class IdentifiedError(Exception):
         return self.message
 
 
+ANONYMOUS = "0000000000"
+"""
+api_key for anonymous users
+"""
+
+DEFAULT_MODEL = "stable_diffusion"
+"""
+Model that is always present for image generation
+"""
+
+MIN_WIDTH = 384
+MAX_WIDTH = 1024
+MIN_HEIGHT = 384
+MAX_HEIGHT = 1024
+MIN_PROMPT_LENGTH = 10
+"""
+It's  needed that the user writes down something to create an image from
+"""
+
+MODELS = [
+    "majicMIX realistic",
+    "NatViS",
+    "noobEvo",
+    "Nova Anime XL",
+    "Nova Furry Pony",
+    "NTR MIX IL-Noob XL",
+    "Pony Diffusion XL",
+    "Pony Realism",
+    "Prefect Pony",
+    "Realistic Vision",
+    "SDXL 1.0",
+    "Stable Cascade 1.0",
+    "stable_diffusion",
+]
+"""
+Initial list of models, new ones are downloaded from StableHorde API
+"""
+
+
 class StableHordeClient:
     """
     Interaction with Stable Horde platform, currently supports:
@@ -264,10 +254,45 @@ class StableHordeClient:
         settings -- configured in the constructor and later updated
     """
 
+    # check model updates
+    MAX_DAYS_MODEL_UPDATE = 5
+    """
+    We check at least this number of days for new models
+    """
+
+    MAX_MODELS_LIST = 50
+    """
+    Max Number of models to be presented to the user
+    """
+
+    CHECK_WAIT = 5
+    """
+    Number of seconds to wait before checking again if the image is generated
+    """
+
+    MAX_TIME_REFRESH = 15
+    """
+    If we are in a queue waiting, this is the max time in seconds before asking
+    if we are still in queue
+    """
+
     def __init__(
-        self, settings: json = {"api_key": ANONYMOUS}, platform: str = HORDE_CLIENT_NAME
+        self,
+        settings: json = None,
+        platform: str = HORDE_CLIENT_NAME,
+        informer: InformerFrontendInterface = None,
     ):
-        self.settings: json = settings
+        """
+        Creates a Stable Horde client with the settings, if None, the API_KEY is
+        set to ANONYMOUS, the name to identify the client to Stable Horde and
+        a reference of an obect that allows the client to send messages to the
+        user.
+        """
+        if settings is None:
+            self.settings = {"api_key": ANONYMOUS}
+        else:
+            self.settings: json = settings
+
         self.api_key: str = self.settings["api_key"]
         self.client_name: str = platform
         self.headers: json = {
@@ -276,21 +301,21 @@ class StableHordeClient:
             "apikey": self.api_key,
             "Client-Agent": self.client_name,
         }
-        self.informer: InformerFrontendInterface = None
-        self.progress = 0.0
-        self.progress_text = "Starting"
+        self.informer = informer
+        self.progress: float = 0.0
+        self.progress_text: str = _("Starting")
         self.scheduler = sched.scheduler(time.time, time.sleep)
         self.warnings: list[json] = []
         show_debugging_data(self.headers)
 
-    def url_open(self, url, timeout=10):
-        def __url_open__():
+    def __url_open__(self, url: str, timeout: float = 10):
+        def real_url_open():
             with urlopen(url, timeout=timeout) as response:
                 self.response_data = json.loads(response.read().decode("utf-8"))
 
         for i in range(3):
-            self.scheduler.enter(i, 1, self.inform_progress, ())
-        self.scheduler.enter(0.1, 2, __url_open__, ())
+            self.scheduler.enter(i, 1, self.__inform_progress__, ())
+        self.scheduler.enter(0.1, 2, real_url_open, ())
         self.scheduler.run()
 
     def refresh_models(self):
@@ -306,7 +331,7 @@ class StableHordeClient:
             today - date(*[int(i) for i in previous_update.split("-")])
         ).days
 
-        if days_updated < MAX_DAYS_MODEL_UPDATE:
+        if days_updated < StableHordeClient.MAX_DAYS_MODEL_UPDATE:
             show_debugging_data(f"No need to update models {previous_update}")
             return
 
@@ -318,15 +343,15 @@ class StableHordeClient:
         self.headers["X-Fields"] = "month"
 
         self.progress_text = _("Updating models")
-        self.inform_progress()
+        self.__inform_progress__()
         try:
-            self.url_open(url)
+            self.__url_open__(url)
             del self.headers["X-Fields"]
         except (HTTPError, URLError):
             message = _(
                 "Tried to get the latest models, check your Internet connection"
             )
-            self.informer.show_error(f"'{ message }'.")
+            self.informer.show_error(message)
             return
         except TimeoutError:
             show_debugging_data("Failed updating models due to timeout")
@@ -337,7 +362,7 @@ class StableHordeClient:
             [(key, val) for key, val in self.response_data["month"].items()],
             key=lambda c: c[1],
             reverse=True,
-        )[:MAX_MODELS_LIST]
+        )[: StableHordeClient.MAX_MODELS_LIST]
 
         fetched_models = [model[0] for model in popular_models]
         if DEFAULT_MODEL not in fetched_models:
@@ -348,7 +373,11 @@ class StableHordeClient:
             if new_models:
                 show_debugging_data(f"New models {new_models}")
                 locals["models"] = sorted(fetched_models, key=lambda c: c.upper())
-                message = "We have new models:\n * " + "\n * ".join(new_models)
+                if len(new_models) == 1:
+                    message = _("We have a new model:\n\n * ") + new_models[0]
+                else:
+                    message = _("We have new models:\n * ") + "\n * ".join(new_models)
+
                 self.informer.show_message(message)
 
         self.settings["local_settings"] = locals
@@ -368,7 +397,9 @@ class StableHordeClient:
 
     def check_update(self) -> str:
         """
-        Inform the user regarding a plugin update
+        Inform the user regarding a plugin update. Returns "" if the version
+        reported is the latest one. Else the localized message, defaulting to
+        english if there is no locale for the message.
         """
         already_asked = self.informer.get_frontend_property(
             "stable_horde_checked_update"
@@ -400,14 +431,16 @@ class StableHordeClient:
 
     def get_balance(self) -> str:
         """
-        Given an Stable Horde token, returns the balance for the account
+        Given an Stable Horde token, present in the attribute api_key,
+        returns the balance for the account. If happens to be an
+        anonymous account, invites to register
         """
         if self.api_key == ANONYMOUS:
-            return _("Register at ") + REGISTER_URL
+            return _("Register at ") + REGISTER_STABLE_HORDE_URL
         url = API_ROOT + "find_user"
         request = Request(url, headers=self.headers)
         try:
-            self.url_open(request, timeout=15)
+            self.__url_open__(request, timeout=15)
             data = self.response_data
             show_debugging_data(data)
         except HTTPError as ex:
@@ -415,13 +448,27 @@ class StableHordeClient:
 
         return f"\n\nYou have { data['kudos'] } kudos"
 
-    def generate_image(self, options: json, informer) -> str:
+    def generate_image(self, options: json) -> str:
+        """
+        options have been prefilled for the selected model
+        informer will be acknowledged on the process via show_progress
+        Executes the flow to get an image from Stable Horde
+
+        1. Invokes endpoint to launch a work for image generation
+        2. Reviews the status of the work
+        3. Waits until the max_wait_minutes for the generation of the image
+        4. Retrieves the image and returns the local path of the downloaded image
+
+        When no success, returns "".  raises exceptions, but tries to offer
+        helpful messages
+        """
         self.settings.update(options)
         self.api_key = options["api_key"]
         self.headers["apikey"] = self.api_key
-        self.informer = informer
         self.check_counter = 1
-        self.check_max = (options["max_wait_minutes"] * 60) / CHECK_WAIT
+        self.check_max = (
+            options["max_wait_minutes"] * 60
+        ) / StableHordeClient.CHECK_WAIT
         # Id assigned when requesting the generation of an image
         self.id = ""
 
@@ -448,7 +495,7 @@ class StableHordeClient:
             }
 
             if options["image_width"] % 64 != 0:
-                width = int(options["simage_width"] / 64) * 64
+                width = int(options["image_width"] / 64) * 64
             else:
                 width = options["image_width"]
 
@@ -470,16 +517,16 @@ class StableHordeClient:
             request = Request(url, headers=self.headers, data=post_data)
             try:
                 show_debugging_data(data_to_send)
-                self.inform_progress()
-                self.url_open(request, timeout=15)
+                self.__inform_progress__()
+                self.__url_open__(request, timeout=15)
                 data = self.response_data
                 show_debugging_data(data)
                 if "warnings" in data:
                     self.warnings = data["warnings"]
-                text = "Horde Contacted"
+                text = _("Horde Contacted")
                 show_debugging_data(text + f" {self.check_counter} { self.progress }")
                 self.progress_text = text
-                self.inform_progress()
+                self.__inform_progress__()
                 self.id = data["id"]
             except HTTPError as ex:
                 try:
@@ -490,7 +537,7 @@ class StableHordeClient:
                         if self.api_key == ANONYMOUS:
                             message = (
                                 _(
-                                    f"Register at { REGISTER_URL } and use your key to improve your rate success. Detail:"
+                                    f"Register at { REGISTER_STABLE_HORDE_URL } and use your key to improve your rate success. Detail:"
                                 )
                                 + f" { message }."
                             )
@@ -504,25 +551,27 @@ class StableHordeClient:
                     show_debugging_data(ex2, "No way to recover error msg")
                     message = str(ex)
                 show_debugging_data(message, data)
-                if self.api_key == ANONYMOUS and REGISTER_URL in message:
-                    informer.show_error(f"{ message }", url=REGISTER_URL)
+                if self.api_key == ANONYMOUS and REGISTER_STABLE_HORDE_URL in message:
+                    self.informer.show_error(
+                        f"{ message }", url=REGISTER_STABLE_HORDE_URL
+                    )
                 else:
-                    informer.show_error(f"{ message }")
+                    self.informer.show_error(f"{ message }")
                 return ""
             except URLError as ex:
                 show_debugging_data(ex, data)
-                informer.show_error(
+                self.informer.show_error(
                     _("Internet required, chek your connection: ") + f"'{ ex }'."
                 )
                 return ""
             except Exception as ex:
                 show_debugging_data(ex)
-                informer.show_error(f"{ ex }")
+                self.informer.show_error(str(ex))
                 return ""
 
-            self.check_status()
-            images = self.get_images()
-            image_name = self.get_image_filename(images, options["model"])
+            self.__check_status__()
+            images = self.__get_images__()
+            image_name = self.__get_image_filename__(images, options["model"])
 
         except HTTPError as ex:
             try:
@@ -534,32 +583,34 @@ class StableHordeClient:
                 show_debugging_data(ex3)
                 message = str(ex)
             show_debugging_data(ex, data)
-            informer.show_error(_(f"Stablehorde said: '{ message }'."))
+            self.informer.show_error(_("Stablehorde said: ") + f"'{ message }'.")
             return ""
         except URLError as ex:
             show_debugging_data(ex, data)
-            informer.show_error(
-                _(f"Internet required, check your connection: '{ ex }'.")
-            )
+            self.informer.show_error(_("Internet required, check your connection"))
             return ""
         except IdentifiedError as ex:
             if ex.url:
-                informer.show_error(str(ex), url=ex.url)
+                self.informer.show_error(str(ex), url=ex.url)
             else:
-                informer.show_error(str(ex))
+                self.informer.show_error(str(ex))
             return ""
         except Exception as ex:
             show_debugging_data(ex)
-            informer.show_error(_(f"Service failed with: '{ ex }'."))
+            self.informer.show_error(_("Service failed with: ") + f"'{ ex }'.")
             return ""
         finally:
             message = self.check_update()
             if message:
-                informer.show_message(message, url=URL_DOWNLOAD)
+                self.informer.show_message(message, url=URL_DOWNLOAD)
 
         return image_name
 
-    def inform_progress(self):
+    def __inform_progress__(self):
+        """
+        Reports to informer the progress updating the attribute progress
+        with the percentage elapsed time since the job started
+        """
         progress = 100 - (int(self.max_time - datetime.now().timestamp()) * self.factor)
 
         show_debugging_data(f"{progress} {self.progress_text}")
@@ -568,11 +619,17 @@ class StableHordeClient:
             self.informer.update_status(self.progress_text, progress)
             self.progress = progress
 
-    def check_status(self):
+    def __check_status__(self):
+        """
+        Queries Stable horde API to check if the requested image has been generated
+        and continues iterating until the time admissible by the user is reached
+        or there is no hope to get the image generated in time.  Continues the flow
+        to download the image.
+        """
         url = f"{ API_ROOT }generate/check/{ self.id }"
 
-        self.inform_progress()
-        self.url_open(url)
+        self.__inform_progress__()
+        self.__url_open__(url)
         data = self.response_data
 
         show_debugging_data(data)
@@ -593,12 +650,12 @@ class StableHordeClient:
                 if self.api_key == ANONYMOUS:
                     message = (
                         _("Get an Api key for free at ")
-                        + REGISTER_URL
+                        + REGISTER_STABLE_HORDE_URL
                         + _(
                             ".\n This model takes more time than your current configuration."
                         )
                     )
-                    raise IdentifiedError(message, url=REGISTER_URL)
+                    raise IdentifiedError(message, url=REGISTER_STABLE_HORDE_URL)
                 else:
                     message = (
                         _("Please try with other model,")
@@ -609,11 +666,12 @@ class StableHordeClient:
 
             if data["is_possible"] is True:
                 wait_time = min(
-                    max(CHECK_WAIT, int(data["wait_time"] / 2)), MAX_TIME_REFRESH
+                    max(StableHordeClient.CHECK_WAIT, int(data["wait_time"] / 2)),
+                    StableHordeClient.MAX_TIME_REFRESH,
                 )
                 for i in range(1, wait_time + 3):
-                    self.scheduler.enter(i, 1, self.inform_progress, ())
-                self.scheduler.enter(wait_time, 2, self.check_status, ())
+                    self.scheduler.enter(i, 1, self.__inform_progress__, ())
+                self.scheduler.enter(wait_time, 2, self.__check_status__, ())
                 self.scheduler.run()
             else:
                 show_debugging_data(data)
@@ -623,7 +681,7 @@ class StableHordeClient:
                     )
                 )
         elif self.check_counter >= self.check_max:
-            minutes = (self.check_max * CHECK_WAIT) / 60
+            minutes = (self.check_max * StableHordeClient.CHECK_WAIT) / 60
             show_debugging_data(data)
             raise IdentifiedError(
                 _(f"Image generation timed out after { minutes } minutes.")
@@ -631,20 +689,28 @@ class StableHordeClient:
             )
         elif data["done"]:
             self.progress_text = _("Downloading generated image")
-            self.inform_progress()
+            self.__inform_progress__()
             return
 
-    def get_images(self):
+    def __get_images__(self):
+        """
+        At this stage Stable horde has generated the images and it's time
+        to download them all.
+        """
         url = f"{ API_ROOT }generate/status/{ self.id }"
         self.progress_text = _("fetching images")
-        self.inform_progress()
-        self.url_open(url)
+        self.__inform_progress__()
+        self.__url_open__(url)
         data = self.response_data
         show_debugging_data(data)
 
         return data["generations"]
 
-    def get_image_filename(self, images, model):
+    def __get_image_filename__(self, images, model):
+        """
+        Downloads the generated images and returns the full path of the
+        downloaded images.
+        """
         show_debugging_data("Start to download generated images")
         with tempfile.NamedTemporaryFile(
             "wb+", delete=False, suffix=".webp"
@@ -652,18 +718,18 @@ class StableHordeClient:
             for image in images:
                 if image["img"].startswith("https"):
                     self.progress_text = _("Downloading image")
-                    self.inform_progress()
+                    self.__inform_progress__()
                     with urlopen(image["img"]) as response:
                         bytes = response.read()
                 else:
                     bytes = base64.b64decode(image["img"])
 
-                show_debugging_data(f"dumping to { generated_file.name }")
+                show_debugging_data(f"Dumping to { generated_file.name }")
 
                 generated_file.write(bytes)
             if self.warnings:
                 message = _(
-                    "Maybe you need to change some parameters to generate succesfully an image. Horde said:\n"
+                    "Maybe you need to change some parameters to generate succesfully an image. Horde said:\n * "
                 ) + "\n * ".join([i["message"] for i in self.warnings])
                 show_debugging_data(self.warnings)
                 self.informer.show_error(message)
@@ -673,9 +739,16 @@ class StableHordeClient:
         return ""
 
     def get_settings(self) -> json:
+        """
+        Returns the stored settings
+        """
         return self.settings
 
     def set_settings(self, settings: json):
+        """
+        Sets the settings, useful when fetching from a file or updating
+        based on user selection.
+        """
         self.settings = settings
 
 
@@ -704,7 +777,7 @@ def popup_click(poEvent: uno = None):
         return
     my_popup = CreateScriptService("SFWidgets.PopupMenu", poEvent)
 
-    my_popup.AddItem("Generate Image")
+    my_popup.AddItem(_("Generate Image"))
     # Populate popupmenu with items
     response = my_popup.Execute()
     show_debugging_data(response)
@@ -775,7 +848,7 @@ class LibreOfficeInteraction(InformerFrontendInterface):
         dlg = CreateScriptService(
             "NewDialog", "StableHordeOptionsDialog", (47, 10, 265, 206)
         )
-        dlg.Caption = "Stable Horde - " + VERSION
+        dlg.Caption = _("Stable Horde for LibreOffice - ") + VERSION
         dlg.CreateGroupBox("framebox", (16, 11, 236, 163))
         # Labels
         lbl = dlg.CreateFixedText("label_prompt", (29, 31, 39, 13))
@@ -799,10 +872,10 @@ class LibreOfficeInteraction(InformerFrontendInterface):
 
         # Buttons
         button_ok = dlg.CreateButton("btn_ok", (145, 182, 45, 13), push="OK")
-        button_ok.Caption = "Process"
+        button_ok.Caption = _("Process")
         button_ok.TabIndex = 12
         button_cancel = dlg.CreateButton("btn_cancel", (78, 182, 49, 12), push="CANCEL")
-        button_cancel.Caption = "Cancel"
+        button_cancel.Caption = _("Cancel")
         button_ok.TabIndex = 13
         # button_help = dlg.CreateButton("CommandButton1", (23, 15, 13, 10))
         # button_help.Caption = "?"
@@ -898,14 +971,14 @@ class LibreOfficeInteraction(InformerFrontendInterface):
             "In minutes. Depends on your patience and your kudos.  You'll get a complain message if timeout is reached"
         )
         ctrl = dlg.CreateCheckBox("bool_nsfw", (29, 130, 30, 10))
-        ctrl.Caption = "NSFW"
+        ctrl.Caption = _("NSFW")
         ctrl.TabIndex = 7
         ctrl.TipText = _(
             "If not marked, it's faster, when marked you are on the edge..."
         )
 
         ctrl = dlg.CreateCheckBox("bool_censure", (29, 145, 30, 10))
-        ctrl.Caption = "Censor NSFW"
+        ctrl.Caption = _("Censor NSFW")
         ctrl.TipText = _("Allow if you want to avoid unexpected images...")
         ctrl.TabIndex = 8
 
@@ -1058,9 +1131,9 @@ class LibreOfficeInteraction(InformerFrontendInterface):
         added_image.PlaceholderText = ""
         added_image.setPropertyValue("PlaceholderText", "")
 
-        added_image.setPropertyValue("Title", "Stable Horde Generated Image")
+        added_image.setPropertyValue("Title", _("Stable Horde Generated Image"))
         added_image.setPropertyValue(
-            "Description", self.options["prompt"] + " by " + self.options["model"]
+            "Description", self.options["prompt"] + _(" by ") + self.options["model"]
         )
         added_image.Visible = True
         self.model.Modified = True
@@ -1081,7 +1154,7 @@ class LibreOfficeInteraction(InformerFrontendInterface):
 
         ctrllr = self.model.CurrentController
         curview = ctrllr.ViewCursor
-        curview.String = f'{ self.options["prompt"] }  by  { self.options["model"] }'
+        curview.String = self.options["prompt"] + _(" by ") + self.options["model"]
         self.doc.Text.insertTextContent(curview, image, False)
         os.unlink(img_path)
 
@@ -1132,7 +1205,7 @@ class LibreOfficeInteraction(InformerFrontendInterface):
         return Path(config_path)
 
 
-class Settings:
+class HordeClientSettings:
     """
     Store and load settings
     """
@@ -1180,9 +1253,9 @@ def create_image(desktop=None, context=None):
     of Stable Horde"""
 
     lo_manager = LibreOfficeInteraction(desktop, context)
-    st_manager = Settings(lo_manager.path_store_directory())
+    st_manager = HordeClientSettings(lo_manager.path_store_directory())
     saved_options = st_manager.load()
-    sh_client = StableHordeClient(saved_options, lo_manager.base_info)
+    sh_client = StableHordeClient(saved_options, lo_manager.base_info, lo_manager)
 
     show_debugging_data(lo_manager.base_info)
 
@@ -1198,7 +1271,7 @@ def create_image(desktop=None, context=None):
         return
 
     show_debugging_data(options)
-    image_path = sh_client.generate_image(options, lo_manager)
+    image_path = sh_client.generate_image(options)
 
     if image_path:
         lo_manager.insert_image(
@@ -1250,32 +1323,30 @@ g_ImplementationHelper.addImplementation(
 )
 
 # TODO:
-# * [X] Add to menu: Insert > Image from Text...    [xcu]
-# * [X] Toolbar: Insert Image from Text             [xcu]
-# * [X] Add shortcut                                [xcu]
-# * [X] Create extension
-# * [ ] Publish the extension
-# *  - https://extensions.libreoffice.org/en/home/using-this-site-as-an-extension-maintainer
-# * [X] Move from print to logging
-# * [X] Upload extension
 # * [ ] Add option on the Dialog to show debug
-# * [ ] Determine the correct place to store the options saved
+# * [X] Issue bugs for Impress with placeholdertext bug 167809
+# * [ ] Wayland transparent png - Not being reproduced...
+# * [ ] Wishlist to have right alignment for numeric control option
 # * [ ] Recommend to use a shared key to users
-# * [ ] Issue bugs for Impress with placeholdertext
-#    - Wayland transparent png
-#    - Wishlist to have right alignment for numeric control option
-# * [ ] Add a popup context menu: Generate Image... [programming] https://wiki.documentfoundation.org/Macros/ScriptForge/PopupMenuExample
+# * [X] Make release in Github
+# * [X] Port structure and model update to gimp plugin
+# * [ ] Modify Makefile to upload to github with gh
+# * [ ] Automate version propagation when publishing
 # * [ ] Internationalization
 #    - Menus
 #    - Toolbar
 #    - Dialog
 # * [ ] Add to Calc
 # * [ ] Add to Draw
-# * [ ] Announce in stablehorde
-# * [ ] Port structure and model update to gimp plugin
+# * [X] Announce in stablehorde
+# * [ ] Add a popup context menu: Generate Image... [programming] https://wiki.documentfoundation.org/Macros/ScriptForge/PopupMenuExample
 # * [ ] Use styles support from Horde
 #    -  Show Styles and Advanced View
 #    -  Download and cache Styles
+# * [ ] Handle Warnings.  For each model the restrictions are present in
+# https://raw.githubusercontent.com/Haidra-Org/AI-Horde-image-model-reference/refs/heads/main/stable_diffusion.json
+# https://discord.com/channels/781145214752129095/1081743238194536458/1402045915510083724
+# https://github.com/Haidra-Org/hordelib/blob/a0555b474696257a2374f4d1d4bc10b3d3fae5e3/hordelib/horde.py#L198
 #
 # Local documentation
 # file:///usr/share/doc/libreoffice-dev-doc/api/
