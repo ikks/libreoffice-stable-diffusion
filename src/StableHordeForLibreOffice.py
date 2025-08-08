@@ -65,9 +65,7 @@ Latest version for the extension
 
 PROPERTY_CURRENT_SESSION = "stable_horde_checked_update"
 
-URL_DOWNLOAD = (
-    "https://github.com/ikks/libreoffice-stable-diffusion/blob/main/loshd.oxt"
-)
+URL_DOWNLOAD = "https://github.com/ikks/libreoffice-stable-diffusion/releases"
 """
 Download URL for libreoffice-stable-diffusion
 """
@@ -279,6 +277,8 @@ class StableHordeClient:
     if we are still in queue
     """
 
+    MODEL_REQUIREMENTS_URL = "https://raw.githubusercontent.com/Haidra-Org/AI-Horde-image-model-reference/refs/heads/main/stable_diffusion.json"
+
     def __init__(
         self,
         settings: json = None,
@@ -356,6 +356,46 @@ class StableHordeClient:
 
         self.finished_task = False
         asyncio.run(requester_with_counter())
+
+    def __update_models_requirements__(self):
+        """
+        Download Model requirements and store them in the proper space
+        thanks to informer.
+        usually it's a value to be update, take the lowest possible value.
+        Add range when min and max are present as prefix of an attribute
+        """
+        # download json
+        # filter the models that have requirements rules, store
+        # the rules processed to be used later easily.
+        # Store fixed value and range when possible
+        # clip_skip
+        # cfg_scale
+        #
+        # min_steps max_steps
+        # min_cfg_scale max_cfg_scale
+        # max_cfg_scale puede estar sola
+        # [samplers]   -> can be single
+        # [schedulers] -> can be single
+        pass
+
+    def __get_model_requirements__(self, model):
+        """
+        Given the name of a model, fetch the requirements if any
+        to have the opportunity to mix the requirements for the
+        model. Give for now the lowest possible value in case of
+        range restrictions with min and max where appropiate.
+        """
+        pass
+
+    def __get_model_restrictions__(self, model):
+        """
+        This assumes there is an already downloaded file, if not,
+        there are no restrictions. The restrictions can be:
+         * Fixed Value
+         * Range
+
+        This requires know how to work with listeners
+        """
 
     def refresh_models(self):
         """
@@ -1456,15 +1496,15 @@ g_ImplementationHelper.addImplementation(
 # * [X] Integrate changes from gimp work
 # * [ ] Add option on the Dialog to show debug
 # * [X] Issue bugs for Impress with placeholdertext bug 167809
+# * [ ] Repo for client and use it as a submodule
+#    -  Check how to add another source file in gimp and lo
+# * [ ] Internationalization
 # * [ ] Wayland transparent png - Not being reproduced...
 # * [ ] Wishlist to have right alignment for numeric control option
 # * [ ] Recommend to use a shared key to users
 # * [X] Make release in Github
-# * [X] Port structure and model update to gimp plugin
 # * [ ] Modify Makefile to upload to github with gh
 # * [ ] Automate version propagation when publishing
-# * [ ] Internationalization
-#    - Dialog
 # * [ ] Handle Warnings.  For each model the restrictions are present in
 # https://raw.githubusercontent.com/Haidra-Org/AI-Horde-image-model-reference/refs/heads/main/stable_diffusion.json
 # https://discord.com/channels/781145214752129095/1081743238194536458/1402045915510083724
