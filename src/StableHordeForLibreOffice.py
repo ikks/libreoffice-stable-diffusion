@@ -20,10 +20,13 @@
 import abc
 import asyncio
 import base64
+import contextvars
+import functools
 import json
 import locale
 import logging
 import os
+import sys
 import tempfile
 import time
 import traceback
@@ -354,8 +357,40 @@ class StableHordeClient:
             await the_counter
             show_debugging_data("finished request")
 
+        async def local_to_thread(func, /, *args, **kwargs):
+            """
+            python3.8 version do not have to_thread
+            https://stackoverflow.com/a/69165563/107107
+            """
+            loop = asyncio.get_running_loop()
+            ctx = contextvars.copy_context()
+            func_call = functools.partial(ctx.run, func, *args, **kwargs)
+            return await loop.run_in_executor(None, func_call)
+
+        async def local_requester_with_counter():
+            """
+            Auxiliary function to add support for python3.8 missing
+            asyncio.to_thread
+            """
+            task = asyncio.create_task(counter(30))
+            await local_to_thread(real_url_open)
+            self.finished_task = True
+            await task
+
         self.finished_task = False
-        asyncio.run(requester_with_counter())
+        running_python_version = [int(i) for i in sys.version.split()[0].split(".")]
+
+        if running_python_version >= [3, 9]:
+            asyncio.run(requester_with_counter())
+        elif running_python_version >= [3, 7]:
+            ## python3.7 introduced create_task
+            # https://docs.python.org/3/library/asyncio-task.html#asyncio.create_task
+            asyncio.run(local_requester_with_counter())
+        else:
+            # Falling back to urllib, user experience will be uglier
+            # when waiting...
+            urlopen(url, timeout)
+            self.finished_task = True
 
     def __update_models_requirements__(self):
         """
