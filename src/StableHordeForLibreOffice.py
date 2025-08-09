@@ -21,6 +21,7 @@ import abc
 import asyncio
 import base64
 import contextvars
+import gettext
 import functools
 import json
 import locale
@@ -48,8 +49,12 @@ from urllib.request import urlopen, Request
 
 DEBUG = True
 VERSION = "0.4"
+LIBREOFFICE_EXTENSION_ID = "org.fectp.StableHordeForLibreOffice"
+GETTEXT_DOMAIN = "stablehordeforlibreoffice"
 
 log_file = os.path.join(tempfile.gettempdir(), "libreoffice_shotd.log")
+if DEBUG:
+    print(f"your log is at {log_file}")
 logging.basicConfig(
     filename=log_file,
     level=logging.DEBUG,
@@ -83,14 +88,32 @@ Name of the client sent to API
 # onmenupopup = "vnd.sun.star.script:stablediffusion|StableHordeForLibreOffice.py$popup_click?language=Python&location=user"
 # https://wiki.documentfoundation.org/Documentation/DevGuide/Scripting_Framework#Python_script When migrating to extension, change this one
 
-######## Fix this
-# https://help.libreoffice.org/latest/en-US/text/sbasic/shared/03/sf_l10n.html?DbPAR=BASIC
-import gettext  # noqa: E402
 
-gettext.bindtextdomain("StableHordeForLibreOffice", "/path/to/my/language/directory")
-gettext.textdomain("StableHordeForLibreOffice")
+def show_debugging_data(information, additional="", important=False):
+    if not DEBUG:
+        return
+
+    dnow = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    if isinstance(information, Exception):
+        ln = information.__traceback__.tb_lineno
+        logging.error(f"[{ dnow }]{ln}: { str(information) }")
+        logging.error(
+            "".join(
+                traceback.format_exception(None, information, information.__traceback__)
+            )
+        )
+    else:
+        if important:
+            logging.debug(f"[\033[1m{ dnow }\033[0m] { information }")
+        else:
+            logging.debug(f"[{ dnow }] { information }")
+    if additional:
+        logging.debug(f"[{ dnow }]{additional}")
+
+
+# gettext usual alias for i18n
 _ = gettext.gettext
-########
+gettext.textdomain(GETTEXT_DOMAIN)
 
 API_ROOT = "https://stablehorde.net/api/v2/"
 
@@ -1585,31 +1608,24 @@ class HordeClientSettings:
         os.chmod(self.settings_file, 0o600)
 
 
-def show_debugging_data(information, additional="", important=False):
-    if not DEBUG:
-        return
+def get_locale_dir(extid):
+    show_debugging_data("here", important=True)
 
-    dnow = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    if isinstance(information, Exception):
-        ln = information.__traceback__.tb_lineno
-        logging.error(f"[{ dnow }]{ln}: { str(information) }")
-        logging.error(
-            "".join(
-                traceback.format_exception(None, information, information.__traceback__)
-            )
-        )
-    else:
-        if important:
-            logging.debug(f"[\033[1m{ dnow }\033[0m] { information }")
-        else:
-            logging.debug(f"[{ dnow }] { information }")
-    if additional:
-        logging.debug(f"[{ dnow }]{additional}")
+    ctx = uno.getComponentContext()
+    pip = ctx.getByName(
+        "/singletons/com.sun.star.deployment.PackageInformationProvider"
+    )
+    extpath = pip.getPackageLocation(extid)
+    locdir = os.path.join(uno.fileUrlToSystemPath(extpath), "locale")
+    show_debugging_data(f"Locales folder: {locdir}")
+    return locdir
 
 
 def create_image(desktop=None, context=None):
     """Creates an image from a prompt provided by the user, making use
     of Stable Horde"""
+
+    gettext.bindtextdomain(GETTEXT_DOMAIN, get_locale_dir(LIBREOFFICE_EXTENSION_ID))
 
     lo_manager = LibreOfficeInteraction(desktop, context)
     st_manager = HordeClientSettings(lo_manager.path_store_directory())
@@ -1678,7 +1694,7 @@ class StableHordeForLibreOffice(unohelper.Base, XJobExecutor, XEventListener):
 g_ImplementationHelper = unohelper.ImplementationHelper()
 g_ImplementationHelper.addImplementation(
     StableHordeForLibreOffice,
-    "org.fectp.StableHordeForLibreOffice",
+    LIBREOFFICE_EXTENSION_ID,
     ("com.sun.star.task.JobExecutor",),
 )
 
@@ -1690,12 +1706,13 @@ g_ImplementationHelper.addImplementation(
 # * [ ] Repo for client and use it as a submodule
 #    -  Check how to add another source file in gimp and lo
 # * [X] Handle Warnings.  For each model the restrictions are present in
-# * [ ] Internationalization
+# * [X] Internationalization
 # * [ ] Bug ? Wayland transparent png - Not being reproduced...
 # * [ ] Wishlist to have right alignment for numeric control option
 # * [ ] Recommend to use a shared key to users
 # * [X] Make release in Github
 # * [ ] Modify Makefile to upload to github with gh
+# * [ ] Fix Makefile for patterns on gettext languages
 # * [ ] Automate version propagation when publishing
 # * [ ] Add to Calc
 # * [ ] Add to Draw
