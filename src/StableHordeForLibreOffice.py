@@ -744,6 +744,7 @@ class StableHordeClient:
         When no success, returns [].  raises exceptions, but tries to
         offer helpful messages
         """
+        self.stage = "Nothing"
         self.settings.update(options)
         self.api_key = options["api_key"]
         self.headers["apikey"] = self.api_key
@@ -768,13 +769,8 @@ class StableHordeClient:
                 "seed": options["seed"],
             }
 
-            data_to_send = {
-                "params": params,
-                "prompt": options["prompt"],
-                "nsfw": options["nsfw"],
-                "censor_nsfw": options["censor_nsfw"],
-                "r2": True,
-            }
+            restrictions = self.__get_model_requirements__(options["model"])
+            params.update(restrictions)
 
             if options["image_width"] % 64 != 0:
                 width = int(options["image_width"] / 64) * 64
@@ -789,20 +785,28 @@ class StableHordeClient:
             params.update({"width": int(width)})
             params.update({"height": int(height)})
 
+            data_to_send = {
+                "params": params,
+                "prompt": options["prompt"],
+                "nsfw": options["nsfw"],
+                "censor_nsfw": options["censor_nsfw"],
+                "r2": True,
+            }
+
             data_to_send.update({"models": [options["model"]]})
 
             mode = options.get("mode", "")
             if mode == "MODE_IMG2IMG":
                 data_to_send.update({"source_image": options["source_image"]})
                 data_to_send.update({"source_processing": "img2img"})
-                params.update(
+                data_to_send["params"].update(
                     {"denoising_strength": (1 - float(options["init_strength"]))}
                 )
-                params.update({"n": options["nimages"]})
+                data_to_send["params"].update({"n": options["nimages"]})
             elif mode == "MODE_INPAINTING":
                 data_to_send.update({"source_image": options["source_image"]})
                 data_to_send.update({"source_processing": "inpainting"})
-                params.update({"n": options["nimages"]})
+                data_to_send["params"].update({"n": options["nimages"]})
 
             dt = data_to_send.copy()
             if "source_image" in dt:
@@ -818,6 +822,7 @@ class StableHordeClient:
             request = Request(url, headers=self.headers, data=post_data)
             try:
                 self.__inform_progress__()
+                self.stage = "contacting"
                 self.__url_open__(request, 15)
                 data = self.response_data
                 show_debugging_data(data)
@@ -900,6 +905,7 @@ class StableHordeClient:
             self.informer.show_error(_("Service failed with: ") + f"'{ ex }'.")
             return ""
         finally:
+            self.informer.set_finished()
             message = self.check_update()
             if message:
                 self.informer.show_message(message, url=URL_DOWNLOAD)
@@ -1033,6 +1039,7 @@ class StableHordeClient:
         At this stage Stable horde has generated the images and it's time
         to download them all.
         """
+        self.stage = "Getting images"
         url = f"{ API_ROOT }generate/status/{ self.id }"
         self.progress_text = _("fetching images")
         self.__inform_progress__()
@@ -1047,6 +1054,7 @@ class StableHordeClient:
         Downloads the generated images and returns the full path of the
         downloaded images.
         """
+        self.stage = "Downloading images"
         show_debugging_data("Start to download generated images")
         generated_filenames = []
         cont = 1
@@ -1562,19 +1570,19 @@ class HordeClientSettings:
         if base_directory is None:
             base_directory = tempfile.gettempdir()
         self.base_directory = base_directory
-        self.settingsfile = "stablehordesettings.json"
-        self.file = base_directory / self.settingsfile
+        self.settings_filename = "stablehordesettings.json"
+        self.settings_file = base_directory / self.settings_filename
 
     def load(self) -> json:
-        if not os.path.exists(self.file):
+        if not os.path.exists(self.settings_file):
             return {"api_key": ANONYMOUS}
-        with open(self.file) as myfile:
+        with open(self.settings_file) as myfile:
             return json.loads(myfile.read())
 
     def save(self, settings: json):
-        with open(self.file, "w") as myfile:
+        with open(self.settings_file, "w") as myfile:
             myfile.write(json.dumps(settings))
-        os.chmod(self.file, 0o600)
+        os.chmod(self.settings_file, 0o600)
 
 
 def show_debugging_data(information, additional="", important=False):
@@ -1678,19 +1686,17 @@ g_ImplementationHelper.addImplementation(
 # * [X] Integrate changes from gimp work
 # * [ ] Add option on the Dialog to show debug
 # * [X] Issue bugs for Impress with placeholdertext bug 167809
+# * [X] Get back support fot python 3.8
 # * [ ] Repo for client and use it as a submodule
 #    -  Check how to add another source file in gimp and lo
+# * [X] Handle Warnings.  For each model the restrictions are present in
 # * [ ] Internationalization
-# * [ ] Wayland transparent png - Not being reproduced...
+# * [ ] Bug ? Wayland transparent png - Not being reproduced...
 # * [ ] Wishlist to have right alignment for numeric control option
 # * [ ] Recommend to use a shared key to users
 # * [X] Make release in Github
 # * [ ] Modify Makefile to upload to github with gh
 # * [ ] Automate version propagation when publishing
-# * [ ] Handle Warnings.  For each model the restrictions are present in
-# https://raw.githubusercontent.com/Haidra-Org/AI-Horde-image-model-reference/refs/heads/main/stable_diffusion.json
-# https://discord.com/channels/781145214752129095/1081743238194536458/1402045915510083724
-# https://github.com/Haidra-Org/hordelib/blob/a0555b474696257a2374f4d1d4bc10b3d3fae5e3/hordelib/horde.py#L198
 # * [ ] Add to Calc
 # * [ ] Add to Draw
 # * [X] Announce in stablehorde
