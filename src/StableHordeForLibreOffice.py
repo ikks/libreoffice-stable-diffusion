@@ -392,12 +392,21 @@ class StableHordeClient:
             urlopen(url, timeout)
             self.finished_task = True
 
-    def __update_models_requirements__(self):
+        if self.timeout:
+            raise self.timeout
+
+    def __update_models_requirements__(self) -> None:
         """
-        Download Model requirements and store them in the proper space
-        thanks to informer.
-        usually it's a value to be update, take the lowest possible value.
-        Add range when min and max are present as prefix of an attribute
+        Downloads model requirements.
+        Usually it is a value to be updated, taking the lowest possible value.
+        Add range when min and/or max are present as prefix of an attribute,
+        the range is stored under the same name of the prefix attribute
+        replaced.
+
+        For example min_steps  and max_steps become range_steps
+        max_cfg_scale becomes range_cfg_scale.
+
+        Modifies self.settings["local_settings"]["requirements"]
         """
         # download json
         # filter the models that have requirements rules, store
@@ -408,29 +417,125 @@ class StableHordeClient:
         #
         # min_steps max_steps
         # min_cfg_scale max_cfg_scale
-        # max_cfg_scale puede estar sola
+        # max_cfg_scale can be alone
         # [samplers]   -> can be single
         # [schedulers] -> can be single
-        pass
+        #
 
-    def __get_model_requirements__(self, model):
+        if "local_settings" not in self.settings:
+            return
+
+        show_debugging_data("Getting requirements for models")
+        url = self.MODEL_REQUIREMENTS_URL
+        self.progress_text = _("Updating model requirements")
+        self.__url_open__(url)
+        model_information = self.response_data
+        req_info = {}
+
+        for model, reqs in model_information.items():
+            if "requirements" not in reqs:
+                continue
+            req_info[model] = {}
+            # Model with requirement
+            settings_range = {}
+            for name, val in reqs["requirements"].items():
+                # extract range where possible
+                if name.startswith("max_"):
+                    name_req = "range_" + name[4:]
+                    if name_req in settings_range:
+                        settings_range[name_req][1] = val
+                    else:
+                        settings_range[name_req] = [0, val]
+                elif name.startswith("min_"):
+                    name_req = "range_" + name[4:]
+                    if name_req in settings_range:
+                        settings_range[name_req][0] = val
+                    else:
+                        settings_range[name_req] = [val, val]
+                else:
+                    req_info[model][name] = val
+
+            for name, range_vals in settings_range.items():
+                if range_vals[0] == range_vals[1]:
+                    req_info[model][name[6:]] = range_vals[0]
+                else:
+                    req_info[model][name] = range_vals
+
+        show_debugging_data(f"We have requirements for {len(req_info)} models")
+
+        if "requirements" not in self.settings["local_settings"]:
+            show_debugging_data("Creating requirements in local_settings")
+            self.settings["local_settings"]["requirements"] = req_info
+        else:
+            show_debugging_data("Updating requirements in local_settings")
+            self.settings["local_settings"]["requirements"].update(req_info)
+
+    def __get_model_requirements__(self, model: str) -> json:
         """
-        Given the name of a model, fetch the requirements if any
+        Given the name of a model, fetch the requirements if any,
         to have the opportunity to mix the requirements for the
-        model. Give for now the lowest possible value in case of
-        range restrictions with min and max where appropiate.
-        """
-        pass
+        model.
 
-    def __get_model_restrictions__(self, model):
+        Replaces values that must be fixed and if a value is out
+        of range replaces by the min possible value of the range,
+        if it was a list of possible values like schedulers, the
+        key is replaced by scheduler_name and is enforced to have
+        a valid value, if it resulted that was a wrong value,
+        takes the first available option.
+
+        Intended to set defaults for the model with the requirements
+        present in self.MODEL_REQUIREMENTS_URL json
+
+        The json return has keys with range_ or configuration requirements
+        such as steps, cfg_scale, clip_skip, name of a sampler or a scheduler.
         """
-        This assumes there is an already downloaded file, if not,
-        there are no restrictions. The restrictions can be:
+        reqs = {}
+        if not self.settings or "local_settings" not in self.settings:
+            show_debugging_data("Too brand new... ")
+            self.settings["local_settings"] = {}
+        if "requirements" not in self.settings["local_settings"]:
+            text_doing = self.progress_text
+            self.__update_models_requirements__()
+            self.progress_text = text_doing
+
+        settings = self.settings["local_settings"]["requirements"].get(model, {})
+
+        if not settings:
+            show_debugging_data(f"No requirements for {model}")
+            return reqs
+
+        for key, val in settings.items():
+            if key.startswith("range_") and (
+                key[6:] not in settings
+                or (settings[key[6:]] < val[0])
+                or (val[1] < settings[key[6:]])
+            ):
+                reqs[key[6:]] = val[0]
+            elif isinstance(val, list):
+                key_name = key[:-1] + "_name"
+                if key_name not in settings or settings[key_name] not in val:
+                    reqs[key_name] = val[0]
+            else:
+                reqs[key] = val
+
+        show_debugging_data(f"Requirements for { model } are { reqs }")
+        return reqs
+
+    def __get_model_restrictions__(self, model: str) -> json:
+        """
+        Returns a json that offers for each key a fixed value or
+        a range for the requirements present in self.settings["local_settings"].
          * Fixed Value
          * Range
 
-        This requires know how to work with listeners
+        Most commonly the result is an empty json.
+
+        Intended for UI validation.
+
+        Can offer range for initial min or max values, and also a
+        list of strings or fixed values.
         """
+        return self.settings.get("requirements", {model: {}}).get(model, {})
 
     def refresh_models(self):
         """
