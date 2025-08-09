@@ -1543,21 +1543,24 @@ class HordeClientSettings:
         os.chmod(self.file, 0o600)
 
 
-def show_debugging_data(information, additional=""):
+def show_debugging_data(information, additional="", important=False):
     if not DEBUG:
         return
 
     dnow = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     if isinstance(information, Exception):
         ln = information.__traceback__.tb_lineno
-        logging.error(f"[{ dnow }]{ln}: { information }")
+        logging.error(f"[{ dnow }]{ln}: { str(information) }")
         logging.error(
             "".join(
                 traceback.format_exception(None, information, information.__traceback__)
             )
         )
     else:
-        logging.debug(f"[{ dnow }] { information }")
+        if important:
+            logging.debug(f"[\033[1m{ dnow }\033[0m] { information }")
+        else:
+            logging.debug(f"[{ dnow }] { information }")
     if additional:
         logging.debug(f"[{ dnow }]{additional}")
 
