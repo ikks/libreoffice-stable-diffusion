@@ -335,9 +335,14 @@ class StableHordeClient:
 
         def real_url_open():
             show_debugging_data(f"starting request {url}")
-            with urlopen(url, timeout=timeout) as response:
-                show_debugging_data("Data arrived")
-                self.response_data = json.loads(response.read().decode("utf-8"))
+            try:
+                with urlopen(url, timeout=timeout) as response:
+                    show_debugging_data("Data arrived")
+                    self.response_data = json.loads(response.read().decode("utf-8"))
+            except Exception as ex:
+                show_debugging_data(ex)
+                self.timeout = ex
+
             self.finished_task = True
 
         async def counter(until: int = 10) -> None:
@@ -379,7 +384,7 @@ class StableHordeClient:
 
         self.finished_task = False
         running_python_version = [int(i) for i in sys.version.split()[0].split(".")]
-
+        self.timeout = False
         if running_python_version >= [3, 9]:
             asyncio.run(requester_with_counter())
         elif running_python_version >= [3, 7]:
