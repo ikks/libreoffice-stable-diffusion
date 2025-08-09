@@ -217,6 +217,11 @@ DEFAULT_MODEL = "stable_diffusion"
 Model that is always present for image generation
 """
 
+DEFAULT_INPAINT_MODEL = "stable_diffusion_inpainting"
+"""
+Model that is always present for inpainting
+"""
+
 MIN_WIDTH = 384
 MAX_WIDTH = 1024
 MIN_HEIGHT = 384
@@ -243,6 +248,18 @@ MODELS = [
 ]
 """
 Initial list of models, new ones are downloaded from StableHorde API
+"""
+
+INPAINT_MODELS = [
+    "A-Zovya RPG Inpainting",
+    "Anything Diffusion Inpainting",
+    "Epic Diffusion Inpainting",
+    "iCoMix Inpainting",
+    "Realistic Vision Inpainting",
+    "stable_diffusion_inpainting",
+]
+"""
+Initial list of inpainting models, new ones are downloaded from StableHorde API
 """
 
 
@@ -545,8 +562,10 @@ class StableHordeClient:
     def refresh_models(self):
         """
         Refreshes the model list with the 50 more used including always stable_diffusion
-        we update self.settings to store the date when the models were stored.
+        we update self.settings to store the date when the models were refreshed.
         """
+        default_models = MODELS
+        self.staging = "Refresh models"
         previous_update = self.settings.get(
             "local_settings", {"date_refreshed_models": "2025-07-01"}
         ).get("date_refreshed_models", "2025-07-01")
@@ -593,6 +612,7 @@ class StableHordeClient:
                 for key, val in popular_models
                 if key.lower().count("inpaint") > 0
             ][: StableHordeClient.MAX_MODELS_LIST]
+            default_models = INPAINT_MODELS
         else:
             popular_models = [
                 (key, val)
@@ -606,18 +626,32 @@ class StableHordeClient:
             fetched_models.append(default_model)
         if len(fetched_models) > 3:
             compare = set(fetched_models)
-            new_models = compare.difference(locals["models"])
+            new_models = compare.difference(locals.get("models", default_models))
             if new_models:
                 show_debugging_data(f"New models {len(new_models)}")
                 locals["models"] = sorted(fetched_models, key=lambda c: c.upper())
-                if len(new_models) == 1:
+                size_models = len(new_models)
+                if size_models == 1:
                     message = _("We have a new model:\n\n * ") + new_models[0]
                 else:
-                    message = _("We have new models:\n * ") + "\n * ".join(new_models)
+                    if size_models > 10:
+                        message = (
+                            _("We have {size_models} new models, including:")
+                            + "\n * "
+                            + "\n * ".join(list(new_models)[:10])
+                        )
+                    else:
+                        message = (
+                            _("We have {size_models} new models:")
+                            + "\n * "
+                            + "\n * ".join(list(new_models)[:10])
+                        )
 
                 self.informer.show_message(message)
 
         self.settings["local_settings"] = locals
+
+        self.__update_models_requirements__()
 
         if self.settings["model"] not in locals["models"]:
             self.settings["model"] = locals["models"][0]
