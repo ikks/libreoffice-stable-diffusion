@@ -55,7 +55,7 @@
                             </prop>
                             <prop oor:name="Title" oor:type="xs:string">
                                 <value xml:lang="en-US">Image from Text...</value>
-                                <value xml:lang="es-ES">Imagen a partir de texto...</value>
+                                <value xml:lang="es">Imagen a partir de texto...</value>
                                 <value>Image from Text...</value>
                             </prop>
                         </node>
@@ -101,7 +101,7 @@
                             </prop>
                             <prop oor:name="Title" oor:type="xs:string">
                                 <value xml:lang="en-US">Image from Text...</value>
-                                <value xml:lang="es-ES">Imagen a partir de texto...</value>
+                                <value xml:lang="es">Imagen a partir de texto...</value>
                                 <value>Image from Text</value>
                             </prop>
                         </node>

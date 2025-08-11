@@ -12,24 +12,23 @@ UNOPKG=unopkg
 CURRENT_LANG=es
 SCRIPTNAME=StableHordeForLibreOffice
 GETTEXTDOMAIN=stablehordeforlibreoffice
+PO_FILES := $(wildcard src/po/*.po)
+MO_FILES := $(subst .po,/LC_MESSAGES/$(GETTEXTDOMAIN).mo, $(subst src/po,oxt/locale,$(PO_FILES)))
 
 all: $(EXEC)
 
 oxt/locale/%/LC_MESSAGES/$(GETTEXTDOMAIN).mo: src/po/%.po
-	mkdir -p oxt/locale/$(CURRENT_LANG)/LC_MESSAGES && msgfmt --output-file=$@ $<
-
-src/po/$(CURRENT_LANG).po: src/po/messages.pot
-	msgmerge --update $@ $<
+	mkdir -p $(dir $@)
+	msgfmt --output-file=$@ $<
 
 src/po/messages.pot: src/$(SCRIPTNAME).py
 	xgettext -j -o $@ --add-comments=TRANSLATORS: --keyword=_ --flag=_:1:pass-python-format --directory=. $<
 
-$(EXEC): src/$(SCRIPTNAME).py  oxt/locale/$(CURRENT_LANG)/LC_MESSAGES/$(GETTEXTDOMAIN).mo
-	rm -f loshd.oxt
+$(EXEC): src/$(SCRIPTNAME).py $(MO_FILES)
 	oxt/build
 
 clean:
-	rm loshd.oxt
+	rm  -rf oxt/locale loshd.oxt
 
 install:
 	unopkg add -s -f loshd.oxt
@@ -39,8 +38,6 @@ run:
 	make install
 	libreoffice --writer
 
-publish:
-	echo hola
 
-.PHONY: install publish run
+.PHONY: clean install run
 

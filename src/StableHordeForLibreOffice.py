@@ -47,7 +47,7 @@ from time import sleep
 from urllib.error import HTTPError, URLError
 from urllib.request import urlopen, Request
 
-DEBUG = True
+DEBUG = False
 VERSION = "0.4"
 LIBREOFFICE_EXTENSION_ID = "org.fectp.StableHordeForLibreOffice"
 GETTEXT_DOMAIN = "stablehordeforlibreoffice"
@@ -1228,23 +1228,23 @@ class LibreOfficeInteraction(InformerFrontendInterface):
         dlg.Caption = _("Stable Horde for LibreOffice - ") + VERSION
         dlg.CreateGroupBox("framebox", (16, 11, 236, 163))
         # Labels
-        lbl = dlg.CreateFixedText("label_prompt", (29, 31, 39, 13))
+        lbl = dlg.CreateFixedText("label_prompt", (29, 31, 45, 13))
         lbl.Caption = _("Prompt")
-        lbl = dlg.CreateFixedText("label_height", (155, 65, 39, 13))
+        lbl = dlg.CreateFixedText("label_height", (155, 65, 45, 13))
         lbl.Caption = _("Height")
-        lbl = dlg.CreateFixedText("label_width", (29, 65, 39, 13))
+        lbl = dlg.CreateFixedText("label_width", (29, 65, 45, 13))
         lbl.Caption = _("Width")
-        lbl = dlg.CreateFixedText("label_model", (29, 82, 39, 13))
+        lbl = dlg.CreateFixedText("label_model", (29, 82, 45, 13))
         lbl.Caption = _("Model")
-        lbl = dlg.CreateFixedText("label_max_wait", (155, 82, 39, 13))
+        lbl = dlg.CreateFixedText("label_max_wait", (155, 82, 45, 13))
         lbl.Caption = _("Max Wait")
-        lbl = dlg.CreateFixedText("label_strength", (29, 99, 39, 13))
+        lbl = dlg.CreateFixedText("label_strength", (29, 99, 45, 13))
         lbl.Caption = _("Strength")
-        lbl = dlg.CreateFixedText("label_steps", (155, 99, 39, 13))
+        lbl = dlg.CreateFixedText("label_steps", (155, 99, 45, 13))
         lbl.Caption = _("Steps")
-        lbl = dlg.CreateFixedText("label_seed", (94, 130, 49, 13))
+        lbl = dlg.CreateFixedText("label_seed", (96, 130, 49, 13))
         lbl.Caption = _("Seed (Optional)")
-        lbl = dlg.CreateFixedText("label_token", (93, 148, 49, 13))
+        lbl = dlg.CreateFixedText("label_token", (96, 149, 49, 13))
         lbl.Caption = _("ApiKey (Optional)")
 
         # Buttons
@@ -1276,11 +1276,11 @@ class LibreOfficeInteraction(InformerFrontendInterface):
             "Let your imagination run wild or put a proper description of your desired output."
         ) + _(" Write at least 5 words or 10 characters.")
         # ctrl.OnTextChanged = onaction
-        ctrl = dlg.CreateTextField("txt_token", (155, 147, 90, 13))
+        ctrl = dlg.CreateTextField("txt_token", (155, 147, 92, 13))
         ctrl.TabIndex = 11
         ctrl.TipText = _("Get yours at https://stablehorde.net/ for free")
 
-        ctrl = dlg.CreateTextField("txt_seed", (155, 128, 90, 13))
+        ctrl = dlg.CreateTextField("txt_seed", (155, 128, 92, 13))
         ctrl.TabIndex = 10
         ctrl.TipText = _(
             "If you want the process repeatable, put something here, otherwise, enthropy will win"
@@ -1288,7 +1288,7 @@ class LibreOfficeInteraction(InformerFrontendInterface):
 
         ctrl = dlg.CreateNumericField(
             "int_width",
-            (87, 63, 52, 13),
+            (94, 63, 45, 13),
             accuracy=0,
             minvalue=384,
             maxvalue=1024,
@@ -1298,19 +1298,8 @@ class LibreOfficeInteraction(InformerFrontendInterface):
         ctrl.Value = 384
         ctrl.TabIndex = 2
         ctrl = dlg.CreateNumericField(
-            "int_height",
-            (196, 63, 52, 13),
-            accuracy=0,
-            minvalue=384,
-            maxvalue=1024,
-            increment=64,
-            spinbutton=True,
-        )
-        ctrl.Value = 384
-        ctrl.TabIndex = 3
-        ctrl = dlg.CreateNumericField(
             "int_strength",
-            (87, 100, 52, 13),
+            (94, 100, 45, 13),
             minvalue=0,
             maxvalue=20,
             increment=0.5,
@@ -1323,20 +1312,19 @@ class LibreOfficeInteraction(InformerFrontendInterface):
             "How much the AI will follow the prompt, the higher, the more obedient"
         )
         ctrl = dlg.CreateNumericField(
-            "int_steps",
-            (196, 97, 52, 13),
-            minvalue=1,
-            maxvalue=150,
-            spinbutton=True,
-            increment=10,
+            "int_height",
+            (203, 63, 45, 13),
             accuracy=0,
+            minvalue=384,
+            maxvalue=1024,
+            increment=64,
+            spinbutton=True,
         )
-        ctrl.Value = 25
-        ctrl.TabIndex = 6
-        ctrl.TipText = _("More steps mean more details, affects time and GPU usage")
+        ctrl.Value = 384
+        ctrl.TabIndex = 3
         ctrl = dlg.CreateNumericField(
             "int_waiting",
-            (196, 80, 52, 13),
+            (203, 80, 45, 13),
             minvalue=1,
             maxvalue=5,
             spinbutton=True,
@@ -1347,14 +1335,26 @@ class LibreOfficeInteraction(InformerFrontendInterface):
         ctrl.TipText = _(
             "In minutes. Depends on your patience and your kudos.  You'll get a complain message if timeout is reached"
         )
-        ctrl = dlg.CreateCheckBox("bool_nsfw", (29, 130, 30, 10))
+        ctrl = dlg.CreateNumericField(
+            "int_steps",
+            (203, 97, 45, 13),
+            minvalue=1,
+            maxvalue=150,
+            spinbutton=True,
+            increment=10,
+            accuracy=0,
+        )
+        ctrl.Value = 25
+        ctrl.TabIndex = 6
+        ctrl.TipText = _("More steps mean more details, affects time and GPU usage")
+        ctrl = dlg.CreateCheckBox("bool_nsfw", (29, 130, 50, 10))
         ctrl.Caption = _("NSFW")
         ctrl.TabIndex = 7
         ctrl.TipText = _(
             "If not marked, it's faster, when marked you are on the edge..."
         )
 
-        ctrl = dlg.CreateCheckBox("bool_censure", (29, 145, 30, 10))
+        ctrl = dlg.CreateCheckBox("bool_censure", (29, 145, 50, 10))
         ctrl.Caption = _("Censor NSFW")
         ctrl.TipText = _("Allow if you want to avoid unexpected images...")
         ctrl.TabIndex = 8
@@ -1712,7 +1712,7 @@ g_ImplementationHelper.addImplementation(
 # * [ ] Recommend to use a shared key to users
 # * [X] Make release in Github
 # * [ ] Modify Makefile to upload to github with gh
-# * [ ] Fix Makefile for patterns on gettext languages
+# * [X] Fix Makefile for patterns on gettext languages
 # * [ ] Automate version propagation when publishing
 # * [ ] Add to Calc
 # * [ ] Add to Draw
