@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 This project is [semver](https://semver.org/) based
 
+## [0.4] - Add support for Spanish
+
+### Added
+
+ * Translation to spanish
+ * Support to get more languages used
+ * Instructions for translators
+
+### Changed
+
+ * Improved proressbar ticks
+ * Fallback on older python versions for progressbar
+ * Warnings are fixed
+
 ## [0.3.1] - Bugfix that prevented using Windows, Mac and Older Python Version
 
 
