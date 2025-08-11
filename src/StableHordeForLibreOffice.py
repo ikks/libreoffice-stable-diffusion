@@ -349,7 +349,7 @@ class StableHordeClient:
         }
         self.informer: InformerFrontendInterface = informer
         self.progress: float = 0.0
-        self.progress_text: str = _("Starting")
+        self.progress_text: str = _("Starting...")
         self.warnings: list[json] = []
 
         # Sync informer and async request
@@ -472,7 +472,7 @@ class StableHordeClient:
 
         show_debugging_data("Getting requirements for models")
         url = self.MODEL_REQUIREMENTS_URL
-        self.progress_text = _("Updating model requirements")
+        self.progress_text = _("Updating model requirements...")
         self.__url_open__(url)
         model_information = self.response_data
         req_info = {}
@@ -607,15 +607,13 @@ class StableHordeClient:
         url = API_ROOT + "/stats/img/models?model_state=known"
         self.headers["X-Fields"] = "month"
 
-        self.progress_text = _("Updating models")
+        self.progress_text = _("Updating Models...")
         self.__inform_progress__()
         try:
             self.__url_open__(url)
             del self.headers["X-Fields"]
         except (HTTPError, URLError):
-            message = _(
-                "Tried to get the latest models, check your Internet connection"
-            )
+            message = _("Failed to get latest models, check your Internet connection")
             self.informer.show_error(message)
             return
         except TimeoutError:
@@ -728,7 +726,7 @@ class StableHordeClient:
                 message = data["message"].get(lang, data["message"]["en"])
         except (HTTPError, URLError):
             message = _(
-                "Tried to check for most recent version, check your Internet connection"
+                "Failed to check for most recent version, check your Internet connection"
             )
         return message
 
@@ -784,7 +782,7 @@ class StableHordeClient:
             3.0 * options["max_wait_minutes"]
         )  # Percentage and minutes 100*ellapsed/(max_wait*60)
 
-        self.progress_text = _("Contacting the Horde")
+        self.progress_text = _("Contacting the Horde...")
         try:
             params = {
                 "cfg_scale": float(options["prompt_strength"]),
@@ -911,7 +909,7 @@ class StableHordeClient:
                 show_debugging_data(ex3)
                 message = str(ex)
             show_debugging_data(ex, data)
-            self.informer.show_error(_("Stablehorde said: ") + f"'{ message }'.")
+            self.informer.show_error(_("Stablehorde response: ") + f"'{ message }'.")
             return ""
         except URLError as ex:
             show_debugging_data(ex, data)
@@ -974,13 +972,13 @@ class StableHordeClient:
         self.check_counter = self.check_counter + 1
 
         if data["done"]:
-            self.progress_text = _("Downloading generated image")
+            self.progress_text = _("Downloading generated image...")
             self.__inform_progress__()
             return True
 
         if data["processing"] == 0:
             if data["queue_position"] == 0:
-                text = _("You are the first in the queue")
+                text = _("You are first in the queue")
             else:
                 text = _("Queue position: ") + str(data["queue_position"])
             show_debugging_data(f"Wait time {data['wait_time']}")
@@ -998,7 +996,7 @@ class StableHordeClient:
                 show_debugging_data(data)
                 if self.api_key == ANONYMOUS:
                     message = (
-                        _("Get an Api key for free at ")
+                        _("Get a free API Key at ")
                         + REGISTER_STABLE_HORDE_URL
                         + _(
                             ".\n This model takes more time than your current configuration."
@@ -1007,7 +1005,7 @@ class StableHordeClient:
                     raise IdentifiedError(message, url=REGISTER_STABLE_HORDE_URL)
                 else:
                     message = (
-                        _("Please try with other model,")
+                        _("Please try another model,")
                         + f"{self.settings['model']} would take more time than you configured,"
                         + _(" or try again later.")
                     )
@@ -1029,7 +1027,7 @@ class StableHordeClient:
                 show_debugging_data(data)
                 raise IdentifiedError(
                     _(
-                        "Currently no worker available to generate your image. Please try again later."
+                        "There are no workers available with these settings. Please try again later."
                     )
                 )
         else:
@@ -1064,7 +1062,7 @@ class StableHordeClient:
         """
         self.stage = "Getting images"
         url = f"{ API_ROOT }generate/status/{ self.id }"
-        self.progress_text = _("fetching images")
+        self.progress_text = _("Fetching images...")
         self.__inform_progress__()
         self.__url_open__(url)
         data = self.response_data
@@ -1089,7 +1087,7 @@ class StableHordeClient:
                 if image["img"].startswith("https"):
                     show_debugging_data(f"Downloading { image['img'] }")
                     if nimages == 1:
-                        self.progress_text = _("Downloading result")
+                        self.progress_text = _("Downloading result...")
                     else:
                         self.progress_text = _(
                             f"Downloading image { cont }/{ nimages }"
@@ -1107,7 +1105,7 @@ class StableHordeClient:
                 cont += 1
         if self.warnings:
             message = _(
-                "Maybe you need to change some parameters to generate succesfully an image. Horde said:\n * "
+                "You may need to reduce your settings or choose another model, or you may have been censored. Horde message:\n * "
             ) + "\n * ".join([i["message"] for i in self.warnings])
             show_debugging_data(self.warnings)
             self.informer.show_error(message, title="warning")
@@ -1264,6 +1262,7 @@ class LibreOfficeInteraction(InformerFrontendInterface):
         ctrl = dlg.CreateComboBox(
             "lst_model",
             (60, 80, 79, 15),
+            linecount=10,
         )
         ctrl.TabIndex = 4
         ctrl = dlg.CreateTextField(
@@ -1272,23 +1271,30 @@ class LibreOfficeInteraction(InformerFrontendInterface):
             multiline=True,
         )
         ctrl.TabIndex = 1
-        ctrl.TipText = _(
-            "Let your imagination run wild or put a proper description of your desired output."
-        ) + _(" Write at least 5 words or 10 characters.")
+        ctrl.TipText = _("""
+        Let your imagination run wild or put a proper description of your
+        desired output. Use full grammar for Flux, use tag-like language
+        for sd15, use short phrases for sdxl.
+
+        Write at least 5 words or 10 characters.
+        """)
         # ctrl.OnTextChanged = onaction
         ctrl = dlg.CreateTextField("txt_token", (155, 147, 92, 13))
         ctrl.TabIndex = 11
-        ctrl.TipText = _("Get yours at https://stablehorde.net/ for free")
+        ctrl.TipText = _("""
+        Get yours at https://stablehorde.net/ for free. Recommended:
+        Anonymous users are last in the queue.
+        """)
 
         ctrl = dlg.CreateTextField("txt_seed", (155, 128, 92, 13))
         ctrl.TabIndex = 10
         ctrl.TipText = _(
-            "If you want the process repeatable, put something here, otherwise, enthropy will win"
+            "Set a seed to regenerate (reproducible), or it'll be chosen at random by the worker."
         )
 
         ctrl = dlg.CreateNumericField(
             "int_width",
-            (94, 63, 45, 13),
+            (91, 63, 48, 13),
             accuracy=0,
             minvalue=384,
             maxvalue=1024,
@@ -1297,9 +1303,12 @@ class LibreOfficeInteraction(InformerFrontendInterface):
         )
         ctrl.Value = 384
         ctrl.TabIndex = 2
+        ctrl.TipText = _(
+            "Height and Width together at most can be 2048x2048=4194304 pixels"
+        )
         ctrl = dlg.CreateNumericField(
             "int_strength",
-            (94, 100, 45, 13),
+            (91, 100, 48, 13),
             minvalue=0,
             maxvalue=20,
             increment=0.5,
@@ -1308,12 +1317,14 @@ class LibreOfficeInteraction(InformerFrontendInterface):
         )
         ctrl.Value = 15
         ctrl.TabIndex = 5
-        ctrl.TipText = _(
-            "How much the AI will follow the prompt, the higher, the more obedient"
-        )
+        ctrl.TipText = _("""
+         How strongly the AI follows the prompt vs how much creativity to allow it.
+        Set to 1 for Flux, use 2-4 for LCM and lightning, 5-7 is common for SDXL
+        models, 6-9 is common for sd15.
+        """)
         ctrl = dlg.CreateNumericField(
             "int_height",
-            (203, 63, 45, 13),
+            (200, 63, 48, 13),
             accuracy=0,
             minvalue=384,
             maxvalue=1024,
@@ -1322,9 +1333,12 @@ class LibreOfficeInteraction(InformerFrontendInterface):
         )
         ctrl.Value = 384
         ctrl.TabIndex = 3
+        ctrl.TipText = _(
+            "Height and Width together at most can be 2048x2048=4194304 pixels"
+        )
         ctrl = dlg.CreateNumericField(
             "int_waiting",
-            (203, 80, 45, 13),
+            (200, 80, 48, 13),
             minvalue=1,
             maxvalue=5,
             spinbutton=True,
@@ -1332,12 +1346,14 @@ class LibreOfficeInteraction(InformerFrontendInterface):
         )
         ctrl.Value = 3
         ctrl.TabIndex = 9
-        ctrl.TipText = _(
-            "In minutes. Depends on your patience and your kudos.  You'll get a complain message if timeout is reached"
-        )
+        ctrl.TipText = _("""
+        How long to wait for your generation to complete.
+        Depends on number of workers and user priority (more
+        kudos = more priority. Anonymous users are last)
+        """)
         ctrl = dlg.CreateNumericField(
             "int_steps",
-            (203, 97, 45, 13),
+            (200, 97, 48, 13),
             minvalue=1,
             maxvalue=150,
             spinbutton=True,
@@ -1346,17 +1362,27 @@ class LibreOfficeInteraction(InformerFrontendInterface):
         )
         ctrl.Value = 25
         ctrl.TabIndex = 6
-        ctrl.TipText = _("More steps mean more details, affects time and GPU usage")
+        ctrl.TipText = _("""
+        How many sampling steps to perform for generation. Should
+        generally be at least double the CFG unless using a second-order
+        or higher sampler (anything with dpmpp is second order)
+        """)
         ctrl = dlg.CreateCheckBox("bool_nsfw", (29, 130, 50, 10))
         ctrl.Caption = _("NSFW")
         ctrl.TabIndex = 7
-        ctrl.TipText = _(
-            "If not marked, it's faster, when marked you are on the edge..."
-        )
+        ctrl.TipText = _("""
+        Whether or not your image is intended to be NSFW. May
+        reduce generation speed (workers can choose if they wish
+        to take nsfw requests)
+        """)
 
         ctrl = dlg.CreateCheckBox("bool_censure", (29, 145, 50, 10))
         ctrl.Caption = _("Censor NSFW")
-        ctrl.TipText = _("Allow if you want to avoid unexpected images...")
+        ctrl.TipText = _("""
+        Separate from the NSFW flag, should workers
+        return nsfw images. Censorship is implemented to be safe
+        and overcensor rather than risk returning unwanted NSFW.
+        """)
         ctrl.TabIndex = 8
 
         return dlg
@@ -1700,32 +1726,28 @@ g_ImplementationHelper.addImplementation(
 
 # TODO:
 # * [X] Integrate changes from gimp work
-# * [ ] Add option on the Dialog to show debug
 # * [X] Issue bugs for Impress with placeholdertext bug 167809
 # * [X] Get back support fot python 3.8
+# * [ ] Use singleton path for the config path
+# * [ ] Add to Calc
+# * [ ] Add to Draw
 # * [ ] Repo for client and use it as a submodule
 #    -  Check how to add another source file in gimp and lo
 # * [X] Handle Warnings.  For each model the restrictions are present in
 # * [X] Internationalization
-# * [ ] Bug ? Wayland transparent png - Not being reproduced...
 # * [ ] Wishlist to have right alignment for numeric control option
 # * [ ] Recommend to use a shared key to users
 # * [X] Make release in Github
 # * [ ] Modify Makefile to upload to github with gh
-# * [X] Fix Makefile for patterns on gettext languages
 # * [ ] Automate version propagation when publishing
-# * [ ] Add to Calc
-# * [ ] Add to Draw
-# * [X] Announce in stablehorde
+# * [X] Fix Makefile for patterns on gettext languages
 # * [ ] Add a popup context menu: Generate Image... [programming] https://wiki.documentfoundation.org/Macros/ScriptForge/PopupMenuExample
 # * [ ] Use styles support from Horde
 #    -  Show Styles and Advanced View
 #    -  Download and cache Styles
+# * [ ] Add option on the Dialog to show debug
 #
 # Local documentation
 # file:///usr/share/doc/libreoffice-dev-doc/api/
 # /usr/lib/libreoffice/share/Scripts/python/
 # /usr/lib/libreoffice/sdk/examples/html
-#
-# oxt/build && unopkg add -s -f loshd.oxt && libreoffice --writer >> /tmp/libreoffice.log
-#
