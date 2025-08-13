@@ -117,7 +117,17 @@ inpainting consider the
 ## Troubleshooting
 
 ### LibreOffice
+
 ##### Linux
+
+If you hit errors related to scriptforge, please install scriptforge on
+Debian, Ubuntu, Mint and derivatives it should suffice to do it from
+your package manager or from a shell do:
+
+```
+sudo apt install python3-scriptforge
+```
+
 
 ##### macOS
 
