@@ -120,6 +120,8 @@ inpainting consider the
 
 ##### Linux
 
+##### Scriptforge
+
 If you hit errors related to scriptforge, please install scriptforge on
 Debian, Ubuntu, Mint and derivatives it should suffice to do it from
 your package manager or from a shell do:
@@ -127,6 +129,10 @@ your package manager or from a shell do:
 ```
 sudo apt install python3-scriptforge
 ```
+
+Errors look usually like
+
+<img width="656" height="512" alt="da" src="https://github.com/user-attachments/assets/9092e297-2516-42a7-a4ec-65d127b94600" />
 
 
 ##### macOS
