@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 This project is [semver](https://semver.org/) based
 
+## [0.4.1 ] - Hotfix
+
+## Changed
+
+* Bug when getting one new model when updating
+
 ## [0.4] - Add support for Spanish
 
 ### Added

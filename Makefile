@@ -21,6 +21,9 @@ oxt/locale/%/LC_MESSAGES/$(GETTEXTDOMAIN).mo: src/po/%.po
 	mkdir -p $(dir $@)
 	msgfmt --output-file=$@ $<
 
+src/po/$(LANG).po: po/$(EXEC).pot
+	msgmerge --update $@ $<
+
 src/po/messages.pot: src/$(SCRIPTNAME).py
 	xgettext -j -o $@ --add-comments=TRANSLATORS: --keyword=_ --flag=_:1:pass-python-format --directory=. $<
 

@@ -48,7 +48,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import urlopen, Request
 
 DEBUG = False
-VERSION = "0.4"
+VERSION = "0.4.1"
 LIBREOFFICE_EXTENSION_ID = "org.fectp.StableHordeForLibreOffice"
 GETTEXT_DOMAIN = "stablehordeforlibreoffice"
 
@@ -653,7 +653,7 @@ class StableHordeClient:
                 locals["models"] = sorted(fetched_models, key=lambda c: c.upper())
                 size_models = len(new_models)
                 if size_models == 1:
-                    message = _("We have a new model:\n\n * ") + new_models[0]
+                    message = _("We have a new model:\n\n * ") + next(iter(new_models))
                 else:
                     if size_models > 10:
                         message = (
