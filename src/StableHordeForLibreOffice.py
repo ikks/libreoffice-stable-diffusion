@@ -48,7 +48,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import urlopen, Request
 
 DEBUG = False
-VERSION = "0.4.1"
+VERSION = "0.4.2"
 LIBREOFFICE_EXTENSION_ID = "org.fectp.StableHordeForLibreOffice"
 GETTEXT_DOMAIN = "stablehordeforlibreoffice"
 
@@ -255,19 +255,17 @@ It's  needed that the user writes down something to create an image from
 """
 
 MODELS = [
-    "majicMIX realistic",
+    "Deliberate",
+    "Dreamshaper",
     "NatViS",
-    "noobEvo",
+    "noob_v_pencil XL",
     "Nova Anime XL",
-    "Nova Furry Pony",
-    "NTR MIX IL-Noob XL",
-    "Pony Diffusion XL",
-    "Pony Realism",
     "Prefect Pony",
     "Realistic Vision",
-    "SDXL 1.0",
-    "Stable Cascade 1.0",
     "stable_diffusion",
+    "Ultraspice",
+    "Unstable Diffusers XL",
+    "WAI-ANI-NSFW-PONYXL",
 ]
 """
 Initial list of models, new ones are downloaded from StableHorde API
@@ -657,13 +655,13 @@ class StableHordeClient:
                 else:
                     if size_models > 10:
                         message = (
-                            _("We have {size_models} new models, including:")
+                            _("We have {} new models, including:").format(size_models)
                             + "\n * "
                             + "\n * ".join(list(new_models)[:10])
                         )
                     else:
                         message = (
-                            _("We have {size_models} new models:")
+                            _("We have {} new models:").format(size_models)
                             + "\n * "
                             + "\n * ".join(list(new_models)[:10])
                         )
@@ -1246,10 +1244,12 @@ class LibreOfficeInteraction(InformerFrontendInterface):
         lbl.Caption = _("ApiKey (Optional)")
 
         # Buttons
-        button_ok = dlg.CreateButton("btn_ok", (145, 182, 45, 13), push="OK")
+        button_ok = dlg.CreateButton("btn_ok", (78, 182, 45, 13), push="OK")
         button_ok.Caption = _("Process")
         button_ok.TabIndex = 12
-        button_cancel = dlg.CreateButton("btn_cancel", (78, 182, 49, 12), push="CANCEL")
+        button_cancel = dlg.CreateButton(
+            "btn_cancel", (145, 182, 49, 12), push="CANCEL"
+        )
         button_cancel.Caption = _("Cancel")
         button_ok.TabIndex = 13
         # button_help = dlg.CreateButton("CommandButton1", (23, 15, 13, 10))
@@ -1675,11 +1675,25 @@ def create_image(desktop=None, context=None):
 
     show_debugging_data(options)
 
-    def do_work():
+    def __real_work_with_api__():
+        """
+        Once we have collected everything, we make calls to the API and
+        maintain LibreOffice interface responsive, show a message and
+        insert the image in the cursor position.  It will need some
+        refactor to have the dialog visible and the progressbar inside
+        it.we have collected everything, we make calls to the API and
+        maintain LibreOffice interface responsive, show a message and
+        insert the image in the cursor position.  It will need some
+        refactor to have the dialog visible and the progressbar inside
+        it."""
         images_paths = sh_client.generate_image(options)
 
         show_debugging_data(images_paths)
         if images_paths:
+            bas = CreateScriptService("Basic")
+            bas.MsgBox(_("Your image was generated"), title=_("AIHorde has good news"))
+            bas.Dispose()
+
             lo_manager.insert_image(
                 images_paths[0], options["image_width"], options["image_height"]
             )
@@ -1689,7 +1703,7 @@ def create_image(desktop=None, context=None):
 
     from threading import Thread
 
-    t = Thread(target=do_work)
+    t = Thread(target=__real_work_with_api__)
     t.start()
 
 
@@ -1737,6 +1751,11 @@ g_ImplementationHelper.addImplementation(
 # * [X] Integrate changes from gimp work
 # * [X] Issue bugs for Impress with placeholdertext bug 167809
 # * [X] Get back support fot python 3.8
+# * [X] Use thread to make more responsive the interface
+# * [ ] Check metadata response to avoid nsfw images
+#   and showing the dialog with prefilled with the same
+#   telling the user that it was NSFW
+# * [ ] Add information to the image https://discord.com/channels/781145214752129095/1401005281332433057/1406114848810467469
 # * [ ] Use singleton path for the config path
 # * [ ] Add to Calc
 # * [ ] Add to Draw

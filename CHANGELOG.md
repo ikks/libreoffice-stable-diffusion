@@ -4,9 +4,23 @@ All notable changes to this project will be documented in this file.
 
 This project is [semver](https://semver.org/) based
 
-## [0.4.1 ] - Hotfix
+## [0.4.2] - Allow to work while image is being generated
 
-## Changed
+### Added
+
+* You can move around and continue working on other tasks while the
+plugin is generating the image. If you have a Python installation
+previous to 3.11, it's not guaranteed and patience will be needed.
+
+### Changed
+
+* Bug when stored settings had bad models data
+* Process and Cancel buttons were swapped
+* Initial models are chosen from the most popular ones
+
+## [0.4.1] - Hotfix
+
+### Changed
 
 * Bug when getting one new model when updating
 
@@ -14,15 +28,15 @@ This project is [semver](https://semver.org/) based
 
 ### Added
 
- * Translation to spanish
- * Support to get more languages used
- * Instructions for translators
+* Translation to spanish
+* Support to get more languages used
+* Instructions for translators
 
 ### Changed
 
- * Improved proressbar ticks
- * Fallback on older python versions for progressbar
- * Warnings are fixed
+* Improved proressbar ticks
+* Fallback on older python versions for progressbar
+* Warnings are fixed
 
 ## [0.3.1] - Bugfix that prevented using Windows, Mac and Older Python Version
 

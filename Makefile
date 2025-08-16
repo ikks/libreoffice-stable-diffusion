@@ -21,7 +21,7 @@ oxt/locale/%/LC_MESSAGES/$(GETTEXTDOMAIN).mo: src/po/%.po
 	mkdir -p $(dir $@)
 	msgfmt --output-file=$@ $<
 
-src/po/$(LANG).po: po/$(EXEC).pot
+src/po/$(CURRENT_LANG).po: src/po/messages.pot
 	msgmerge --update $@ $<
 
 src/po/messages.pot: src/$(SCRIPTNAME).py
