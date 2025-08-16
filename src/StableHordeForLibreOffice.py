@@ -1392,9 +1392,11 @@ class LibreOfficeInteraction(InformerFrontendInterface):
         dlg.Controls("txt_prompt").Value = self.selected
         api_key = options.get("api_key", "")
         dlg.Controls("txt_token").Value = "" if api_key == ANONYMOUS else api_key
-        dlg.Controls("lst_model").RowSource = options.get(
-            "local_settings", {"models": MODELS}
-        ).get("models")
+        choices = options.get("local_settings", {"models": MODELS}).get(
+            "models", MODELS
+        )
+        choices = choices or MODELS
+        dlg.Controls("lst_model").RowSource = choices
         dlg.Controls("lst_model").Value = DEFAULT_MODEL
         # dlg.Controls("btn_ok").Enabled = len(self.selected) > MIN_PROMPT_LENGTH
 
@@ -1672,16 +1674,23 @@ def create_image(desktop=None, context=None):
         return
 
     show_debugging_data(options)
-    images_paths = sh_client.generate_image(options)
 
-    show_debugging_data(images_paths)
-    if images_paths:
-        lo_manager.insert_image(
-            images_paths[0], options["image_width"], options["image_height"]
-        )
-        st_manager.save(sh_client.get_settings())
+    def do_work():
+        images_paths = sh_client.generate_image(options)
 
-    lo_manager.free()
+        show_debugging_data(images_paths)
+        if images_paths:
+            lo_manager.insert_image(
+                images_paths[0], options["image_width"], options["image_height"]
+            )
+            st_manager.save(sh_client.get_settings())
+
+        lo_manager.free()
+
+    from threading import Thread
+
+    t = Thread(target=do_work)
+    t.start()
 
 
 class StableHordeForLibreOffice(unohelper.Base, XJobExecutor, XEventListener):
