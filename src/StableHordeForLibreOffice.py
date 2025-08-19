@@ -1216,7 +1216,7 @@ class LibreOfficeInteraction(InformerFrontendInterface):
             "writer": "com.sun.star.text.TextDocument",
             "impress": "com.sun.star.presentation.PresentationDocument",
             # "calc": "com.sun.star.sheet.SpreadsheetDocument",
-            # "draw": "com.sun.star.drawing.DrawingDocument",
+            "draw": "com.sun.star.drawing.DrawingDocument",
         }
         for k, v in TYPE_DOC.items():
             if doc.supportsService(v):
@@ -1611,7 +1611,33 @@ class LibreOfficeInteraction(InformerFrontendInterface):
     def __insert_image_in_draw__(
         self, img_path: str, width: int, height: int, sh_client: StableHordeClient
     ):
-        self.bas.MsgBox("TBD")
+        from com.sun.star.awt import Size
+        from com.sun.star.awt import Point
+
+        size = Size(width * 10, height * 10)
+        # https://api.libreoffice.org/docs/idl/ref/servicecom_1_1sun_1_1star_1_1drawing_1_1GraphicObjectShape.html
+        image = self.doc.createInstance("com.sun.star.drawing.GraphicObjectShape")
+        image.GraphicURL = uno.systemPathToFileUrl(img_path)
+
+        ctrllr = self.model.CurrentController
+        draw_page = ctrllr.CurrentPage
+
+        draw_page.addTop(image)
+        added_image = draw_page[-1]
+        added_image.setSize(size)
+        position = Point(
+            ((added_image.Parent.Width - (width * 10)) / 2),
+            ((added_image.Parent.Height - (height * 10)) / 2),
+        )
+        added_image.setPosition(position)
+        added_image.setPropertyValue("ZOrder", draw_page.Count)
+
+        added_image.setPropertyValue("Title", sh_client.get_title())
+        added_image.setPropertyValue("Name", sh_client.get_imagename())
+        added_image.setPropertyValue("Description", sh_client.get_full_description())
+        added_image.Visible = True
+        self.model.Modified = True
+        os.unlink(img_path)
 
     def __insert_image_in_text__(
         self, img_path: str, width: int, height: int, sh_client: StableHordeClient
