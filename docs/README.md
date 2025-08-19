@@ -2,9 +2,9 @@
 
 Creating images from text. That is what this extension for
 [LibreOffice](https://libreoffice.org) does. Making use of
-[StableHorde](https://stablehorde.net).
+[AIHorde](https://aihorde.net).
 
-Stablehorde is a cluster of stable-diffusion servers run by
+AIHorde is a cluster of stable-diffusion servers run by
 volunteers. You can create stable-diffusion images for free without
 running a colab notebook or a local server. Please check the section
 [Limitations](README#Limitations) to better understand where the
@@ -88,7 +88,7 @@ layer at the top left.
 API key, you run the image generation as anonymous. The downside
 is, that you will have then the lowest priority in the generation
 queue. For that reason it is recommended registering for free on
-[StableHorde](https://stablehorde.net) and getting an API key.
+[AIHorde](https://aihorde.net) and getting an API key.
 
 2. Click on the OK button. The values you inserted into the dialog
 will be transmitted to the server, which dispatches the request now to
@@ -98,13 +98,13 @@ status bar. When the image has been generated successfully, it will
 be shown as a new image in LibreOffice inside the current document.
 
 ## Limitations
-- **Generation speed:** StableHorde is a cluster of stable-diffusion
+- **Generation speed:** AIHorde is a cluster of stable-diffusion
 servers run by volunteers. The generation speed depends on how many
 servers are in the cluster, which hardware they use and how many others
-want to generate with StableHorde. The upside is, that StableHorde is
+want to generate with AIHorde. The upside is, that AIHorde is
 free to use, the downside that the generation speed is unpredictable.
 
-- **Privacy:** The privacy StableHorde offers is similar to generating
+- **Privacy:** The privacy AIHorde offers is similar to generating
 in a public discord channel. So, please assume, that neither your
 prompts nor your generated images are private.
 
@@ -149,7 +149,8 @@ A [bug was filled](https://bugs.documentfoundation.org/show_bug.cgi?id=167809).
 ## FAQ
 
 **How do I report an error or request a new feature?** Please open
-a new issue [here](). If you have questions, head to []().
+a new issue [here](https://github.com/ikks/libreoffice-stable-diffusion/issues).
+If you have questions, head to [Discord](https://discord.com/channels/781145214752129095/1401005281332433057).
 
 ## Internals
 
@@ -161,5 +162,5 @@ at the output it gives.  You can turn on DEBUG editing the plugin file
 ## References and other options
 
 * [LibreOffice](https://libreoffice.org): The Document Foundation
-* [StableHorde](https://stablehorde.net): A collaborative network to share resources
+* [AIHorde](https://aihorde.net): A collaborative network to share resources
 * [Stable diffusion for Gimp](https://github.com/ikks/gimp-stable-diffusion/)

@@ -1,1 +1,1 @@
-Crea imágenes con IA a partir de un texto con StableHorde https://stablehorde.net/
+Crea imágenes con IA a partir de un texto con AIHorde https://aihorde.net/

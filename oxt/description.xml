@@ -6,8 +6,8 @@
         <default xlink:href="description/extensionicon_42.png" />
     </icon>
     <display-name>
-        <name>Stable Horde Client for LibreOffice</name>
-        <name lang="es">Cliente de Stable Horde para LibreOffice</name>
+        <name>AI Horde Client for LibreOffice</name>
+        <name lang="es">Cliente de AI Horde para LibreOffice</name>
     </display-name>
     <extension-description>
         <src xlink:href="description/description_en.txt"/>

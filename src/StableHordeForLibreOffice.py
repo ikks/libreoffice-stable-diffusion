@@ -1,4 +1,4 @@
-# StableHorde client for LibreOffice
+# AIHorde client for LibreOffice
 # Igor Támara 2025
 # No Warranties, use on your own risk
 #
@@ -73,7 +73,7 @@ URL_VERSION_UPDATE = "https://raw.githubusercontent.com/ikks/libreoffice-stable-
 Latest version for the extension
 """
 
-PROPERTY_CURRENT_SESSION = "stable_horde_checked_update"
+PROPERTY_CURRENT_SESSION = "ai_horde_checked_update"
 
 URL_DOWNLOAD = "https://github.com/ikks/libreoffice-stable-diffusion/releases"
 """
@@ -117,16 +117,16 @@ def show_debugging_data(information, additional="", important=False):
 _ = gettext.gettext
 gettext.textdomain(GETTEXT_DOMAIN)
 
-API_ROOT = "https://stablehorde.net/api/v2/"
+API_ROOT = "https://aihorde.net/api/v2/"
 
-REGISTER_STABLE_HORDE_URL = "https://aihorde.net/register"
+REGISTER_AI_HORDE_URL = "https://aihorde.net/register"
 
 
 class InformerFrontendInterface(metaclass=abc.ABCMeta):
     """
     Implementing this interface for an application frontend
-    gives StableHordeClient a way to inform progress.  It's
-    expected that StableHordeClient receives as parameter
+    gives AIHordeClient a way to inform progress.  It's
+    expected that AIHordeClient receives as parameter
     an instance of this Interface to be able to send messages
     and updates to the user.
     """
@@ -270,7 +270,7 @@ MODELS = [
     "WAI-ANI-NSFW-PONYXL",
 ]
 """
-Initial list of models, new ones are downloaded from StableHorde API
+Initial list of models, new ones are downloaded from AIHorde API
 """
 
 INPAINT_MODELS = [
@@ -282,13 +282,13 @@ INPAINT_MODELS = [
     "stable_diffusion_inpainting",
 ]
 """
-Initial list of inpainting models, new ones are downloaded from StableHorde API
+Initial list of inpainting models, new ones are downloaded from AIHorde API
 """
 
 
-class StableHordeClient:
+class AiHordeClient:
     """
-    Interaction with Stable Horde platform, currently supports:
+    Interaction with AI Horde platform, currently supports:
     * Fetch the most used models in the month
     * Review the credits of an api_key
     * Request an image async and go all the way down until getting the image
@@ -329,8 +329,8 @@ class StableHordeClient:
         informer: InformerFrontendInterface = None,
     ):
         """
-        Creates a Stable Horde client with the settings, if None, the API_KEY is
-        set to ANONYMOUS, the name to identify the client to Stable Horde and
+        Creates a AI Horde client with the settings, if None, the API_KEY is
+        set to ANONYMOUS, the name to identify the client to AI Horde and
         a reference of an obect that allows the client to send messages to the
         user.
         """
@@ -596,7 +596,7 @@ class StableHordeClient:
         days_updated = (
             today - date(*[int(i) for i in previous_update.split("-")])
         ).days
-        if days_updated < StableHordeClient.MAX_DAYS_MODEL_UPDATE:
+        if days_updated < AiHordeClient.MAX_DAYS_MODEL_UPDATE:
             show_debugging_data(f"No need to update models {previous_update}")
             return
 
@@ -632,14 +632,14 @@ class StableHordeClient:
                 (key, val)
                 for key, val in popular_models
                 if key.lower().count("inpaint") > 0
-            ][: StableHordeClient.MAX_MODELS_LIST]
+            ][: AiHordeClient.MAX_MODELS_LIST]
             default_models = INPAINT_MODELS
         else:
             popular_models = [
                 (key, val)
                 for key, val in popular_models
                 if key.lower().count("inpaint") == 0
-            ][: StableHordeClient.MAX_MODELS_LIST]
+            ][: AiHordeClient.MAX_MODELS_LIST]
 
         fetched_models = [model[0] for model in popular_models]
         default_model = self.settings.get("default_model", DEFAULT_MODEL)
@@ -732,12 +732,12 @@ class StableHordeClient:
 
     def get_balance(self) -> str:
         """
-        Given an Stable Horde token, present in the attribute api_key,
+        Given an AI Horde token, present in the attribute api_key,
         returns the balance for the account. If happens to be an
         anonymous account, invites to register
         """
         if self.api_key == ANONYMOUS:
-            return _("Register at ") + REGISTER_STABLE_HORDE_URL
+            return _("Register at ") + REGISTER_AI_HORDE_URL
         url = API_ROOT + "find_user"
         request = Request(url, headers=self.headers)
         try:
@@ -753,7 +753,7 @@ class StableHordeClient:
         """
         options have been prefilled for the selected model
         informer will be acknowledged on the process via show_progress
-        Executes the flow to get an image from Stable Horde
+        Executes the flow to get an image from AI Horde
 
         1. Invokes endpoint to launch a work for image generation
         2. Reviews the status of the work
@@ -770,9 +770,7 @@ class StableHordeClient:
         self.api_key = options["api_key"]
         self.headers["apikey"] = self.api_key
         self.check_counter = 1
-        self.check_max = (
-            options["max_wait_minutes"] * 60
-        ) / StableHordeClient.CHECK_WAIT
+        self.check_max = (options["max_wait_minutes"] * 60) / AiHordeClient.CHECK_WAIT
         # Id assigned when requesting the generation of an image
         self.id = ""
 
@@ -863,7 +861,7 @@ class StableHordeClient:
                         if self.api_key == ANONYMOUS:
                             message = (
                                 _(
-                                    f"Register at { REGISTER_STABLE_HORDE_URL } and use your key to improve your rate success. Detail:"
+                                    f"Register at { REGISTER_AI_HORDE_URL  } and use your key to improve your rate success. Detail:"
                                 )
                                 + f" { message }."
                             )
@@ -877,10 +875,8 @@ class StableHordeClient:
                     show_debugging_data(ex2, "No way to recover error msg")
                     message = str(ex)
                 show_debugging_data(message, data)
-                if self.api_key == ANONYMOUS and REGISTER_STABLE_HORDE_URL in message:
-                    self.informer.show_error(
-                        f"{ message }", url=REGISTER_STABLE_HORDE_URL
-                    )
+                if self.api_key == ANONYMOUS and REGISTER_AI_HORDE_URL in message:
+                    self.informer.show_error(f"{ message }", url=REGISTER_AI_HORDE_URL)
                 else:
                     self.informer.show_error(f"{ message }")
                 return ""
@@ -909,7 +905,7 @@ class StableHordeClient:
                 show_debugging_data(ex3)
                 message = str(ex)
             show_debugging_data(ex, data)
-            self.informer.show_error(_("Stablehorde response: ") + f"'{ message }'.")
+            self.informer.show_error(_("AIhorde response: ") + f"'{ message }'.")
             return ""
         except URLError as ex:
             show_debugging_data(ex, data)
@@ -948,7 +944,7 @@ class StableHordeClient:
 
     def __check_if_ready__(self) -> bool:
         """
-        Queries Stable horde API to check if the requested image has been generated,
+        Queries AI horde API to check if the requested image has been generated,
         returns False if is not ready, otherwise True.
         When the time to get an image has been reached raises an Exception, also
         throws exceptions when there are network problems.
@@ -997,12 +993,12 @@ class StableHordeClient:
                 if self.api_key == ANONYMOUS:
                     message = (
                         _("Get a free API Key at ")
-                        + REGISTER_STABLE_HORDE_URL
+                        + REGISTER_AI_HORDE_URL
                         + _(
                             ".\n This model takes more time than your current configuration."
                         )
                     )
-                    raise IdentifiedError(message, url=REGISTER_STABLE_HORDE_URL)
+                    raise IdentifiedError(message, url=REGISTER_AI_HORDE_URL)
                 else:
                     message = (
                         _("Please try another model,")
@@ -1015,8 +1011,8 @@ class StableHordeClient:
                 # We still have time to wait, given that the status is processing, we
                 # wait between 5 secs and 15 secs to check again
                 wait_time = min(
-                    max(StableHordeClient.CHECK_WAIT, int(data["wait_time"] / 2)),
-                    StableHordeClient.MAX_TIME_REFRESH,
+                    max(AiHordeClient.CHECK_WAIT, int(data["wait_time"] / 2)),
+                    AiHordeClient.MAX_TIME_REFRESH,
                 )
                 for i in range(1, wait_time * 2):
                     sleep(0.5)
@@ -1034,14 +1030,14 @@ class StableHordeClient:
             if self.api_key == ANONYMOUS:
                 message = (
                     _("Get an Api key for free at ")
-                    + REGISTER_STABLE_HORDE_URL
+                    + REGISTER_AI_HORDE_URL
                     + _(
                         ".\n This model takes more time than your current configuration."
                     )
                 )
-                raise IdentifiedError(message, url=REGISTER_STABLE_HORDE_URL)
+                raise IdentifiedError(message, url=REGISTER_AI_HORDE_URL)
             else:
-                minutes = (self.check_max * StableHordeClient.CHECK_WAIT) / 60
+                minutes = (self.check_max * AiHordeClient.CHECK_WAIT) / 60
                 show_debugging_data(data)
                 if minutes == 1:
                     raise IdentifiedError(
@@ -1057,7 +1053,7 @@ class StableHordeClient:
 
     def __get_images__(self):
         """
-        At this stage Stable horde has generated the images and it's time
+        At this stage AI horde has generated the images and it's time
         to download them all.
         """
         self.stage = "Getting images"
@@ -1274,9 +1270,9 @@ class LibreOfficeInteraction(InformerFrontendInterface):
 
     def __create_dialog__(self):
         dlg = CreateScriptService(
-            "NewDialog", "StableHordeOptionsDialog", (47, 10, 265, 206)
+            "NewDialog", "AIHordeOptionsDialog", (47, 10, 265, 206)
         )
-        dlg.Caption = _("Stable Horde for LibreOffice - ") + VERSION
+        dlg.Caption = _("AI Horde for LibreOffice - ") + VERSION
         dlg.CreateGroupBox("framebox", (16, 11, 236, 163))
         # Labels
         lbl = dlg.CreateFixedText("label_prompt", (29, 31, 45, 13))
@@ -1337,7 +1333,7 @@ class LibreOfficeInteraction(InformerFrontendInterface):
         ctrl = dlg.CreateTextField("txt_token", (155, 147, 92, 13))
         ctrl.TabIndex = 11
         ctrl.TipText = _("""
-        Get yours at https://stablehorde.net/ for free. Recommended:
+        Get yours at https://aihorde.net/ for free. Recommended:
         Anonymous users are last in the queue.
         """)
 
@@ -1565,7 +1561,7 @@ class LibreOfficeInteraction(InformerFrontendInterface):
         )
 
     def insert_image(
-        self, img_path: str, width: int, height: int, sh_client: StableHordeClient
+        self, img_path: str, width: int, height: int, sh_client: AiHordeClient
     ):
         """
         Inserts the image with width*height from the path in the document adding
@@ -1578,7 +1574,7 @@ class LibreOfficeInteraction(InformerFrontendInterface):
         self.image_insert_to[self.inside](img_path, width, height, sh_client)
 
     def __insert_image_in_presentation__(
-        self, img_path: str, width: int, height: int, sh_client: StableHordeClient
+        self, img_path: str, width: int, height: int, sh_client: AiHordeClient
     ):
         """
         Inserts the image with width*height from the path in the document adding
@@ -1617,7 +1613,7 @@ class LibreOfficeInteraction(InformerFrontendInterface):
         os.unlink(img_path)
 
     def __insert_image_in_calc__(
-        self, img_path: str, width: int, height: int, sh_client: StableHordeClient
+        self, img_path: str, width: int, height: int, sh_client: AiHordeClient
     ):
         """
         Inserts the image with width*height from the path in the document adding
@@ -1647,7 +1643,7 @@ class LibreOfficeInteraction(InformerFrontendInterface):
         os.unlink(img_path)
 
     def __insert_image_in_draw__(
-        self, img_path: str, width: int, height: int, sh_client: StableHordeClient
+        self, img_path: str, width: int, height: int, sh_client: AiHordeClient
     ):
         """
         Inserts the image with width*height from the path in the document adding
@@ -1681,7 +1677,7 @@ class LibreOfficeInteraction(InformerFrontendInterface):
         os.unlink(img_path)
 
     def __insert_image_in_text__(
-        self, img_path: str, width: int, height: int, sh_client: StableHordeClient
+        self, img_path: str, width: int, height: int, sh_client: AiHordeClient
     ):
         """
         Inserts the image with width*height from the path in the document adding
@@ -1794,14 +1790,14 @@ def get_locale_dir(extid):
 
 def create_image(desktop=None, context=None):
     """Creates an image from a prompt provided by the user, making use
-    of Stable Horde"""
+    of AI Horde"""
 
     gettext.bindtextdomain(GETTEXT_DOMAIN, get_locale_dir(LIBREOFFICE_EXTENSION_ID))
 
     lo_manager = LibreOfficeInteraction(desktop, context)
     st_manager = HordeClientSettings(lo_manager.path_store_directory())
     saved_options = st_manager.load()
-    sh_client = StableHordeClient(saved_options, lo_manager.base_info, lo_manager)
+    sh_client = AiHordeClient(saved_options, lo_manager.base_info, lo_manager)
 
     show_debugging_data(lo_manager.base_info)
 
@@ -1853,9 +1849,9 @@ def create_image(desktop=None, context=None):
     t.start()
 
 
-class StableHordeForLibreOffice(unohelper.Base, XJobExecutor, XEventListener):
+class AiHordeForLibreOffice(unohelper.Base, XJobExecutor, XEventListener):
     """Service that creates images from text. The url to be invoked is:
-    service:org.fectp.StableHordeForLibreOffice
+    service:org.fectp.AIHordeForLibreOffice
     """
 
     def trigger(self, args):
@@ -1888,7 +1884,7 @@ class StableHordeForLibreOffice(unohelper.Base, XJobExecutor, XEventListener):
 
 g_ImplementationHelper = unohelper.ImplementationHelper()
 g_ImplementationHelper.addImplementation(
-    StableHordeForLibreOffice,
+    AiHordeForLibreOffice,
     LIBREOFFICE_EXTENSION_ID,
     ("com.sun.star.task.JobExecutor",),
 )
