@@ -1633,7 +1633,7 @@ class LibreOfficeInteraction(InformerFrontendInterface):
         self.doc.Text.insertTextContent(curview, image, False)
         os.unlink(img_path)
 
-    def get_frontend_property(self, property_name: str) -> str | bool | None:
+    def get_frontend_property(self, property_name: str) -> str | bool:
         """
         Gets a property from the frontend application, used to retrieved stored
         information during this session.  Used when checking for update
@@ -1645,6 +1645,8 @@ class LibreOfficeInteraction(InformerFrontendInterface):
             value = self.userProps.getPropertyValue(property_name)
         except UnknownPropertyException:
             # The property was not present
+            # Removed None in the type definition due to old python3.8 on Ubuntu 20.04
+            # https://github.com/ikks/libreoffice-stable-diffusion/issues/1
             return None
         return value
 
