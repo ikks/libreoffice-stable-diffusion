@@ -33,6 +33,8 @@ import time
 import traceback
 import uno
 import unohelper
+from com.sun.star.awt import Point
+from com.sun.star.awt import Size
 from com.sun.star.beans import PropertyExistException
 from com.sun.star.beans import UnknownPropertyException
 from com.sun.star.beans.PropertyAttribute import TRANSIENT
@@ -48,7 +50,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import urlopen, Request
 
 DEBUG = True
-VERSION = "0.4.2"
+VERSION = "0.5"
 LIBREOFFICE_EXTENSION_ID = "org.fectp.StableHordeForLibreOffice"
 GETTEXT_DOMAIN = "stablehordeforlibreoffice"
 
@@ -1215,7 +1217,7 @@ class LibreOfficeInteraction(InformerFrontendInterface):
         TYPE_DOC = {
             "writer": "com.sun.star.text.TextDocument",
             "impress": "com.sun.star.presentation.PresentationDocument",
-            # "calc": "com.sun.star.sheet.SpreadsheetDocument",
+            "calc": "com.sun.star.sheet.SpreadsheetDocument",
             "draw": "com.sun.star.drawing.DrawingDocument",
         }
         for k, v in TYPE_DOC.items():
@@ -1565,13 +1567,24 @@ class LibreOfficeInteraction(InformerFrontendInterface):
     def insert_image(
         self, img_path: str, width: int, height: int, sh_client: StableHordeClient
     ):
+        """
+        Inserts the image with width*height from the path in the document adding
+        the accessibility data from sh_client.
+
+        Depending on self.inside type document, inserts directly in drawing,
+        spreadsheet, presentation and text document, when in other type of document,
+        creates a new text document and inserts the image in there.
+        """
         self.image_insert_to[self.inside](img_path, width, height, sh_client)
 
     def __insert_image_in_presentation__(
         self, img_path: str, width: int, height: int, sh_client: StableHordeClient
     ):
-        from com.sun.star.awt import Size
-        from com.sun.star.awt import Point
+        """
+        Inserts the image with width*height from the path in the document adding
+        the accessibility data from sh_client in a presentation document centered
+        and above all other elements in the current page.
+        """
 
         size = Size(width * 10, height * 10)
         # https://api.libreoffice.org/docs/idl/ref/servicecom_1_1sun_1_1star_1_1presentation_1_1GraphicObjectShape.html
@@ -1606,13 +1619,41 @@ class LibreOfficeInteraction(InformerFrontendInterface):
     def __insert_image_in_calc__(
         self, img_path: str, width: int, height: int, sh_client: StableHordeClient
     ):
-        self.bas.MsgBox("TBD")
+        """
+        Inserts the image with width*height from the path in the document adding
+        the accessibility data from sh_client in a calc spreadsheet left topmost
+        and above all other elements in the current page.
+        """
+
+        size = Size(width * 10, height * 10)
+        # https://api.libreoffice.org/docs/idl/ref/servicecom_1_1sun_1_1star_1_1drawing_1_1GraphicObjectShape.html
+        # https://api.libreoffice.org/docs/idl/ref/namespacecom_1_1sun_1_1star_1_1sheet.html
+        image = self.doc.createInstance("com.sun.star.drawing.GraphicObjectShape")
+        image.GraphicURL = uno.systemPathToFileUrl(img_path)
+
+        ctrllr = self.model.CurrentController
+        draw_page = ctrllr.ActiveSheet.DrawPage
+
+        draw_page.addTop(image)
+        added_image = draw_page[-1]
+        added_image.setSize(size)
+        added_image.setPropertyValue("ZOrder", draw_page.Count)
+
+        added_image.Title = sh_client.get_title()
+        added_image.Name = sh_client.get_imagename()
+        added_image.Description = sh_client.get_full_description()
+        added_image.Visible = True
+        self.model.Modified = True
+        os.unlink(img_path)
 
     def __insert_image_in_draw__(
         self, img_path: str, width: int, height: int, sh_client: StableHordeClient
     ):
-        from com.sun.star.awt import Size
-        from com.sun.star.awt import Point
+        """
+        Inserts the image with width*height from the path in the document adding
+        the accessibility data from sh_client in a draw document centered
+        and above all other elements in the current page.
+        """
 
         size = Size(width * 10, height * 10)
         # https://api.libreoffice.org/docs/idl/ref/servicecom_1_1sun_1_1star_1_1drawing_1_1GraphicObjectShape.html
@@ -1642,6 +1683,11 @@ class LibreOfficeInteraction(InformerFrontendInterface):
     def __insert_image_in_text__(
         self, img_path: str, width: int, height: int, sh_client: StableHordeClient
     ):
+        """
+        Inserts the image with width*height from the path in the document adding
+        the accessibility data from sh_client in the current document
+        at cursor position with the same text next to it.
+        """
         show_debugging_data(f"Inserting {img_path} in writer")
         # https://api.libreoffice.org/docs/idl/ref/servicecom_1_1sun_1_1star_1_1text_1_1TextGraphicObject.html
         image = self.doc.createInstance("com.sun.star.text.GraphicObject")
@@ -1880,3 +1926,6 @@ g_ImplementationHelper.addImplementation(
 # file:///usr/share/doc/libreoffice-dev-doc/api/
 # /usr/lib/libreoffice/share/Scripts/python/
 # /usr/lib/libreoffice/sdk/examples/html
+#
+# doc = XSCRIPTCONTEXT.getDocument()
+#
