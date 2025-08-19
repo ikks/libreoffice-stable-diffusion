@@ -1574,6 +1574,7 @@ class LibreOfficeInteraction(InformerFrontendInterface):
         from com.sun.star.awt import Point
 
         size = Size(width * 10, height * 10)
+        # https://api.libreoffice.org/docs/idl/ref/servicecom_1_1sun_1_1star_1_1presentation_1_1GraphicObjectShape.html
         image = self.doc.createInstance("com.sun.star.presentation.GraphicObjectShape")
         image.GraphicURL = uno.systemPathToFileUrl(img_path)
 
@@ -1591,13 +1592,13 @@ class LibreOfficeInteraction(InformerFrontendInterface):
         added_image.setPropertyValue("ZOrder", draw_page.Count)
 
         # The placeholder does not update
+        # https://bugs.documentfoundation.org/show_bug.cgi?id=167809
         added_image.PlaceholderText = ""
         added_image.setPropertyValue("PlaceholderText", "")
 
-        added_image.setPropertyValue("Title", _("Stable Horde Generated Image"))
-        added_image.setPropertyValue(
-            "Description", self.options["prompt"] + _(" by ") + self.options["model"]
-        )
+        added_image.setPropertyValue("Title", sh_client.get_title())
+        added_image.setPropertyValue("Name", sh_client.get_imagename())
+        added_image.setPropertyValue("Description", sh_client.get_full_description())
         added_image.Visible = True
         self.model.Modified = True
         os.unlink(img_path)

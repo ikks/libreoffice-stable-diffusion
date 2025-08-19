@@ -31,7 +31,7 @@ $(EXEC): src/$(SCRIPTNAME).py $(MO_FILES)
 	oxt/build
 
 clean:
-	rm  -rf oxt/locale loshd.oxt
+	rm  -rf oxt/locale loshd.oxt src/po/*~ src/po/*bak
 
 install:
 	unopkg add -s -f loshd.oxt
