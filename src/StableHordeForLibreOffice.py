@@ -1571,7 +1571,10 @@ class LibreOfficeInteraction(InformerFrontendInterface):
         spreadsheet, presentation and text document, when in other type of document,
         creates a new text document and inserts the image in there.
         """
-        self.image_insert_to[self.inside](img_path, width, height, sh_client)
+        # Normalizing pixel to cm
+        self.image_insert_to[self.inside](
+            img_path, width * 25.4, height * 25.4, sh_client
+        )
 
     def __insert_image_in_presentation__(
         self, img_path: str, width: int, height: int, sh_client: AiHordeClient
@@ -1582,7 +1585,7 @@ class LibreOfficeInteraction(InformerFrontendInterface):
         and above all other elements in the current page.
         """
 
-        size = Size(width * 10, height * 10)
+        size = Size(width, height)
         # https://api.libreoffice.org/docs/idl/ref/servicecom_1_1sun_1_1star_1_1presentation_1_1GraphicObjectShape.html
         image = self.doc.createInstance("com.sun.star.presentation.GraphicObjectShape")
         image.GraphicURL = uno.systemPathToFileUrl(img_path)
@@ -1594,8 +1597,8 @@ class LibreOfficeInteraction(InformerFrontendInterface):
         added_image = draw_page[-1]
         added_image.setSize(size)
         position = Point(
-            ((added_image.Parent.Width - (width * 10)) / 2),
-            ((added_image.Parent.Height - (height * 10)) / 2),
+            ((added_image.Parent.Width - width) / 2),
+            ((added_image.Parent.Height - height) / 2),
         )
         added_image.setPosition(position)
         added_image.setPropertyValue("ZOrder", draw_page.Count)
@@ -1621,7 +1624,7 @@ class LibreOfficeInteraction(InformerFrontendInterface):
         and above all other elements in the current page.
         """
 
-        size = Size(width * 10, height * 10)
+        size = Size(width, height)
         # https://api.libreoffice.org/docs/idl/ref/servicecom_1_1sun_1_1star_1_1drawing_1_1GraphicObjectShape.html
         # https://api.libreoffice.org/docs/idl/ref/namespacecom_1_1sun_1_1star_1_1sheet.html
         image = self.doc.createInstance("com.sun.star.drawing.GraphicObjectShape")
@@ -1651,7 +1654,7 @@ class LibreOfficeInteraction(InformerFrontendInterface):
         and above all other elements in the current page.
         """
 
-        size = Size(width * 10, height * 10)
+        size = Size(width, height)
         # https://api.libreoffice.org/docs/idl/ref/servicecom_1_1sun_1_1star_1_1drawing_1_1GraphicObjectShape.html
         image = self.doc.createInstance("com.sun.star.drawing.GraphicObjectShape")
         image.GraphicURL = uno.systemPathToFileUrl(img_path)
@@ -1663,8 +1666,8 @@ class LibreOfficeInteraction(InformerFrontendInterface):
         added_image = draw_page[-1]
         added_image.setSize(size)
         position = Point(
-            ((added_image.Parent.Width - (width * 10)) / 2),
-            ((added_image.Parent.Height - (height * 10)) / 2),
+            ((added_image.Parent.Width - width) / 2),
+            ((added_image.Parent.Height - height) / 2),
         )
         added_image.setPosition(position)
         added_image.setPropertyValue("ZOrder", draw_page.Count)
@@ -1689,8 +1692,8 @@ class LibreOfficeInteraction(InformerFrontendInterface):
         image = self.doc.createInstance("com.sun.star.text.GraphicObject")
         image.GraphicURL = uno.systemPathToFileUrl(img_path)
         image.AnchorType = AS_CHARACTER
-        image.Width = width * 10
-        image.Height = height * 10
+        image.Width = width
+        image.Height = height
         image.Tooltip = sh_client.get_tooltip()
         image.Name = sh_client.get_imagename()
         image.Description = sh_client.get_full_description()
