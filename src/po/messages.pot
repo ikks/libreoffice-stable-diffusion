@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-08-19 17:11-0500\n"
+"POT-Creation-Date: 2025-08-19 20:16-0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -33,7 +33,7 @@ msgstr ""
 msgid "Tried to get the latest models, check your Internet connection"
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:656
+#: src/StableHordeForLibreOffice.py:657
 msgid ""
 "We have a new model:\n"
 "\n"
@@ -54,7 +54,7 @@ msgstr ""
 msgid "Tried to check for most recent version, check your Internet connection"
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:740
+#: src/StableHordeForLibreOffice.py:741
 msgid "Register at "
 msgstr ""
 
@@ -62,15 +62,15 @@ msgstr ""
 msgid "Contacting the Horde"
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:850
+#: src/StableHordeForLibreOffice.py:851
 msgid "Horde Contacted"
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:871
+#: src/StableHordeForLibreOffice.py:872
 msgid "to learn to earn kudos. Detail:"
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:886
+#: src/StableHordeForLibreOffice.py:887
 msgid "Internet required, chek your connection: "
 msgstr ""
 
@@ -78,11 +78,11 @@ msgstr ""
 msgid "Stablehorde said: "
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:912
+#: src/StableHordeForLibreOffice.py:913
 msgid "Internet required, check your connection"
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:922
+#: src/StableHordeForLibreOffice.py:923
 msgid "Service failed with: "
 msgstr ""
 
@@ -94,19 +94,20 @@ msgstr ""
 msgid "You are the first in the queue"
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:979
+#: src/StableHordeForLibreOffice.py:980
 msgid "Queue position: "
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:982
+#: src/StableHordeForLibreOffice.py:983
 msgid "Generating..."
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:1032
+#: src/StableHordeForLibreOffice.py:1033
 msgid "Get an Api key for free at "
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:1035
+#: src/StableHordeForLibreOffice.py:999
+#: src/StableHordeForLibreOffice.py:1036
 msgid ""
 ".\n"
 " This model takes more time than your current configuration."
@@ -116,7 +117,7 @@ msgstr ""
 msgid "Please try with other model,"
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:1006
+#: src/StableHordeForLibreOffice.py:1007
 msgid " or try again later."
 msgstr ""
 
@@ -125,7 +126,8 @@ msgid ""
 "Currently no worker available to generate your image. Please try again later."
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:1050
+#: src/StableHordeForLibreOffice.py:1046
+#: src/StableHordeForLibreOffice.py:1051
 msgid "Please try again later."
 msgstr ""
 
@@ -144,7 +146,7 @@ msgid ""
 " * "
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:1204
+#: src/StableHordeForLibreOffice.py:1213
 msgid "Generate Image"
 msgstr ""
 
@@ -152,47 +154,47 @@ msgstr ""
 msgid "Stable Horde for LibreOffice - "
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:1279
+#: src/StableHordeForLibreOffice.py:1288
 msgid "Prompt"
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:1281
+#: src/StableHordeForLibreOffice.py:1290
 msgid "Height"
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:1283
+#: src/StableHordeForLibreOffice.py:1292
 msgid "Width"
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:1285
+#: src/StableHordeForLibreOffice.py:1294
 msgid "Model"
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:1287
+#: src/StableHordeForLibreOffice.py:1296
 msgid "Max Wait"
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:1289
+#: src/StableHordeForLibreOffice.py:1298
 msgid "Strength"
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:1291
+#: src/StableHordeForLibreOffice.py:1300
 msgid "Steps"
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:1293
+#: src/StableHordeForLibreOffice.py:1302
 msgid "Seed (Optional)"
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:1295
+#: src/StableHordeForLibreOffice.py:1304
 msgid "ApiKey (Optional)"
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:1299
+#: src/StableHordeForLibreOffice.py:1308
 msgid "Process"
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:1304
+#: src/StableHordeForLibreOffice.py:1313
 msgid "Cancel"
 msgstr ""
 
@@ -230,7 +232,7 @@ msgid ""
 "message if timeout is reached"
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:1422
+#: src/StableHordeForLibreOffice.py:1431
 msgid "NSFW"
 msgstr ""
 
@@ -238,7 +240,7 @@ msgstr ""
 msgid "If not marked, it's faster, when marked you are on the edge..."
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:1431
+#: src/StableHordeForLibreOffice.py:1440
 msgid "Censor NSFW"
 msgstr ""
 
@@ -246,11 +248,11 @@ msgstr ""
 msgid "Allow if you want to avoid unexpected images..."
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:1541
+#: src/StableHordeForLibreOffice.py:1550
 msgid "Watch out!"
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:1555
+#: src/StableHordeForLibreOffice.py:1564
 msgid "Good"
 msgstr ""
 
@@ -258,11 +260,11 @@ msgstr ""
 msgid "Stable Horde Generated Image"
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:1701
+#: src/StableHordeForLibreOffice.py:1713
 msgid " by "
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:1811
+#: src/StableHordeForLibreOffice.py:1823
 msgid "Please provide a prompt with at least 5 words"
 msgstr ""
 
@@ -270,31 +272,31 @@ msgstr ""
 msgid "Starting..."
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:475
+#: src/StableHordeForLibreOffice.py:476
 msgid "Updating model requirements..."
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:610
+#: src/StableHordeForLibreOffice.py:611
 msgid "Updating Models..."
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:616
+#: src/StableHordeForLibreOffice.py:617
 msgid "Failed to get latest models, check your Internet connection"
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:660
+#: src/StableHordeForLibreOffice.py:661
 msgid "We have {} new models, including:"
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:666
+#: src/StableHordeForLibreOffice.py:667
 msgid "We have {} new models:"
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:729
+#: src/StableHordeForLibreOffice.py:730
 msgid "Failed to check for most recent version, check your Internet connection"
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:783
+#: src/StableHordeForLibreOffice.py:784
 msgid "Contacting the Horde..."
 msgstr ""
 
@@ -302,43 +304,43 @@ msgstr ""
 msgid "Stablehorde response: "
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:971
+#: src/StableHordeForLibreOffice.py:972
 msgid "Downloading generated image..."
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:977
+#: src/StableHordeForLibreOffice.py:978
 msgid "You are first in the queue"
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:995
+#: src/StableHordeForLibreOffice.py:996
 msgid "Get a free API Key at "
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:1004
+#: src/StableHordeForLibreOffice.py:1005
 msgid "Please try another model,"
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:1026
+#: src/StableHordeForLibreOffice.py:1027
 msgid ""
 "There are no workers available with these settings. Please try again later."
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:1061
+#: src/StableHordeForLibreOffice.py:1062
 msgid "Fetching images..."
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:1086
+#: src/StableHordeForLibreOffice.py:1095
 msgid "Downloading result..."
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:1104
+#: src/StableHordeForLibreOffice.py:1113
 msgid ""
 "You may need to reduce your settings or choose another model, or you may "
 "have been censored. Horde message:\n"
 " * "
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:1325
+#: src/StableHordeForLibreOffice.py:1334
 msgid ""
 "\n"
 "        Let your imagination run wild or put a proper description of your\n"
@@ -357,17 +359,18 @@ msgid ""
 "        "
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:1343
+#: src/StableHordeForLibreOffice.py:1352
 msgid ""
 "Set a seed to regenerate (reproducible), or it'll be chosen at random by the "
 "worker."
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:1388
+#: src/StableHordeForLibreOffice.py:1367
+#: src/StableHordeForLibreOffice.py:1397
 msgid "Height and Width together at most can be 2048x2048=4194304 pixels"
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:1371
+#: src/StableHordeForLibreOffice.py:1380
 msgid ""
 "\n"
 "         How strongly the AI follows the prompt vs how much creativity to "
@@ -378,7 +381,7 @@ msgid ""
 "        "
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:1400
+#: src/StableHordeForLibreOffice.py:1409
 msgid ""
 "\n"
 "        How long to wait for your generation to complete.\n"
@@ -387,7 +390,7 @@ msgid ""
 "        "
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:1416
+#: src/StableHordeForLibreOffice.py:1425
 msgid ""
 "\n"
 "        How many sampling steps to perform for generation. Should\n"
@@ -396,7 +399,7 @@ msgid ""
 "        "
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:1424
+#: src/StableHordeForLibreOffice.py:1433
 msgid ""
 "\n"
 "        Whether or not your image is intended to be NSFW. May\n"
@@ -405,7 +408,7 @@ msgid ""
 "        "
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:1432
+#: src/StableHordeForLibreOffice.py:1441
 msgid ""
 "\n"
 "        Separate from the NSFW flag, should workers\n"
@@ -414,34 +417,39 @@ msgid ""
 "        "
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:1833
+#: src/StableHordeForLibreOffice.py:1845
 msgid "Your image was generated"
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:1833
+#: src/StableHordeForLibreOffice.py:1845
 msgid "AIHorde has good news"
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:1138
+#: src/StableHordeForLibreOffice.py:1135
+#: src/StableHordeForLibreOffice.py:1147
 msgid " generated by "
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:1136
+#: src/StableHordeForLibreOffice.py:1145
 msgid " with "
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:908
+#: src/StableHordeForLibreOffice.py:909
 msgid "AIhorde response: "
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:1275
+#: src/StableHordeForLibreOffice.py:1284
 msgid "AI Horde for LibreOffice - "
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:1335
+#: src/StableHordeForLibreOffice.py:1344
 msgid ""
 "\n"
 "        Get yours at https://aihorde.net/ for free. Recommended:\n"
 "        Anonymous users are last in the queue.\n"
 "        "
+msgstr ""
+
+#: src/StableHordeForLibreOffice.py:1086
+msgid " is censored, try changing the prompt wording"
 msgstr ""

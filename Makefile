@@ -7,6 +7,14 @@
 # To create a new language
 # THELANG=da msginit --input=po/messages.pot --locale=$THELANG.UTF-8 --output=src/po/$THELANG.po
 
+# When there are new strings to be translated run
+#    make src/po/messages.pot
+# Review the file to delete multiple entries of the same string pointing
+# to different places in the file.
+# Then run
+#    make langs
+
+
 EXEC=loshd.oxt
 UNOPKG=unopkg
 CURRENT_LANG=es
@@ -27,9 +35,11 @@ src/po/$(CURRENT_LANG).po: src/po/messages.pot
 src/po/messages.pot: src/$(SCRIPTNAME).py
 	xgettext -j -o $@ --add-comments=TRANSLATORS: --keyword=_ --flag=_:1:pass-python-format --directory=. $<
 
-$(EXEC): src/$(SCRIPTNAME).py $(MO_FILES)
+$(EXEC): src/$(SCRIPTNAME).py 
 	oxt/build
 
+langs: src/po/messages.pot $(MO_FILES)
+	
 clean:
 	rm  -rf oxt/locale loshd.oxt src/po/*~ src/po/*bak
 
@@ -42,5 +52,7 @@ run:
 	libreoffice --writer
 
 
-.PHONY: clean install run
+.PHONY: clean install run langs
+
+
 

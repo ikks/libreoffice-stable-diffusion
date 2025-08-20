@@ -354,6 +354,7 @@ class AiHordeClient:
 
         # Sync informer and async request
         self.finished_task: bool = True
+        self.censored: bool = False
         dt = self.headers.copy()
         del dt["apikey"]
         # Beware, not logging the api_key
@@ -936,7 +937,7 @@ class AiHordeClient:
         """
         progress = 100 - (int(self.max_time - datetime.now().timestamp()) * self.factor)
 
-        show_debugging_data(f"{progress} {self.progress_text}")
+        show_debugging_data(f"{progress:.2f} {self.progress_text}")
 
         if self.informer and progress != self.progress:
             self.informer.update_status(self.progress_text, progress)
@@ -1080,6 +1081,14 @@ class AiHordeClient:
             with tempfile.NamedTemporaryFile(
                 "wb+", delete=False, suffix=".webp"
             ) as generated_file:
+                if image["censored"]:
+                    message = f'«{ self.settings["prompt"] }»' + _(
+                        " is censored, try changing the prompt wording"
+                    )
+                    show_debugging_data(message)
+                    self.informer.show_error(message, title="warning")
+                    self.censored = True
+                    break
                 if image["img"].startswith("https"):
                     show_debugging_data(f"Downloading { image['img'] }")
                     if nimages == 1:
