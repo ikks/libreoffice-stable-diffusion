@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 This project is [semver](https://semver.org/) based
 
+## [0.5] - Calc and Draw support
+
+### Added
+
+* When in Draw images are generated inside it instead of a new
+  text document.
+* When in Calc images are generated inside it instead of a new
+  text document.
+* Generated images have alternative text storing parameters used for
+  generation.
+* NSFW generation shows a warning instead of inserting black and
+  white image
+
+### Changed
+
+* Python3.8 is supported again on older installs.
+
 ## [0.4.2] - Allow to work while image is being generated
 
 ### Added

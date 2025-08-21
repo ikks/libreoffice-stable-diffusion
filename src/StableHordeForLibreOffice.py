@@ -46,6 +46,8 @@ from datetime import datetime
 from pathlib import Path
 from scriptforge import CreateScriptService
 from time import sleep
+from typing import List
+from typing import Union
 from urllib.error import HTTPError, URLError
 from urllib.request import urlopen, Request
 
@@ -176,7 +178,7 @@ class InformerFrontendInterface(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     @abc.abstractclassmethod
-    def get_frontend_property(self, property_name: str) -> str | bool | None:
+    def get_frontend_property(self, property_name: str) -> Union[str, bool, None]:
         """
         Gets a property from the frontend application, used to retrieved stored
         information during this session.  Used when checking for update.
@@ -184,7 +186,7 @@ class InformerFrontendInterface(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     @abc.abstractclassmethod
-    def set_frontend_property(self, property_name: str, value: str | bool):
+    def set_frontend_property(self, property_name: str, value: Union[str, bool]):
         """
         Sets a property in the frontend application, used to retrieved stored
         information during this session.  Used when checking for update.
@@ -350,7 +352,7 @@ class AiHordeClient:
         self.informer: InformerFrontendInterface = informer
         self.progress: float = 0.0
         self.progress_text: str = _("Starting...")
-        self.warnings: list[json] = []
+        self.warnings: List[json] = []
 
         # Sync informer and async request
         self.finished_task: bool = True
@@ -361,7 +363,7 @@ class AiHordeClient:
         show_debugging_data(dt)
 
     def __url_open__(
-        self, url: str | Request, timeout: float = 10, refresh_each: float = 0.5
+        self, url: Union[str, Request], timeout: float = 10, refresh_each: float = 0.5
     ) -> None:
         """
         Opens a url request async with standard urllib, taking into account
@@ -1067,7 +1069,7 @@ class AiHordeClient:
 
         return data["generations"]
 
-    def __get_images_filenames__(self, images: list[json]) -> list[str]:
+    def __get_images_filenames__(self, images: List[json]) -> List[str]:
         """
         Downloads the generated images and returns the full path of the
         downloaded images.
@@ -1714,7 +1716,7 @@ class LibreOfficeInteraction(InformerFrontendInterface):
         self.doc.Text.insertTextContent(curview, image, False)
         os.unlink(img_path)
 
-    def get_frontend_property(self, property_name: str) -> str | bool:
+    def get_frontend_property(self, property_name: str) -> Union[str, bool, None]:
         """
         Gets a property from the frontend application, used to retrieved stored
         information during this session.  Used when checking for update
@@ -1731,7 +1733,7 @@ class LibreOfficeInteraction(InformerFrontendInterface):
             return None
         return value
 
-    def set_frontend_property(self, property_name: str, value: str | bool):
+    def set_frontend_property(self, property_name: str, value: Union[str, bool]):
         """
         Sets a property in the frontend application, used to retrieved stored
         information during this session.  Used when checking for update.
@@ -1906,14 +1908,14 @@ g_ImplementationHelper.addImplementation(
 # * [X] Issue bugs for Impress with placeholdertext bug 167809
 # * [X] Get back support fot python 3.8
 # * [X] Use thread to make more responsive the interface
-# * [ ] Check metadata response to avoid nsfw images
+# * [X] Check metadata response to avoid nsfw images
 #   and showing the dialog with prefilled with the same
 #   telling the user that it was NSFW
 # * [X] Add information to the image https://discord.com/channels/781145214752129095/1401005281332433057/1406114848810467469
-# * [ ] Add to Impress and also to Sheets and Drawing
+# * [X] Add to Impress and also to Sheets and Drawing
 # * [ ] Use singleton path for the config path
-# * [ ] Add to Calc
-# * [ ] Add to Draw
+# * [X] Add to Calc
+# * [X] Add to Draw
 # * [ ] Repo for client and use it as a submodule
 #    -  Check how to add another source file in gimp and lo
 # * [X] Handle Warnings.  For each model the restrictions are present in
@@ -1921,7 +1923,7 @@ g_ImplementationHelper.addImplementation(
 # * [ ] Wishlist to have right alignment for numeric control option
 # * [ ] Recommend to use a shared key to users
 # * [X] Make release in Github
-# * [ ] Modify Makefile to upload to github with gh
+# * [X] Modify Makefile to upload to github with gh
 # * [ ] Automate version propagation when publishing
 # * [X] Fix Makefile for patterns on gettext languages
 # * [ ] Add a popup context menu: Generate Image... [programming] https://wiki.documentfoundation.org/Macros/ScriptForge/PopupMenuExample
@@ -1936,4 +1938,6 @@ g_ImplementationHelper.addImplementation(
 # /usr/lib/libreoffice/sdk/examples/html
 #
 # doc = XSCRIPTCONTEXT.getDocument()
-#
+# doc.get_current_controller().ComponentWindow.StyleSettings.LightColor.is_dark()
+# ctx = uno.getComponentContext()
+# uno.getComponentContext().getServiceManager().createInstanceWithContext("com.sun.star.frame.Desktop", ctx)

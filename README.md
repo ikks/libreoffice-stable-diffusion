@@ -8,7 +8,7 @@ generates images with stable-diffusion:
 
 ## AIHorde
 
-It uses [AIHorde](https://stablehorde.net) as its backend.
+It uses [AIHorde](https://aihorde.net) as its backend.
 AIHorde is a cluster of stable-diffusion servers run by
 volunteers. [get the extension](https://github.com/ikks/libreoffice-stable-diffusion/blob/main/loshd.oxt).
 
