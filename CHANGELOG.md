@@ -14,12 +14,14 @@ This project is [semver](https://semver.org/) based
   text document.
 * Generated images have alternative text storing parameters used for
   generation.
-* NSFW generation shows a warning instead of inserting black and
-  white image
 
 ### Changed
 
 * Python3.8 is supported again on older installs.
+* the icon was changed to AIHorde one.
+* NSFW generation shows a warning instead of inserting black and
+  white image.
+* Updated spanish translation
 
 ## [0.4.2] - Allow to work while image is being generated
 

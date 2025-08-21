@@ -14,6 +14,17 @@ Please check [CHANGELOG.md](../CHANGELOG.md) for the latest
 changes.
 
 ## Installation
+
+### If you are on Linux Debian based Distribution
+
+Please first install libreoffice-script-provider-python and
+python3-scriptforge with your preferred package manager, alternatively
+you can issue:
+
+```
+sudo apt install -y libreoffice-script-provider-python python3-scriptforge
+```
+
 ### Download the extension 
 
 Download [loshd.oxt](https://raw.githubusercontent.com/ikks/libreoffice-stable-diffusion/refs/heads/main/loshd.oxt).
@@ -143,8 +154,9 @@ Errors look usually like
 
 ### On impress when the image is added, a placeholder is shown
 
-To overcome this, create the image from writer and paste it in impress.
-A [bug was filled](https://bugs.documentfoundation.org/show_bug.cgi?id=167809).
+To overcome this, double click on the image and replace the unnecessary
+text. A
+[bug was filled](https://bugs.documentfoundation.org/show_bug.cgi?id=167809).
 
 ## FAQ
 
