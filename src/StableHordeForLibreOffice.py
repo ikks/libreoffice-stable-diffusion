@@ -46,7 +46,7 @@ from datetime import datetime
 from pathlib import Path
 from scriptforge import CreateScriptService
 from time import sleep
-from typing import List
+from typing import Any, Dict, List
 from typing import Union
 from urllib.error import HTTPError, URLError
 from urllib.request import urlopen, Request
@@ -352,7 +352,7 @@ class AiHordeClient:
         self.informer: InformerFrontendInterface = informer
         self.progress: float = 0.0
         self.progress_text: str = _("Starting...")
-        self.warnings: List[json] = []
+        self.warnings: List[Dict[str, Any]] = []
 
         # Sync informer and async request
         self.finished_task: bool = True
@@ -1069,7 +1069,7 @@ class AiHordeClient:
 
         return data["generations"]
 
-    def __get_images_filenames__(self, images: List[json]) -> List[str]:
+    def __get_images_filenames__(self, images: List[Dict[str, Any]]) -> List[str]:
         """
         Downloads the generated images and returns the full path of the
         downloaded images.
