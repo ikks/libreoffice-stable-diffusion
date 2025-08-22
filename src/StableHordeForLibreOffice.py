@@ -77,7 +77,7 @@ Latest version for the extension
 
 PROPERTY_CURRENT_SESSION = "ai_horde_checked_update"
 
-URL_DOWNLOAD = "https://github.com/ikks/libreoffice-stable-diffusion/releases"
+URL_DOWNLOAD = "https://extensions.libreoffice.org/en/extensions/show/99431"
 """
 Download URL for libreoffice-stable-diffusion
 """

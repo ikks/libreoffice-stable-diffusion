@@ -1,7 +1,7 @@
 {
-  "version": "0.4.2",
+  "version": "0.5",
   "message": {
-    "en": "We have a new version. Check it out",
-    "es": "Descarga la versión más reciente. Descárgala ahora"
+    "en": "We have a new version. Check it out.",
+    "es": "Descarga la versión más reciente."
   }
 }
