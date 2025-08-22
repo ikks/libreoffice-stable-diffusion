@@ -46,13 +46,16 @@ clean:
 install:
 	unopkg add -s -f loshd.oxt
 
+publish:
+	sh scripts/publish
+
 run:
 	make
 	make install
 	libreoffice --writer
 
 
-.PHONY: clean install run langs
+.PHONY: clean install langs publish run 
 
 
 
