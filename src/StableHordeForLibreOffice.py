@@ -1907,13 +1907,14 @@ g_ImplementationHelper.addImplementation(
 # * [X] Integrate changes from gimp work
 # * [X] Issue bugs for Impress with placeholdertext bug 167809
 # * [X] Get back support fot python 3.8
-# * [X] Use thread to make more responsive the interface
-# * [X] Check metadata response to avoid nsfw images
 #   and showing the dialog with prefilled with the same
 #   telling the user that it was NSFW
 # * [X] Add information to the image https://discord.com/channels/781145214752129095/1401005281332433057/1406114848810467469
 # * [X] Add to Impress and also to Sheets and Drawing
+# * [ ] Add option on the Dialog to show debug
+# * [ ] Add tips to show. Localized messages. Inpainting, Gimp.
 # * [ ] Use singleton path for the config path
+#       https://ask.libreoffice.org/t/what-is-the-proper-place-to-store-settings-for-an-extension-python/125134/6
 # * [X] Add to Calc
 # * [X] Add to Draw
 # * [ ] Repo for client and use it as a submodule
@@ -1930,7 +1931,6 @@ g_ImplementationHelper.addImplementation(
 # * [ ] Use styles support from Horde
 #    -  Show Styles and Advanced View
 #    -  Download and cache Styles
-# * [ ] Add option on the Dialog to show debug
 #
 # Local documentation
 # file:///usr/share/doc/libreoffice-dev-doc/api/
