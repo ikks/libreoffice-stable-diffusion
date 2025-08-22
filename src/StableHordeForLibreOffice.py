@@ -145,7 +145,7 @@ class InformerFrontendInterface(metaclass=abc.ABCMeta):
             and hasattr(subclass, "set_frontend_property")
             and callable(subclass.set_frontend_property)
             and hasattr(subclass, "update_status")
-            and callable(subclass.set_frontend_property)
+            and callable(subclass.update_status)
             and hasattr(subclass, "set_finished")
             and callable(subclass.set_finished)
             and hasattr(subclass, "path_store_directory")
