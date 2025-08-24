@@ -2,6 +2,8 @@
 license.txt
 oxt/StableHordeForLibreOffice.py
 oxt/README
+oxt/module
 *.mo
 *~
 o.bak
+__pycache__

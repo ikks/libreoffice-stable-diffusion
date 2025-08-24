@@ -19,9 +19,15 @@ macro_source = Path(scriptdir, "..", "src", "StableHordeForLibreOffice.py")
 macro_destination = scriptdir
 shutil.copy(macro_source, macro_destination)
 
-macro_source = Path(scriptdir, "..", "docs", "README.md")
-macro_destination = Path(scriptdir, "README")
-shutil.copy(macro_source, macro_destination)
+readme_source = Path(scriptdir, "..", "docs", "README.md")
+readme_destination = Path(scriptdir, "README")
+shutil.copy(readme_source, readme_destination)
+
+script_source = Path(
+    scriptdir, "..", "modules", "aihordeclient", "src", "aihordeclient", "__init__.py"
+)
+script_destination = Path(scriptdir, "module", "aihordeclient.py")
+shutil.copy(script_source, script_destination)
 
 extensionname = (
     open(os.path.join(scriptdir, "extensionname.txt")).readlines()[0].rstrip("\n")
