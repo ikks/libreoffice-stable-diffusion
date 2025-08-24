@@ -1,0 +1,3 @@
+[submodule "modules/aihordeclient"]
+	path = modules/aihordeclient
+	url = https://github.com/ikks/aihordeclient/
