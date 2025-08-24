@@ -825,8 +825,7 @@ g_ImplementationHelper.addImplementation(
 #       https://ask.libreoffice.org/t/what-is-the-proper-place-to-store-settings-for-an-extension-python/125134/6
 # * [X] Add to Calc
 # * [X] Add to Draw
-# * [ ] Repo for client and use it as a submodule
-#    -  Check how to add another source file in gimp and lo
+# * [X] Repo for client and use it as a submodule
 # * [X] Handle Warnings.  For each model the restrictions are present in
 # * [X] Internationalization
 # * [ ] Wishlist to have right alignment for numeric control option
