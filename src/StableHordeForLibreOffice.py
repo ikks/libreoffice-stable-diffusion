@@ -39,16 +39,18 @@ from typing import Union
 
 import_message_error = None
 
-DEBUG = True
-LOGGING_LEVEL = logging.DEBUG
+logger = logging.getLogger(__name__)
+DEBUG = False
+LOGGING_LEVEL = logging.ERROR
 
-VERSION = "0.5.1"
+VERSION = "0.6"
 LIBREOFFICE_EXTENSION_ID = "org.fectp.StableHordeForLibreOffice"
 GETTEXT_DOMAIN = "stablehordeforlibreoffice"
 
 log_file = os.path.join(tempfile.gettempdir(), "libreoffice_shotd.log")
 if DEBUG:
     print(f"your log is at {log_file}")
+    LOGGING_LEVEL = logging.DEBUG
 logging.basicConfig(
     filename=log_file,
     level=LOGGING_LEVEL,
@@ -134,7 +136,7 @@ def popup_click(poEvent: uno = None):
     my_popup.AddItem(_("Generate Image"))
     # Populate popupmenu with items
     response = my_popup.Execute()
-    logging.debug(response)
+    logger.debug(response)
     my_popup.Dispose()
 
 
@@ -203,7 +205,7 @@ class LibreOfficeInteraction(InformerFrontend):
             "NewDialog", "AIHordeOptionsDialog", (47, 10, 265, 206)
         )
         dlg.Caption = _("AI Horde for LibreOffice - ") + VERSION
-        dlg.CreateGroupBox("framebox", (16, 11, 236, 163))
+        dlg.CreateGroupBox("framebox", (16, 9, 236, 165))
         # Labels
         lbl = dlg.CreateFixedText("label_prompt", (29, 31, 45, 13))
         lbl.Caption = _("Prompt")
@@ -225,14 +227,14 @@ class LibreOfficeInteraction(InformerFrontend):
         lbl.Caption = _("ApiKey (Optional)")
 
         # Buttons
-        button_ok = dlg.CreateButton("btn_ok", (78, 182, 45, 13), push="OK")
+        button_ok = dlg.CreateButton("btn_ok", (73, 182, 49, 13), push="OK")
         button_ok.Caption = _("Process")
-        button_ok.TabIndex = 12
+        button_ok.TabIndex = 4
         button_cancel = dlg.CreateButton(
-            "btn_cancel", (145, 182, 49, 12), push="CANCEL"
+            "btn_cancel", (145, 182, 49, 13), push="CANCEL"
         )
         button_cancel.Caption = _("Cancel")
-        button_ok.TabIndex = 13
+        button_cancel.TabIndex = 13
         # button_help = dlg.CreateButton("CommandButton1", (23, 15, 13, 10))
         # button_help.Caption = "?"
         # button_help.TipText = _("About Horde")
@@ -245,7 +247,7 @@ class LibreOfficeInteraction(InformerFrontend):
             (60, 80, 79, 15),
             linecount=10,
         )
-        ctrl.TabIndex = 4
+        ctrl.TabIndex = 3
         ctrl = dlg.CreateTextField(
             "txt_prompt",
             (60, 16, 188, 42),
@@ -268,7 +270,7 @@ class LibreOfficeInteraction(InformerFrontend):
         """)
 
         ctrl = dlg.CreateTextField("txt_seed", (155, 128, 92, 13))
-        ctrl.TabIndex = 10
+        ctrl.TabIndex = 2
         ctrl.TipText = _(
             "Set a seed to regenerate (reproducible), or it'll be chosen at random by the worker."
         )
@@ -283,7 +285,7 @@ class LibreOfficeInteraction(InformerFrontend):
             spinbutton=True,
         )
         ctrl.Value = 384
-        ctrl.TabIndex = 2
+        ctrl.TabIndex = 5
         ctrl.TipText = _(
             "Height and Width together at most can be 2048x2048=4194304 pixels"
         )
@@ -297,7 +299,7 @@ class LibreOfficeInteraction(InformerFrontend):
             spinbutton=True,
         )
         ctrl.Value = 15
-        ctrl.TabIndex = 5
+        ctrl.TabIndex = 7
         ctrl.TipText = _("""
          How strongly the AI follows the prompt vs how much creativity to allow it.
         Set to 1 for Flux, use 2-4 for LCM and lightning, 5-7 is common for SDXL
@@ -313,7 +315,7 @@ class LibreOfficeInteraction(InformerFrontend):
             spinbutton=True,
         )
         ctrl.Value = 384
-        ctrl.TabIndex = 3
+        ctrl.TabIndex = 6
         ctrl.TipText = _(
             "Height and Width together at most can be 2048x2048=4194304 pixels"
         )
@@ -326,7 +328,7 @@ class LibreOfficeInteraction(InformerFrontend):
             accuracy=0,
         )
         ctrl.Value = 3
-        ctrl.TabIndex = 9
+        ctrl.TabIndex = 8
         ctrl.TipText = _("""
         How long to wait for your generation to complete.
         Depends on number of workers and user priority (more
@@ -342,37 +344,49 @@ class LibreOfficeInteraction(InformerFrontend):
             accuracy=0,
         )
         ctrl.Value = 25
-        ctrl.TabIndex = 6
+        ctrl.TabIndex = 7
         ctrl.TipText = _("""
         How many sampling steps to perform for generation. Should
         generally be at least double the CFG unless using a second-order
         or higher sampler (anything with dpmpp is second order)
         """)
-        ctrl = dlg.CreateCheckBox("bool_nsfw", (29, 130, 50, 10))
+        ctrl = dlg.CreateCheckBox("bool_nsfw", (29, 130, 55, 10))
         ctrl.Caption = _("NSFW")
-        ctrl.TabIndex = 7
+        ctrl.TabIndex = 9
         ctrl.TipText = _("""
         Whether or not your image is intended to be NSFW. May
         reduce generation speed (workers can choose if they wish
         to take nsfw requests)
         """)
 
-        ctrl = dlg.CreateCheckBox("bool_censure", (29, 145, 50, 10))
+        ctrl = dlg.CreateCheckBox("bool_censure", (29, 145, 55, 10))
         ctrl.Caption = _("Censor NSFW")
         ctrl.TipText = _("""
         Separate from the NSFW flag, should workers
         return nsfw images. Censorship is implemented to be safe
         and overcensor rather than risk returning unwanted NSFW.
         """)
-        ctrl.TabIndex = 8
+        ctrl.TabIndex = 10
+        if DEBUG:
+            ctrl = dlg.CreateCheckBox("bool_debug", (19, 162, 50, 10))
+            ctrl.Caption = _("📜")
+            ctrl.TabIndex = 12
+            ctrl.TipText = _("""
+            See what's happening when something does not go as expected.
+            Recommended to run libreoffice from terminal or cmd.
+            """)
 
         return dlg
 
     def prepare_options(self, options: json = None) -> json:
         dlg = self.dlg
         dlg.Controls("txt_prompt").Value = self.selected
-        api_key = options.get("api_key", "")
-        dlg.Controls("txt_token").Value = "" if api_key == ANONYMOUS_KEY else api_key
+        api_key = options.get("api_key", ANONYMOUS_KEY)
+        ctrl_token = dlg.Controls("txt_token")
+        ctrl_token.Value = api_key
+        if api_key == ANONYMOUS_KEY:
+            ctrl_token.Value = ""
+            ctrl_token.TabIndex = 1
         choices = options.get("local_settings", {"models": MODELS}).get(
             "models", MODELS
         )
@@ -390,15 +404,24 @@ class LibreOfficeInteraction(InformerFrontend):
         dlg.Controls("bool_censure").Value = options.get("censor_nsfw", 1)
         dlg.Controls("int_waiting").Value = options.get("max_wait_minutes", 15)
         dlg.Controls("txt_seed").Value = options.get("seed", "")
+        if DEBUG:
+            dlg.Controls("bool_debug").Value = options.get("debug", 1 if DEBUG else 0)
         rc = dlg.Execute()
 
         if rc != dlg.OKBUTTON:
-            logging.debug("User scaped, nothing to do")
+            logger.debug("User scaped, nothing to do")
             dlg.Terminate()
             dlg.Dispose()
             return None
+        if DEBUG:
+            if dlg.Controls("bool_debug").Value == 1:
+                print(f"your log is at {log_file}. do:\ntailf {log_file}")
+                LOGGING_LEVEL = logging.DEBUG
+            else:
+                LOGGING_LEVEL = logging.ERROR
+            logger.setLevel(LOGGING_LEVEL)
+        logger.debug("good")
 
-        logging.debug("good")
         options.update(
             {
                 "prompt": dlg.Controls("txt_prompt").Value,
@@ -617,7 +640,7 @@ class LibreOfficeInteraction(InformerFrontend):
         the accessibility data from sh_client in the current document
         at cursor position with the same text next to it.
         """
-        logging.debug(f"Inserting {img_path} in writer")
+        logger.debug(f"Inserting {img_path} in writer")
         # https://api.libreoffice.org/docs/idl/ref/servicecom_1_1sun_1_1star_1_1text_1_1TextGraphicObject.html
         image = self.doc.createInstance("com.sun.star.text.GraphicObject")
         image.GraphicURL = uno.systemPathToFileUrl(img_path)
@@ -646,15 +669,14 @@ class LibreOfficeInteraction(InformerFrontend):
         try:
             value = self.userProps.getPropertyValue(property_name)
         except UnknownPropertyException:
-            # The property was not present
-            # Removed None in the type definition due to old python3.8 on Ubuntu 20.04
-            # https://github.com/ikks/libreoffice-stable-diffusion/issues/1
+            # Expected when the property was not present
             return False
         return value
 
     def has_asked_for_update(self) -> bool:
-        print(type(self.get_frontend_property(PROPERTY_CURRENT_SESSION)))
-        return self.get_frontend_property(PROPERTY_CURRENT_SESSION)
+        return (
+            False if not self.get_frontend_property(PROPERTY_CURRENT_SESSION) else True
+        )
 
     def just_asked_for_update(self) -> None:
         self.set_frontend_property(PROPERTY_CURRENT_SESSION, True)
@@ -674,6 +696,7 @@ class LibreOfficeInteraction(InformerFrontend):
         try:
             self.userProps.addProperty(property_name, TRANSIENT, str_value)
         except PropertyExistException:
+            # It's ok, if the property existed, we update it
             self.userProps.setPropertyValue(property_name, str_value)
 
     def path_store_directory(self) -> str:
@@ -698,11 +721,11 @@ def get_locale_dir(extid):
     )
     extpath = pip.getPackageLocation(extid)
     locdir = os.path.join(uno.fileUrlToSystemPath(extpath), "locale")
-    logging.debug(f"Locales folder: {locdir}")
+    logger.debug(f"Locales folder: {locdir}")
     return locdir
 
 
-def create_image(desktop=None, context=None):
+def generate_image(desktop=None, context=None):
     """Creates an image from a prompt provided by the user, making use
     of AI Horde"""
 
@@ -721,7 +744,7 @@ def create_image(desktop=None, context=None):
         lo_manager,
     )
 
-    logging.debug(lo_manager.base_info)
+    logger.debug(lo_manager.base_info)
 
     options = lo_manager.prepare_options(saved_options)
 
@@ -734,7 +757,7 @@ def create_image(desktop=None, context=None):
         lo_manager.free()
         return
 
-    logging.debug(options)
+    logger.debug(options)
 
     def __real_work_with_api__():
         """
@@ -749,7 +772,7 @@ def create_image(desktop=None, context=None):
         it."""
         images_paths = sh_client.generate_image(options)
 
-        logging.debug(images_paths)
+        logger.debug(images_paths)
         if images_paths:
             bas = CreateScriptService("Basic")
             bas.MsgBox(_("Your image was generated"), title=_("AIHorde has good news"))
@@ -778,7 +801,7 @@ class AiHordeForLibreOffice(unohelper.Base, XJobExecutor, XEventListener):
 
     def trigger(self, args):
         if args == "create_image":
-            create_image(self.desktop, self.context)
+            generate_image(self.desktop, self.context)
         # if args == "validate_form":
         #     print(dir(self))
         # if args == "get_help":
