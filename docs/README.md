@@ -150,19 +150,16 @@ Errors look usually like
 
 ##### macOS/Linux
 
-## Known Issues
-
-### On impress when the image is added, a placeholder is shown
-
-To overcome this, double click on the image and replace the unnecessary
-text. A
-[bug was filled](https://bugs.documentfoundation.org/show_bug.cgi?id=167809).
-
 ## FAQ
 
 **How do I report an error or request a new feature?** Please open
 a new issue [here](https://github.com/ikks/libreoffice-stable-diffusion/issues).
 If you have questions, head to [Discord](https://discord.com/channels/781145214752129095/1401005281332433057).
+
+**How do I get the latest extension?** Sometimes we are ahead of the
+[stable extension](https://extensions.libreoffice.org/en/extensions/show/99431)
+with the latest features
+[here](https://github.com/ikks/libreoffice-stable-diffusion/blob/main/loshd.oxt).
 
 ## Internals
 

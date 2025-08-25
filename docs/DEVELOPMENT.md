@@ -13,7 +13,15 @@ As submodule is aihordeclient to avoid installing packages. It handles
 all the communication with aihorde.
 
 
-## Local documentation
+## Help and resources
+
+### Interaction
+
+* [💬 irc #libreoffice-dev](https://web.libera.chat)
+* [🐛 reporting bugs to libreoffice](https://bugs.documentfoundation.org/)
+* [🙋 forum](https://ask.libreoffice.org/)
+
+### Local documentation
 
 * file:///usr/share/doc/libreoffice-dev-doc/api/
 * file:///usr/lib/libreoffice/share/Scripts/python/

@@ -39,6 +39,7 @@ $(EXEC): src/$(SCRIPTNAME).py oxt/description.xml oxt/build
 	oxt/build
 
 langs: src/po/messages.pot $(MO_FILES)
+	postats src/po/*.po
 	
 clean:
 	rm  -rf oxt/locale loshd.oxt src/po/*~ src/po/*bak

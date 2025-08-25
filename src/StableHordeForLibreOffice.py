@@ -37,7 +37,7 @@ from pathlib import Path
 from scriptforge import CreateScriptService
 from typing import Union
 
-# Change this one to True if you need to debug
+# Change the next line replacing False to True if you need to debug. Case matters
 DEBUG = False
 
 VERSION = "0.6"
@@ -59,7 +59,8 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
 
-file_path = os.path.dirname(os.path.realpath(__file__))
+script_path = os.path.realpath(__file__)
+file_path = os.path.dirname(script_path)
 submodule_path = os.path.join(file_path, "module")
 sys.path.append(str(submodule_path))
 
@@ -96,7 +97,7 @@ URL_DOWNLOAD = "https://extensions.libreoffice.org/en/extensions/show/99431"
 Download URL for libreoffice-stable-diffusion
 """
 
-HORDE_CLIENT_NAME = "StableHordeForLibreOffice"
+HORDE_CLIENT_NAME = "AiHordeForLibreOffice"
 """
 Name of the client sent to API
 """
@@ -370,8 +371,11 @@ class LibreOfficeInteraction(InformerFrontend):
         if DEBUG:
             ctrl = dlg.CreateFixedText("lbl_debug", (19, 162, 50, 10))
             ctrl.Caption = f"📜 {log_file}"
-            ctrl.TipText = _(
-                "You are debugging, better always from the command line open libreoffice to view "
+            ctrl.TipText = (
+                _(
+                    "You are debugging, make sure opening LibreOffice from the command line. Consider using"
+                )
+                + f"\n\n   tailf { log_file }"
             )
 
         return dlg
@@ -633,32 +637,29 @@ class LibreOfficeInteraction(InformerFrontend):
         Returns the basepath for the directory offered by the frontend
         to store data for the plugin, cache and user settings
         """
-        # https://api.libreoffice.org/docs/idl/ref/servicecom_1_1sun_1_1star_1_1util_1_1PathSubstitution.html
+        # https://api.libreoffice.org/docs/idl/ref/singletoncom_1_1sun_1_1star_1_1util_1_1thePathSettings.html
 
-        create_service = self.context.ServiceManager.createInstance
-        path_finder = create_service("com.sun.star.util.PathSubstitution")
+        pip = self.context.getByName("/singletons/com.sun.star.util.thePathSettings")
+        config_path = uno.fileUrlToSystemPath(pip.BasePathUserLayer)
 
-        config_url = path_finder.substituteVariables("$(user)/config", True)
-        config_path = uno.fileUrlToSystemPath(config_url)
         return Path(config_path)
-
-
-def get_locale_dir(extid):
-    ctx = uno.getComponentContext()
-    pip = ctx.getByName(
-        "/singletons/com.sun.star.deployment.PackageInformationProvider"
-    )
-    extpath = pip.getPackageLocation(extid)
-    locdir = os.path.join(uno.fileUrlToSystemPath(extpath), "locale")
-    logger.debug(f"Locales folder: {locdir}")
-    return locdir
 
 
 def generate_image(desktop=None, context=None):
     """Creates an image from a prompt provided by the user, making use
     of AI Horde"""
 
-    gettext.bindtextdomain(GETTEXT_DOMAIN, get_locale_dir(LIBREOFFICE_EXTENSION_ID))
+    def get_locale_dir():
+        pip = context.getByName(
+            "/singletons/com.sun.star.deployment.PackageInformationProvider"
+        )
+        extpath = pip.getPackageLocation(LIBREOFFICE_EXTENSION_ID)
+        locdir = os.path.join(uno.fileUrlToSystemPath(extpath), "locale")
+        logger.debug(f"Locales folder: {locdir}")
+
+        return locdir
+
+    gettext.bindtextdomain(GETTEXT_DOMAIN, get_locale_dir())
 
     lo_manager = LibreOfficeInteraction(desktop, context)
     st_manager = HordeClientSettings(lo_manager.path_store_directory())
@@ -746,8 +747,12 @@ class AiHordeForLibreOffice(unohelper.Base, XJobExecutor, XEventListener):
         if DEBUG:
             print(f"your log is at {log_file}")
         else:
-            message = "To view debugging messages, edit\n\n   {}\n\nand set DEBUG to True (case matters)"
-            print(_(message.format(file_path)))
+            message = (
+                _("To view debugging messages, edit")
+                + "\n\n   {}\n\n".format(script_path)
+                + _("and set DEBUG to True (case matters)")
+            )
+            print(message)
 
     def createUnoService(self, name):
         """little helper function to create services in our context"""
@@ -775,9 +780,11 @@ g_ImplementationHelper.addImplementation(
 # * [X] Recover previous settings from json
 # * [X] Add to web
 # * [X] Change Accelerator to global
-# * [ ] Close bug with solution
-# * [ ] Use singleton path for the config path
-#       https://ask.libreoffice.org/t/what-is-the-proper-place-to-store-settings-for-an-extension-python/125134/6
+# * [X] Close bug with solution
+# * [X] Use singleton path for the config path
+# * [ ] Recover help button
+# * [ ] Recover form validation
+# * [ ] Replace label by button to copy to clipboard, or open in browser
 # * [ ] Only one runner should be working
 #    - Define where to put the lock
 #    - Remove the lock when initializing
@@ -796,12 +803,9 @@ g_ImplementationHelper.addImplementation(
 # * [ ] Add tips to show. Localized messages. Inpainting, Gimp.
 #    - They can be in github and refreshed each 10 days
 #    -  url, title, description, image, visibility
-# * [ ] Recover help button
-# * [ ] Recover form validation
-# * [ ] Replace label by button to copy to clipboard, or open in browser
 # * [ ] Wishlist to have right alignment for numeric control option
 # * [ ] Recommend to use a shared key to users
-# * [ ] Automate version propagation when publishing
+# * [ ] Automate version propagation when publishing: Wishlist for extensions
 # * [ ] Add a popup context menu: Generate Image... [programming] https://wiki.documentfoundation.org/Macros/ScriptForge/PopupMenuExample
 # * [ ] Use styles support from Horde
 #    -  Show Styles and Advanced View
