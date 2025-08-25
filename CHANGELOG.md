@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 This project is [semver](https://semver.org/) based
 
+## [0.6] - Web and XML Support
+
+### Added
+
+* Images are generated when working inside an XML Form Document
+* Images are generated when working inside a web document
+
+### Changed
+
+* Smarter cycle through fields, use TAB
+
 ## [0.5] - Calc and Draw support
 
 ### Added

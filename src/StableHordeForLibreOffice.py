@@ -40,7 +40,7 @@ from typing import Union
 import_message_error = None
 
 logger = logging.getLogger(__name__)
-DEBUG = False
+DEBUG = True
 LOGGING_LEVEL = logging.ERROR
 
 VERSION = "0.6"
@@ -65,8 +65,10 @@ from aihordeclient import (  # noqa: E402
     ANONYMOUS_KEY,  # noqa: E402
     DEFAULT_MODEL,
     MIN_PROMPT_LENGTH,
-    MIN_HEIGHT,
     MIN_WIDTH,
+    MAX_WIDTH,
+    MIN_HEIGHT,
+    MAX_HEIGHT,
     MODELS,
 )
 from aihordeclient import (  # noqa: E402
@@ -96,6 +98,8 @@ HORDE_CLIENT_NAME = "StableHordeForLibreOffice"
 """
 Name of the client sent to API
 """
+DEFAULT_HEIGHT = 384
+DEFAULT_WIDTH = 384
 
 # onaction = "service:org.fectp.StableHordeForLibreOffice$validate_form?language=Python"
 # onhelp = "service:org.fectp.StableHordeForLibreOffice$get_help?language=Python&location=application"
@@ -143,10 +147,11 @@ def popup_click(poEvent: uno = None):
 class LibreOfficeInteraction(InformerFrontend):
     def get_type_doc(self, doc):
         TYPE_DOC = {
-            "writer": "com.sun.star.text.TextDocument",
-            "impress": "com.sun.star.presentation.PresentationDocument",
             "calc": "com.sun.star.sheet.SpreadsheetDocument",
             "draw": "com.sun.star.drawing.DrawingDocument",
+            "impress": "com.sun.star.presentation.PresentationDocument",
+            "web": "com.sun.star.text.WebDocument",
+            "writer": "com.sun.star.text.TextDocument",
         }
         for k, v in TYPE_DOC.items():
             if doc.supportsService(v):
@@ -156,12 +161,6 @@ class LibreOfficeInteraction(InformerFrontend):
     def __init__(self, desktop, context):
         self.desktop = desktop
         self.context = context
-        self.image_insert_to = {
-            "impress": self.__insert_image_in_presentation__,
-            "writer": self.__insert_image_in_text__,
-            "calc": self.__insert_image_in_calc__,
-            "draw": self.__insert_image_in_draw__,
-        }
         self.model = self.desktop.getCurrentComponent()
 
         self.bas = CreateScriptService("Basic")
@@ -179,7 +178,6 @@ class LibreOfficeInteraction(InformerFrontend):
             ]
         )
 
-        # For now we only add images to Writer
         self.inside = self.get_type_doc(self.model)
         if self.inside == "new-writer":
             self.model = self.desktop.loadComponentFromURL(
@@ -279,12 +277,12 @@ class LibreOfficeInteraction(InformerFrontend):
             "int_width",
             (91, 63, 48, 13),
             accuracy=0,
-            minvalue=384,
-            maxvalue=1024,
+            minvalue=MIN_WIDTH,
+            maxvalue=MAX_WIDTH,
             increment=64,
             spinbutton=True,
         )
-        ctrl.Value = 384
+        ctrl.Value = DEFAULT_WIDTH
         ctrl.TabIndex = 5
         ctrl.TipText = _(
             "Height and Width together at most can be 2048x2048=4194304 pixels"
@@ -309,12 +307,12 @@ class LibreOfficeInteraction(InformerFrontend):
             "int_height",
             (200, 63, 48, 13),
             accuracy=0,
-            minvalue=384,
-            maxvalue=1024,
+            minvalue=MIN_HEIGHT,
+            maxvalue=MAX_HEIGHT,
             increment=64,
             spinbutton=True,
         )
-        ctrl.Value = 384
+        ctrl.Value = DEFAULT_HEIGHT
         ctrl.TabIndex = 6
         ctrl.TipText = _(
             "Height and Width together at most can be 2048x2048=4194304 pixels"
@@ -323,14 +321,14 @@ class LibreOfficeInteraction(InformerFrontend):
             "int_waiting",
             (200, 80, 48, 13),
             minvalue=1,
-            maxvalue=45,
+            maxvalue=15,
             spinbutton=True,
             accuracy=0,
         )
-        ctrl.Value = 3
+        ctrl.Value = 5
         ctrl.TabIndex = 8
         ctrl.TipText = _("""
-        How long to wait for your generation to complete.
+        How long to wait(minutes) for your generation to complete.
         Depends on number of workers and user priority (more
         kudos = more priority. Anonymous users are last)
         """)
@@ -395,8 +393,9 @@ class LibreOfficeInteraction(InformerFrontend):
         dlg.Controls("lst_model").Value = DEFAULT_MODEL
         # dlg.Controls("btn_ok").Enabled = len(self.selected) > MIN_PROMPT_LENGTH
 
-        dlg.Controls("int_width").Value = options.get("image_width", MIN_WIDTH)
-        dlg.Controls("int_height").Value = options.get("image_height", MIN_HEIGHT)
+        dlg.Controls("txt_prompt").Value = options.get("prompt", DEFAULT_WIDTH)
+        dlg.Controls("int_width").Value = options.get("image_width", DEFAULT_WIDTH)
+        dlg.Controls("int_height").Value = options.get("image_height", DEFAULT_HEIGHT)
         dlg.Controls("lst_model").Value = options.get("model", DEFAULT_MODEL)
         dlg.Controls("int_strength").Value = options.get("prompt_strength", 6.3)
         dlg.Controls("int_steps").Value = options.get("steps", 25)
@@ -517,146 +516,85 @@ class LibreOfficeInteraction(InformerFrontend):
         self, img_path: str, width: int, height: int, sh_client: AiHordeClient
     ):
         """
-        Inserts the image with width*height from the path in the document adding
-        the accessibility data from sh_client.
+        Inserts the image with width*height from img_path in the current document adding
+        accessibility data from sh_client.
 
-        Depending on self.inside type document, inserts directly in drawing,
-        spreadsheet, presentation and text document, when in other type of document,
-        creates a new text document and inserts the image in there.
+        Inserts directly in drawing, spreadsheet, presentation, web, xml form
+        and text document, when in other type of document, creates a new text
+        document and inserts the image in there.
         """
+
+        # relative size from px
+        width = width * 25.4
+        height = height * 25.4
+
+        def __insert_image_as_draw__():
+            """
+            Inserts the image with width*height from the path in the document adding
+            the accessibility data from sh_client in a draw document centered
+            and above all other elements in the current page.
+            """
+
+            size = Size(width, height)
+            # https://api.libreoffice.org/docs/idl/ref/servicecom_1_1sun_1_1star_1_1drawing_1_1GraphicObjectShape.html
+            image = self.doc.createInstance("com.sun.star.drawing.GraphicObjectShape")
+            image.GraphicURL = uno.systemPathToFileUrl(img_path)
+
+            ctrllr = self.model.CurrentController
+            draw_page = ctrllr.CurrentPage
+
+            draw_page.addTop(image)
+            added_image = draw_page[-1]
+            added_image.setPropertyValue("ZOrder", draw_page.Count)
+
+            added_image.Title = sh_client.get_title()
+            added_image.Name = sh_client.get_imagename()
+            added_image.Description = sh_client.get_full_description()
+            added_image.Visible = True
+            self.model.Modified = True
+            os.unlink(img_path)
+
+            if self.inside == "calc":
+                return
+
+            added_image.setSize(size)
+            position = Point(
+                ((added_image.Parent.Width - width) / 2),
+                ((added_image.Parent.Height - height) / 2),
+            )
+            added_image.setPosition(position)
+
+        def __insert_image_in_text__():
+            """
+            Inserts the image with width*height from the path in the document adding
+            the accessibility data from sh_client in the current document
+            at cursor position with the same text next to it.
+            """
+            logger.debug(f"Inserting {img_path} in writer")
+            # https://api.libreoffice.org/docs/idl/ref/servicecom_1_1sun_1_1star_1_1text_1_1TextGraphicObject.html
+            image = self.doc.createInstance("com.sun.star.text.GraphicObject")
+            image.GraphicURL = uno.systemPathToFileUrl(img_path)
+            image.AnchorType = AS_CHARACTER
+            image.Width = width
+            image.Height = height
+            image.Tooltip = sh_client.get_tooltip()
+            image.Name = sh_client.get_imagename()
+            image.Description = sh_client.get_full_description()
+            image.Title = sh_client.get_title()
+
+            curview = self.model.CurrentController.ViewCursor
+            self.doc.Text.insertTextContent(curview, image, False)
+            os.unlink(img_path)
+
+        image_insert_to = {
+            "calc": __insert_image_as_draw__,
+            "draw": __insert_image_as_draw__,
+            "impress": __insert_image_as_draw__,
+            "web": __insert_image_in_text__,
+            "writer": __insert_image_in_text__,
+        }
         # Normalizing pixel to cm
-        self.image_insert_to[self.inside](
-            img_path, width * 25.4, height * 25.4, sh_client
-        )
-
-    def __insert_image_in_presentation__(
-        self, img_path: str, width: int, height: int, sh_client: AiHordeClient
-    ):
-        """
-        Inserts the image with width*height from the path in the document adding
-        the accessibility data from sh_client in a presentation document centered
-        and above all other elements in the current page.
-        """
-
-        size = Size(width, height)
-        # https://api.libreoffice.org/docs/idl/ref/servicecom_1_1sun_1_1star_1_1presentation_1_1GraphicObjectShape.html
-        image = self.doc.createInstance("com.sun.star.presentation.GraphicObjectShape")
-        image.GraphicURL = uno.systemPathToFileUrl(img_path)
-
-        ctrllr = self.model.CurrentController
-        draw_page = ctrllr.CurrentPage
-
-        draw_page.addTop(image)
-        added_image = draw_page[-1]
-        added_image.setSize(size)
-        position = Point(
-            ((added_image.Parent.Width - width) / 2),
-            ((added_image.Parent.Height - height) / 2),
-        )
-        added_image.setPosition(position)
-        added_image.setPropertyValue("ZOrder", draw_page.Count)
-
-        # The placeholder does not update
-        # https://bugs.documentfoundation.org/show_bug.cgi?id=167809
-        added_image.PlaceholderText = ""
-        added_image.setPropertyValue("PlaceholderText", "")
-
-        added_image.setPropertyValue("Title", sh_client.get_title())
-        added_image.setPropertyValue("Name", sh_client.get_imagename())
-        added_image.setPropertyValue("Description", sh_client.get_full_description())
-        added_image.Visible = True
-        self.model.Modified = True
-        os.unlink(img_path)
-
-    def __insert_image_in_calc__(
-        self, img_path: str, width: int, height: int, sh_client: AiHordeClient
-    ):
-        """
-        Inserts the image with width*height from the path in the document adding
-        the accessibility data from sh_client in a calc spreadsheet left topmost
-        and above all other elements in the current page.
-        """
-
-        size = Size(width, height)
-        # https://api.libreoffice.org/docs/idl/ref/servicecom_1_1sun_1_1star_1_1drawing_1_1GraphicObjectShape.html
-        # https://api.libreoffice.org/docs/idl/ref/namespacecom_1_1sun_1_1star_1_1sheet.html
-        image = self.doc.createInstance("com.sun.star.drawing.GraphicObjectShape")
-        image.GraphicURL = uno.systemPathToFileUrl(img_path)
-
-        ctrllr = self.model.CurrentController
-        draw_page = ctrllr.ActiveSheet.DrawPage
-
-        draw_page.addTop(image)
-        added_image = draw_page[-1]
-        added_image.setSize(size)
-        added_image.setPropertyValue("ZOrder", draw_page.Count)
-
-        added_image.Title = sh_client.get_title()
-        added_image.Name = sh_client.get_imagename()
-        added_image.Description = sh_client.get_full_description()
-        added_image.Visible = True
-        self.model.Modified = True
-        os.unlink(img_path)
-
-    def __insert_image_in_draw__(
-        self, img_path: str, width: int, height: int, sh_client: AiHordeClient
-    ):
-        """
-        Inserts the image with width*height from the path in the document adding
-        the accessibility data from sh_client in a draw document centered
-        and above all other elements in the current page.
-        """
-
-        size = Size(width, height)
-        # https://api.libreoffice.org/docs/idl/ref/servicecom_1_1sun_1_1star_1_1drawing_1_1GraphicObjectShape.html
-        image = self.doc.createInstance("com.sun.star.drawing.GraphicObjectShape")
-        image.GraphicURL = uno.systemPathToFileUrl(img_path)
-
-        ctrllr = self.model.CurrentController
-        draw_page = ctrllr.CurrentPage
-
-        draw_page.addTop(image)
-        added_image = draw_page[-1]
-        added_image.setSize(size)
-        position = Point(
-            ((added_image.Parent.Width - width) / 2),
-            ((added_image.Parent.Height - height) / 2),
-        )
-        added_image.setPosition(position)
-        added_image.setPropertyValue("ZOrder", draw_page.Count)
-
-        added_image.setPropertyValue("Title", sh_client.get_title())
-        added_image.setPropertyValue("Name", sh_client.get_imagename())
-        added_image.setPropertyValue("Description", sh_client.get_full_description())
-        added_image.Visible = True
-        self.model.Modified = True
-        os.unlink(img_path)
-
-    def __insert_image_in_text__(
-        self, img_path: str, width: int, height: int, sh_client: AiHordeClient
-    ):
-        """
-        Inserts the image with width*height from the path in the document adding
-        the accessibility data from sh_client in the current document
-        at cursor position with the same text next to it.
-        """
-        logger.debug(f"Inserting {img_path} in writer")
-        # https://api.libreoffice.org/docs/idl/ref/servicecom_1_1sun_1_1star_1_1text_1_1TextGraphicObject.html
-        image = self.doc.createInstance("com.sun.star.text.GraphicObject")
-        image.GraphicURL = uno.systemPathToFileUrl(img_path)
-        image.AnchorType = AS_CHARACTER
-        image.Width = width
-        image.Height = height
-        image.Tooltip = sh_client.get_tooltip()
-        image.Name = sh_client.get_imagename()
-        image.Description = sh_client.get_full_description()
-        image.Title = sh_client.get_title()
-
-        ctrllr = self.model.CurrentController
-        curview = ctrllr.ViewCursor
-        curview.String = self.options["prompt"] + _(" by ") + self.options["model"]
-        self.doc.Text.insertTextContent(curview, image, False)
-        os.unlink(img_path)
+        image_insert_to[self.inside]()
 
     def get_frontend_property(self, property_name: str) -> Union[str, bool, None]:
         """
@@ -835,39 +773,40 @@ g_ImplementationHelper.addImplementation(
 )
 
 # TODO:
-# * [X] Integrate changes from gimp work
-# * [X] Issue bugs for Impress with placeholdertext bug 167809
-# * [X] Get back support fot python 3.8
-#   and showing the dialog with prefilled with the same
-#   telling the user that it was NSFW
-# * [X] Add information to the image https://discord.com/channels/781145214752129095/1401005281332433057/1406114848810467469
-# * [X] Add to Impress and also to Sheets and Drawing
-# * [ ] Add option on the Dialog to show debug
-# * [ ] Add tips to show. Localized messages. Inpainting, Gimp.
+# Great you are here looking at this, take a look at docs/CONTRIBUTING.md
+# * [X] Add option on the Dialog to show debug
+# *  -  Replace bool with label, just to see no need to react
+# * [X] Recover previous settings from json
+# * [X] Add to web
+# * [ ] Change Accelerator to global
+# * [ ] Close bug with solution
 # * [ ] Use singleton path for the config path
 #       https://ask.libreoffice.org/t/what-is-the-proper-place-to-store-settings-for-an-extension-python/125134/6
-# * [X] Add to Calc
-# * [X] Add to Draw
-# * [X] Repo for client and use it as a submodule
-# * [X] Handle Warnings.  For each model the restrictions are present in
-# * [X] Internationalization
+# * [ ] Only one runner should be working
+#    - Define where to put the lock
+#    - Remove the lock when initializing
+#    - Add the lock when the process starts
+#    - When starting, review if there is a lock
+#    - If the lock is old, it should be removed
+#    - A lock should not be older than the maxtime
+# * [ ] Preserve dialog open when running
+#    - We need a progress
+#    - We need a panel to show the tip
+#    - We need a button to expand and allow people to read
+#    - Invite people to grow the knowledge
+# * [ ] Cancel generation
+#    - requires to have a flag to continue running or abort
+#    - should_stop
+# * [ ] Add tips to show. Localized messages. Inpainting, Gimp.
+#    - They can be in github and refreshed each 10 days
+#    -  url, title, description, image, visibility
+# * [ ] Recover help button
+# * [ ] Recover form validation
 # * [ ] Wishlist to have right alignment for numeric control option
 # * [ ] Recommend to use a shared key to users
-# * [X] Make release in Github
-# * [X] Modify Makefile to upload to github with gh
 # * [ ] Automate version propagation when publishing
-# * [X] Fix Makefile for patterns on gettext languages
 # * [ ] Add a popup context menu: Generate Image... [programming] https://wiki.documentfoundation.org/Macros/ScriptForge/PopupMenuExample
 # * [ ] Use styles support from Horde
 #    -  Show Styles and Advanced View
 #    -  Download and cache Styles
 #
-# Local documentation
-# file:///usr/share/doc/libreoffice-dev-doc/api/
-# /usr/lib/libreoffice/share/Scripts/python/
-# /usr/lib/libreoffice/sdk/examples/html
-#
-# doc = XSCRIPTCONTEXT.getDocument()
-# doc.get_current_controller().ComponentWindow.StyleSettings.LightColor.is_dark()
-# ctx = uno.getComponentContext()
-# uno.getComponentContext().getServiceManager().createInstanceWithContext("com.sun.star.frame.Desktop", ctx)
