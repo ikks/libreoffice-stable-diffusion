@@ -37,19 +37,21 @@ from pathlib import Path
 from scriptforge import CreateScriptService
 from typing import Union
 
+# Change this one to True if you need to debug
+DEBUG = False
+
+VERSION = "0.6"
+
 import_message_error = None
 
 logger = logging.getLogger(__name__)
-DEBUG = True
 LOGGING_LEVEL = logging.ERROR
 
-VERSION = "0.6"
 LIBREOFFICE_EXTENSION_ID = "org.fectp.StableHordeForLibreOffice"
 GETTEXT_DOMAIN = "stablehordeforlibreoffice"
 
 log_file = os.path.join(tempfile.gettempdir(), "libreoffice_shotd.log")
 if DEBUG:
-    print(f"your log is at {log_file}")
     LOGGING_LEVEL = logging.DEBUG
 logging.basicConfig(
     filename=log_file,
@@ -366,13 +368,11 @@ class LibreOfficeInteraction(InformerFrontend):
         """)
         ctrl.TabIndex = 10
         if DEBUG:
-            ctrl = dlg.CreateCheckBox("bool_debug", (19, 162, 50, 10))
-            ctrl.Caption = _("📜")
-            ctrl.TabIndex = 12
-            ctrl.TipText = _("""
-            See what's happening when something does not go as expected.
-            Recommended to run libreoffice from terminal or cmd.
-            """)
+            ctrl = dlg.CreateFixedText("lbl_debug", (19, 162, 50, 10))
+            ctrl.Caption = f"📜 {log_file}"
+            ctrl.TipText = _(
+                "You are debugging, better always from the command line open libreoffice to view "
+            )
 
         return dlg
 
@@ -403,8 +403,6 @@ class LibreOfficeInteraction(InformerFrontend):
         dlg.Controls("bool_censure").Value = options.get("censor_nsfw", 1)
         dlg.Controls("int_waiting").Value = options.get("max_wait_minutes", 15)
         dlg.Controls("txt_seed").Value = options.get("seed", "")
-        if DEBUG:
-            dlg.Controls("bool_debug").Value = options.get("debug", 1 if DEBUG else 0)
         rc = dlg.Execute()
 
         if rc != dlg.OKBUTTON:
@@ -412,13 +410,6 @@ class LibreOfficeInteraction(InformerFrontend):
             dlg.Terminate()
             dlg.Dispose()
             return None
-        if DEBUG:
-            if dlg.Controls("bool_debug").Value == 1:
-                print(f"your log is at {log_file}. do:\ntailf {log_file}")
-                LOGGING_LEVEL = logging.DEBUG
-            else:
-                LOGGING_LEVEL = logging.ERROR
-            logger.setLevel(LOGGING_LEVEL)
         logger.debug("good")
 
         options.update(
@@ -752,6 +743,12 @@ class AiHordeForLibreOffice(unohelper.Base, XJobExecutor, XEventListener):
         # see https://api.libreoffice.org/docs/idl/ref/servicecom_1_1sun_1_1star_1_1frame_1_1DispatchHelper.html
         self.dispatchhelper = self.createUnoService("com.sun.star.frame.DispatchHelper")
 
+        if DEBUG:
+            print(f"your log is at {log_file}")
+        else:
+            message = "To view debugging messages, edit\n\n   {}\n\nand set DEBUG to True (case matters)"
+            print(_(message.format(file_path)))
+
     def createUnoService(self, name):
         """little helper function to create services in our context"""
         # see https://api.libreoffice.org/docs/idl/ref/servicecom_1_1sun_1_1star_1_1lang_1_1ServiceManager.html
@@ -775,10 +772,9 @@ g_ImplementationHelper.addImplementation(
 # TODO:
 # Great you are here looking at this, take a look at docs/CONTRIBUTING.md
 # * [X] Add option on the Dialog to show debug
-# *  -  Replace bool with label, just to see no need to react
 # * [X] Recover previous settings from json
 # * [X] Add to web
-# * [ ] Change Accelerator to global
+# * [X] Change Accelerator to global
 # * [ ] Close bug with solution
 # * [ ] Use singleton path for the config path
 #       https://ask.libreoffice.org/t/what-is-the-proper-place-to-store-settings-for-an-extension-python/125134/6
@@ -802,6 +798,7 @@ g_ImplementationHelper.addImplementation(
 #    -  url, title, description, image, visibility
 # * [ ] Recover help button
 # * [ ] Recover form validation
+# * [ ] Replace label by button to copy to clipboard, or open in browser
 # * [ ] Wishlist to have right alignment for numeric control option
 # * [ ] Recommend to use a shared key to users
 # * [ ] Automate version propagation when publishing

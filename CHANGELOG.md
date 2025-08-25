@@ -14,6 +14,7 @@ This project is [semver](https://semver.org/) based
 ### Changed
 
 * Smarter cycle through fields, use TAB
+* C-S-H Accelerator is global, previously only available in Writer
 
 ## [0.5] - Calc and Draw support
 
