@@ -35,10 +35,11 @@ src/po/$(CURRENT_LANG).po: src/po/messages.pot
 src/po/messages.pot: src/$(SCRIPTNAME).py
 	xgettext -j -o $@ --add-comments=TRANSLATORS: --keyword=_ --flag=_:1:pass-python-format --directory=. $<
 
-$(EXEC): src/$(SCRIPTNAME).py oxt/description.xml $(MO_FILES) oxt/build
+$(EXEC): src/$(SCRIPTNAME).py oxt/description.xml oxt/build
 	oxt/build
 
 langs: src/po/messages.pot $(MO_FILES)
+	postats src/po/*.po
 	
 clean:
 	rm  -rf oxt/locale loshd.oxt src/po/*~ src/po/*bak

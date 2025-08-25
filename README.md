@@ -10,7 +10,8 @@ generates images with stable-diffusion:
 
 It uses [AIHorde](https://aihorde.net) as its backend.
 AIHorde is a cluster of stable-diffusion servers run by
-volunteers. [get the extension](https://github.com/ikks/libreoffice-stable-diffusion/blob/main/loshd.oxt).
+volunteers. [get the extension](https://extensions.libreoffice.org/en/extensions/show/99431)
+.
 
 Head to [instructions](/docs/README.md) for installing and using it.
 
