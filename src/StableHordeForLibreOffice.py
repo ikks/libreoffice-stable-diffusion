@@ -28,7 +28,7 @@ import unohelper
 from com.sun.star.awt import Point
 from com.sun.star.awt import Size
 from com.sun.star.awt import XActionListener
-from com.sun.star.awt import XKeyListener
+from com.sun.star.awt import PosSize
 from com.sun.star.beans import PropertyExistException
 from com.sun.star.beans import UnknownPropertyException
 from com.sun.star.beans.PropertyAttribute import TRANSIENT
@@ -40,9 +40,9 @@ from scriptforge import CreateScriptService
 from typing import Union
 
 # Change the next line replacing False to True if you need to debug. Case matters
-DEBUG = True
+DEBUG = False
 
-VERSION = "0.6.1"
+VERSION = "0.6"
 
 import_message_error = None
 
@@ -136,9 +136,7 @@ def popup_click(poEvent: uno = None):
     my_popup.Dispose()
 
 
-class LibreOfficeInteraction(
-    unohelper.Base, InformerFrontend, XActionListener, XKeyListener
-):
+class LibreOfficeInteraction(unohelper.Base, InformerFrontend, XActionListener):
     def get_type_doc(self, doc):
         TYPE_DOC = {
             "calc": "com.sun.star.sheet.SpreadsheetDocument",
@@ -153,6 +151,7 @@ class LibreOfficeInteraction(
         return "new-writer"
 
     def __init__(self, desktop, context):
+        self.options = {}
         self.desktop = desktop
         self.context = context
         self.model = self.desktop.getCurrentComponent()
@@ -195,6 +194,8 @@ class LibreOfficeInteraction(
             self.selected = ""
 
         self.doc = self.model
+        self.DEFAULT_DLG_HEIGHT = 216
+        self.displacement = 180
         self.dlg = self.__create_dialog__()
 
     def __create_dialog__(self):
@@ -203,7 +204,7 @@ class LibreOfficeInteraction(
         ):
             """
             Adds to the dlg a control Model, with the identifier, positioned with
-            widthxheight.
+            widthxheight. For typename see UnoControl* at
             https://api.libreoffice.org/docs/idl/ref/namespacecom_1_1sun_1_1star_1_1awt.html
             """
             cmpt_type = f"com.sun.star.awt.UnoControl{typename}Model"
@@ -223,17 +224,15 @@ class LibreOfficeInteraction(
             "com.sun.star.awt.UnoControlDialogModel"
         )
         dc.setModel(dm)
-        dc.addKeyListener(self)
         dm.Name = "stablehordeoptions"
         dm.PositionX = "47"
         dm.PositionY = "10"
         dm.Width = 265
-        dm.Height = 216
+        dm.Height = self.DEFAULT_DLG_HEIGHT
         dm.Closeable = True
         dm.Moveable = True
         dm.Title = _("AI Horde for LibreOffice - ") + VERSION
 
-        # Labels
         create_widget(dm, "GroupBox", "framebox", 16, 9, 236, 165)
         lbl = create_widget(dm, "FixedText", "label_prompt", 29, 31, 45, 13)
         lbl.Label = _("Prompt")
@@ -282,6 +281,13 @@ class LibreOfficeInteraction(
         button_help.TabIndex = 14
         dc.getControl("btn_help").addActionListener(self)
         dc.getControl("btn_help").setActionCommand("btn_help_OnClick")
+
+        button_toggle = create_widget(dm, "Button", "btn_toggle", 2, 204, 12, 10)
+        button_toggle.Label = "_"
+        button_toggle.HelpText = _("Toggle")
+        button_toggle.TabIndex = 14
+        dc.getControl("btn_toggle").addActionListener(self)
+        dc.getControl("btn_toggle").setActionCommand("btn_toggle_OnClick")
 
         # Controls
         ctrl = create_widget(
@@ -435,15 +441,15 @@ class LibreOfficeInteraction(
         return nsfw images. Censorship is implemented to be safe
         and overcensor rather than risk returning unwanted NSFW.
         """)
-        lbl = create_widget(dm, "FixedText", "label_progress", 2, 205, 95, 10)
+        lbl = create_widget(dm, "FixedText", "label_progress", 20, 205, 150, 10)
         lbl.Label = ""
         ctrl = create_widget(
             dm,
             "ProgressBar",
             "prog_status",
-            -3,
+            14,
             203,
-            270,
+            253,
             13,
         )
         self.progress_label = lbl
@@ -451,16 +457,51 @@ class LibreOfficeInteraction(
 
         return dc
 
-    def show_dlg(self):
+    def show_ui(self):
         self.dlg.setVisible(True)
         self.dlg.createPeer(self.toolkit, None)
+        size = self.dlg.getPosSize()
+        self.DEFAULT_DLG_HEIGHT = size.Height
+        self.displacement = self.dlg.getControl("label_progress").getPosSize().Y - 5
 
-    def keyPressed(self, oKeyEvent):
-        print(oKeyEvent)
-        breakpoint
-        pass
-        # if oKeyEvent.ActionComand == "key_thing":
-        #     breakpoint()
+    def toggle_controls(self):
+        size = self.dlg.getPosSize()
+        lbl = self.dlg.getControl("label_progress")
+        btn = self.dlg.getControl("btn_toggle")
+        prg = self.dlg.getControl("prog_status")
+        frame = self.dlg.getControl("framebox")
+        if size.Height == self.DEFAULT_DLG_HEIGHT:
+            frame.setVisible(False)
+            self.dlg.setPosSize(size.X, size.Y, size.Height, 30, PosSize.HEIGHT)
+            size = lbl.getPosSize()
+            lbl.setPosSize(
+                size.X, size.Y - self.displacement, size.Height, size.Width, PosSize.Y
+            )
+            size = btn.getPosSize()
+            btn.setPosSize(
+                size.X, size.Y - self.displacement, size.Height, size.Width, PosSize.Y
+            )
+            size = prg.getPosSize()
+            prg.setPosSize(
+                size.X, size.Y - self.displacement, size.Height, size.Width, PosSize.Y
+            )
+        else:
+            self.dlg.setPosSize(
+                size.X, size.Y, size.Width, self.DEFAULT_DLG_HEIGHT, PosSize.HEIGHT
+            )
+            size = lbl.getPosSize()
+            lbl.setPosSize(
+                size.X, size.Y + self.displacement, size.Height, size.Width, PosSize.Y
+            )
+            size = btn.getPosSize()
+            btn.setPosSize(
+                size.X, size.Y + self.displacement, size.Height, size.Width, PosSize.Y
+            )
+            size = prg.getPosSize()
+            prg.setPosSize(
+                size.X, size.Y + self.displacement, size.Height, size.Width, PosSize.Y
+            )
+            frame.setVisible(True)
 
     def actionPerformed(self, oActionEvent):
         """
@@ -470,14 +511,33 @@ class LibreOfficeInteraction(
             if self.in_progress:
                 # Fast clickers,need to learn to wait
                 return
-            self.dlg.getControl("btn_ok").getModel().Enabled = False
             self.in_progress = True
             self.start_processing()
+        elif oActionEvent.ActionCommand == "btn_toggle_OnClick":
+            self.toggle_controls()
         elif oActionEvent.ActionCommand == "btn_cancel_OnClick":
+            # Check if running, invoke de invoke delete on client
             logger.debug("User scaped, nothing to do")
             self.dlg.dispose()
         elif oActionEvent.ActionCommand == "btn_help_OnClick":
             self.session.OpenURLInBrowser(HELP_URL)
+
+    def get_options_from_dialog(self):
+        self.options.update(
+            {
+                "prompt": self.dlg.getControl("txt_prompt").Text,
+                "image_width": self.dlg.getControl("int_width").Value,
+                "image_height": self.dlg.getControl("int_height").Value,
+                "model": self.dlg.getControl("lst_model").Text,
+                "prompt_strength": self.dlg.getControl("int_strength").Value,
+                "steps": self.dlg.getControl("int_steps").Value,
+                "nsfw": self.dlg.getControl("bool_nsfw").State == 1,
+                "censor_nsfw": self.dlg.getControl("bool_censure").State == 1,
+                "api_key": self.dlg.getControl("txt_token").Text or ANONYMOUS_KEY,
+                "max_wait_minutes": self.dlg.getControl("int_waiting").Value,
+                "seed": self.dlg.getControl("txt_seed").Text,
+            }
+        )
 
     def start_processing(self):
         # TODO: Manage validations
@@ -486,6 +546,8 @@ class LibreOfficeInteraction(
         #     self.free()
         #     return
 
+        self.dlg.getControl("btn_ok").getModel().Enabled = False
+        self.get_options_from_dialog()
         logger.debug(self.options)
 
         def __real_work_with_api__():
@@ -527,7 +589,8 @@ class LibreOfficeInteraction(
 
     def prepare_options(
         self, sh_client: AiHordeClient, st_manager: HordeClientSettings, options: json
-    ) -> json:
+    ):
+        self.options.update(options)
         self.sh_client = sh_client
         self.st_manager = st_manager
         dlg = self.dlg
@@ -537,6 +600,7 @@ class LibreOfficeInteraction(
         if api_key == ANONYMOUS_KEY:
             ctrl_token.setText("")
             ctrl_token.getModel().TabIndex = 1
+
         choices = options.get("local_settings", {"models": MODELS}).get(
             "models", MODELS
         )
@@ -564,27 +628,6 @@ class LibreOfficeInteraction(
         )
         dlg.getControl("bool_nsfw").State = options.get("nsfw", 0)
         dlg.getControl("bool_censure").State = options.get("censor_nsfw", 1)
-
-        self.show_dlg()
-
-        logger.debug("good")
-        options.update(
-            {
-                "prompt": dlg.getControl("txt_prompt").Text,
-                "image_width": dlg.getControl("int_width").Value,
-                "image_height": dlg.getControl("int_height").Value,
-                "model": dlg.getControl("lst_model").Text,
-                "prompt_strength": dlg.getControl("int_strength").Value,
-                "steps": dlg.getControl("int_steps").Value,
-                "nsfw": dlg.getControl("bool_nsfw").State == 1,
-                "censor_nsfw": dlg.getControl("bool_censure").State == 1,
-                "api_key": dlg.getControl("txt_token").Text or ANONYMOUS_KEY,
-                "max_wait_minutes": dlg.getControl("int_waiting").Value,
-                "seed": dlg.getControl("txt_seed").Text,
-            }
-        )
-        self.options = options
-        return options
 
     def free(self):
         self.dlg.dispose()
@@ -807,7 +850,6 @@ def generate_image(desktop=None, context=None):
         )
         extpath = pip.getPackageLocation(LIBREOFFICE_EXTENSION_ID)
         locdir = os.path.join(uno.fileUrlToSystemPath(extpath), "locale")
-        logger.debug(f"Locales folder: {locdir}")
 
         return locdir
 
@@ -829,6 +871,8 @@ def generate_image(desktop=None, context=None):
     logger.debug(lo_manager.base_info)
 
     lo_manager.prepare_options(sh_client, st_manager, saved_options)
+
+    lo_manager.show_ui()
 
 
 class AiHordeForLibreOffice(unohelper.Base, XJobExecutor, XEventListener):
@@ -887,20 +931,12 @@ g_ImplementationHelper.addImplementation(
 # * [X] Use singleton path for the config path
 # * [X] Recover help button
 # * [ ] Recover form validation
-# * [ ] Listen for <Esc> to close dialog or ask if really interrupt the process
-# * [ ] Explore lateral bar dialog
-# *  -  If lateral, cancel with confirm
-#    -  If not lateral, change behaviour to Hide
+#    -  Minimum length for prompt
+#    -  Maximum size 4MP
 # * [X] Add progress bar inside dialog
-# * [ ] Only one runner should be working? Nooo... Ask better in the channel
-#    - Define where to put the lock
-#    - Remove the lock when initializing
-#    - Add the lock when the process starts
-#    - When starting, review if there is a lock
-#    - If the lock is old, it should be removed
-#    - A lock should not be older than the maxtime
 # * [ ] Preserve dialog open when running
-#    - We need a progress
+#    - We need a progress (Y)
+#    - Make the thing smaller, (Y)
 #    - We need a panel to show the tip
 #    - Show the resulting image and put it in a container, then allow to
 # move to the document.
@@ -909,6 +945,7 @@ g_ImplementationHelper.addImplementation(
 # * [ ] Cancel generation
 #    - requires to have a flag to continue running or abort
 #    - should_stop
+#    - send delete
 # * [ ] Add tips to show. Localized messages. Inpainting, Gimp.
 #    - They can be in github and refreshed each 10 days
 #    -  url, title, description, image, visibility

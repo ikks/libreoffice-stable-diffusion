@@ -8,13 +8,17 @@ This project is [semver](https://semver.org/) based
 
 ### Added
 
-* Images are generated when working inside an XML Form Document
-* Images are generated when working inside a web document
+* Image generation support for web document
+* Image generation support for XML Form Document
+* When debugging is activated the UI makes it evident
 
 ### Changed
 
 * Smarter cycle through fields, use TAB
 * C-S-H Accelerator is global, previously only available in Writer
+* Text image placeholder fixed in Impress
+* Start using aihordeclient
+* Progressbar is now inside the dialog
 
 ## [0.5] - Calc and Draw support
 
