@@ -18,26 +18,38 @@
 #
 
 import gettext
-import json
 import logging
 import os
 import sys
 import tempfile
 import uno
 import unohelper
+
 from com.sun.star.awt import Point
+from com.sun.star.awt import PosSize
 from com.sun.star.awt import Size
 from com.sun.star.awt import XActionListener
-from com.sun.star.awt import PosSize
+from com.sun.star.awt import XFocusListener
+from com.sun.star.awt import ActionEvent
+from com.sun.star.awt import FocusEvent
+from com.sun.star.awt import KeyEvent
+from com.sun.star.awt import SpinEvent
+from com.sun.star.awt import TextEvent
+from com.sun.star.awt import XKeyListener
+from com.sun.star.awt import XSpinListener
+from com.sun.star.awt import XTextListener
+from com.sun.star.awt.Key import ESCAPE
 from com.sun.star.beans import PropertyExistException
 from com.sun.star.beans import UnknownPropertyException
 from com.sun.star.beans.PropertyAttribute import TRANSIENT
 from com.sun.star.document import XEventListener
 from com.sun.star.task import XJobExecutor
 from com.sun.star.text.TextContentAnchorType import AS_CHARACTER
+
+from math import sqrt
 from pathlib import Path
 from scriptforge import CreateScriptService
-from typing import Union
+from typing import Any, Dict, List, Union
 
 # Change the next line replacing False to True if you need to debug. Case matters
 DEBUG = False
@@ -70,6 +82,7 @@ from aihordeclient import (  # noqa: E402
     ANONYMOUS_KEY,  # noqa: E402
     DEFAULT_MODEL,
     MIN_PROMPT_LENGTH,
+    MAX_MP,
     MIN_WIDTH,
     MAX_WIDTH,
     MIN_HEIGHT,
@@ -112,16 +125,7 @@ _ = gettext.gettext
 gettext.textdomain(GETTEXT_DOMAIN)
 
 
-def validate_form(event: uno):
-    if event is None:
-        return
-    ctrl = CreateScriptService("DialogEvent", event)
-    dialog = ctrl.Parent
-    btn_ok = dialog.Controls("btn_ok")
-    btn_ok.Enabled = len(dialog.Controls("txt_prompt").Value) > 10
-
-
-def popup_click(poEvent: uno = None):
+def popup_click(poEvent: uno = None) -> None:
     """
     Intended for popup
     """
@@ -136,7 +140,15 @@ def popup_click(poEvent: uno = None):
     my_popup.Dispose()
 
 
-class LibreOfficeInteraction(unohelper.Base, InformerFrontend, XActionListener):
+class LibreOfficeInteraction(
+    unohelper.Base,
+    InformerFrontend,
+    XActionListener,
+    XKeyListener,
+    XTextListener,
+    XSpinListener,
+    XFocusListener,
+):
     def get_type_doc(self, doc):
         TYPE_DOC = {
             "calc": "com.sun.star.sheet.SpreadsheetDocument",
@@ -193,9 +205,9 @@ class LibreOfficeInteraction(unohelper.Base, InformerFrontend, XActionListener):
             # If the selection is not text, let's wait for the user to write down
             self.selected = ""
 
-        self.doc = self.model
         self.DEFAULT_DLG_HEIGHT = 216
         self.displacement = 180
+        self.ok_btn = None
         self.dlg = self.__create_dialog__()
 
     def __create_dialog__(self):
@@ -224,6 +236,7 @@ class LibreOfficeInteraction(unohelper.Base, InformerFrontend, XActionListener):
             "com.sun.star.awt.UnoControlDialogModel"
         )
         dc.setModel(dm)
+        dc.addKeyListener(self)
         dm.Name = "stablehordeoptions"
         dm.PositionX = "47"
         dm.PositionY = "10"
@@ -268,6 +281,7 @@ class LibreOfficeInteraction(unohelper.Base, InformerFrontend, XActionListener):
         button_ok.TabIndex = 4
         dc.getControl("btn_ok").addActionListener(self)
         dc.getControl("btn_ok").setActionCommand("btn_ok_OnClick")
+        self.ok_btn = button_ok
 
         button_cancel = create_widget(dm, "Button", "btn_cancel", 145, 182, 49, 13)
         button_cancel.Label = _("Cancel")
@@ -285,7 +299,7 @@ class LibreOfficeInteraction(unohelper.Base, InformerFrontend, XActionListener):
         button_toggle = create_widget(dm, "Button", "btn_toggle", 2, 204, 12, 10)
         button_toggle.Label = "_"
         button_toggle.HelpText = _("Toggle")
-        button_toggle.TabIndex = 14
+        button_toggle.TabIndex = 15
         dc.getControl("btn_toggle").addActionListener(self)
         dc.getControl("btn_toggle").setActionCommand("btn_toggle_OnClick")
 
@@ -321,6 +335,8 @@ class LibreOfficeInteraction(unohelper.Base, InformerFrontend, XActionListener):
 
         Write at least 5 words or 10 characters.
         """)
+        dc.getControl("txt_prompt").addTextListener(self)
+        dc.getControl("txt_prompt").addKeyListener(self)
 
         ctrl = create_widget(dm, "Edit", "txt_token", 155, 147, 92, 13)
         ctrl.TabIndex = 11
@@ -346,6 +362,9 @@ class LibreOfficeInteraction(unohelper.Base, InformerFrontend, XActionListener):
         ctrl.HelpText = _(
             "Height and Width together at most can be 2048x2048=4194304 pixels"
         )
+        dc.getControl("int_width").addTextListener(self)
+        dc.getControl("int_width").addSpinListener(self)
+        dc.getControl("int_width").addFocusListener(self)
 
         ctrl = create_widget(dm, "NumericField", "int_strength", 91, 100, 48, 13)
         ctrl.ValueMin = 0
@@ -380,6 +399,9 @@ class LibreOfficeInteraction(unohelper.Base, InformerFrontend, XActionListener):
         ctrl.HelpText = _(
             "Height and Width together at most can be 2048x2048=4194304 pixels"
         )
+        dc.getControl("int_height").addTextListener(self)
+        dc.getControl("int_height").addSpinListener(self)
+        dc.getControl("int_height").addFocusListener(self)
 
         ctrl = create_widget(
             dm,
@@ -460,6 +482,7 @@ class LibreOfficeInteraction(unohelper.Base, InformerFrontend, XActionListener):
     def show_ui(self):
         self.dlg.setVisible(True)
         self.dlg.createPeer(self.toolkit, None)
+        self.dlg.getControl("btn_toggle").setVisible(False)
         size = self.dlg.getPosSize()
         self.DEFAULT_DLG_HEIGHT = size.Height
         self.displacement = self.dlg.getControl("label_progress").getPosSize().Y - 5
@@ -503,7 +526,51 @@ class LibreOfficeInteraction(unohelper.Base, InformerFrontend, XActionListener):
             )
             frame.setVisible(True)
 
-    def actionPerformed(self, oActionEvent):
+    def validate_fields(self) -> None:
+        if self.in_progress:
+            return
+        enable_ok = (
+            len(self.dlg.getControl("txt_prompt").Text) > MIN_PROMPT_LENGTH
+            and self.dlg.getControl("int_width").Value
+            * self.dlg.getControl("int_height").Value
+            <= MAX_MP
+        )
+        self.ok_btn.Enabled = enable_ok
+
+    def focusLost(self, oFocusEvent: FocusEvent) -> None:
+        element = oFocusEvent.Source.getModel()
+        if element.Name not in ["int_width", "int_height"]:
+            return
+
+        pixels = (
+            self.dlg.getControl("int_width").Value
+            * self.dlg.getControl("int_height").Value
+        )
+        if pixels >= MAX_MP:
+            element.Value = 64 * int(sqrt((pixels - MAX_MP)) / 64)
+        self.validate_fields()
+
+    def down(self, oSpinActed: SpinEvent) -> None:
+        if oSpinActed.Source.getModel().Name in ["int_width", "int_height"]:
+            self.validate_fields()
+
+    def up(self, oSpinActed: SpinEvent) -> None:
+        if oSpinActed.Source.getModel().Name in ["int_width", "int_height"]:
+            self.validate_fields()
+
+    def keyReleased(self, oKeyReleased: KeyEvent) -> None:
+        if oKeyReleased.KeyCode == ESCAPE:
+            self.dlg.dispose()
+
+    def textChanged(self, oTextChanged: TextEvent) -> None:
+        if oTextChanged.Source.getModel().Name in [
+            "txt_prompt",
+            "int_width",
+            "int_height",
+        ]:
+            self.validate_fields()
+
+    def actionPerformed(self, oActionEvent: ActionEvent) -> None:
         """
         Function invoked when an event is fired from a widget
         """
@@ -516,13 +583,14 @@ class LibreOfficeInteraction(unohelper.Base, InformerFrontend, XActionListener):
         elif oActionEvent.ActionCommand == "btn_toggle_OnClick":
             self.toggle_dialog()
         elif oActionEvent.ActionCommand == "btn_cancel_OnClick":
-            # Check if running, invoke de invoke delete on client
-            logger.debug("User scaped, nothing to do")
             self.dlg.dispose()
         elif oActionEvent.ActionCommand == "btn_help_OnClick":
             self.session.OpenURLInBrowser(HELP_URL)
 
-    def get_options_from_dialog(self):
+    def get_options_from_dialog(self) -> List[Dict[str, Any]]:
+        """
+        Updates the options from the dialog ready to be used
+        """
         self.options.update(
             {
                 "prompt": self.dlg.getControl("txt_prompt").Text,
@@ -539,14 +607,11 @@ class LibreOfficeInteraction(unohelper.Base, InformerFrontend, XActionListener):
             }
         )
 
-    def start_processing(self):
-        # TODO: Manage validations
-        # if len(self.options["prompt"]) < MIN_PROMPT_LENGTH:
-        #     self.show_error(_("Please provide a prompt with at least 5 words"))
-        #     self.free()
-        #     return
+        return self
 
+    def start_processing(self) -> None:
         self.dlg.getControl("btn_ok").getModel().Enabled = False
+        self.dlg.getControl("btn_toggle").setVisible(True)
         cancel_button = self.dlg.getControl("btn_cancel")
         cancel_button.setLabel(_("Close"))
         cancel_button.getModel().HelpText = _(
@@ -594,8 +659,11 @@ class LibreOfficeInteraction(unohelper.Base, InformerFrontend, XActionListener):
         self.worker.start()
 
     def prepare_options(
-        self, sh_client: AiHordeClient, st_manager: HordeClientSettings, options: json
-    ):
+        self,
+        sh_client: AiHordeClient,
+        st_manager: HordeClientSettings,
+        options: List[Dict[str, Any]],
+    ) -> None:
         self.options.update(options)
         self.sh_client = sh_client
         self.st_manager = st_manager
@@ -733,7 +801,7 @@ class LibreOfficeInteraction(unohelper.Base, InformerFrontend, XActionListener):
 
             size = Size(width, height)
             # https://api.libreoffice.org/docs/idl/ref/servicecom_1_1sun_1_1star_1_1drawing_1_1GraphicObjectShape.html
-            image = self.doc.createInstance("com.sun.star.drawing.GraphicObjectShape")
+            image = self.model.createInstance("com.sun.star.drawing.GraphicObjectShape")
             image.GraphicURL = uno.systemPathToFileUrl(img_path)
 
             ctrllr = self.model.CurrentController
@@ -768,7 +836,7 @@ class LibreOfficeInteraction(unohelper.Base, InformerFrontend, XActionListener):
             """
             logger.debug(f"Inserting {img_path} in writer")
             # https://api.libreoffice.org/docs/idl/ref/servicecom_1_1sun_1_1star_1_1text_1_1TextGraphicObject.html
-            image = self.doc.createInstance("com.sun.star.text.GraphicObject")
+            image = self.model.createInstance("com.sun.star.text.GraphicObject")
             image.GraphicURL = uno.systemPathToFileUrl(img_path)
             image.AnchorType = AS_CHARACTER
             image.Width = width
@@ -779,7 +847,7 @@ class LibreOfficeInteraction(unohelper.Base, InformerFrontend, XActionListener):
             image.Title = sh_client.get_title()
 
             curview = self.model.CurrentController.ViewCursor
-            self.doc.Text.insertTextContent(curview, image, False)
+            self.model.Text.insertTextContent(curview, image, False)
             os.unlink(img_path)
 
         image_insert_to = {
@@ -929,32 +997,22 @@ g_ImplementationHelper.addImplementation(
 
 # TODO:
 # Great you are here looking at this, take a look at docs/CONTRIBUTING.md
-# * [X] Add option on the Dialog to show debug
-# * [X] Recover previous settings from json
-# * [X] Add to web
-# * [X] Change Accelerator to global
-# * [X] Close bug with solution
-# * [X] Use singleton path for the config path
-# * [X] Recover help button
-# * [ ] Recover form validation
+# * [X] Recover form validation
 #    -  Minimum length for prompt
 #    -  Maximum size 4MP
 # * [X] Add progress bar inside dialog
-# * [ ] Preserve dialog open when running
-#    - We need a progress (Y)
-#    - Make the thing smaller, (Y)
-#    - We need a panel to show the tip
-#    - We need a button to expand and allow people to read
-#    - Invite people to grow the knowledge
 # * [ ] Cancel generation
 #    - requires to have a flag to continue running or abort
 #    - should_stop
 #    - send delete
 # * [ ] Add tips to show. Localized messages. Inpainting, Gimp.
+#    - We need a panel to show the tip
+#    - We need a button to expand and allow people to read
+#    - Invite people to grow the knowledge
 #    - They can be in github and refreshed each 10 days
 #    -  url, title, description, image, visibility
 # * [ ] Wishlist to have right alignment for numeric control option
-# * [ ] Add translation using https://huggingface.co/spaces/Helsinki-NLP/opus-translate ,  understand how to avoid using gradio client
+# * [ ] Add translation using https://huggingface.co/spaces/Helsinki-NLP/opus-translate ,  understand how to avoid using gradio client, put the thing to be translated in the clipboard
 # * [ ] Recommend to use a shared key to users
 # * [ ] Automate version propagation when publishing: Wishlist for extensions
 # * [ ] Add a popup context menu: Generate Image... [programming] https://wiki.documentfoundation.org/Macros/ScriptForge/PopupMenuExample
