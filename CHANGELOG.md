@@ -11,6 +11,7 @@ This project is [semver](https://semver.org/) based
 * Image generation support for web document
 * Image generation support for XML Form Document
 * When debugging is activated the UI makes it evident
+* Help button pointing to FAQ
 
 ### Changed
 
