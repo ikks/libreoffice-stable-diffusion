@@ -27,6 +27,7 @@ import uno
 import unohelper
 from com.sun.star.awt import Point
 from com.sun.star.awt import Size
+from com.sun.star.awt import XActionListener
 from com.sun.star.beans import PropertyExistException
 from com.sun.star.beans import UnknownPropertyException
 from com.sun.star.beans.PropertyAttribute import TRANSIENT
@@ -38,9 +39,9 @@ from scriptforge import CreateScriptService
 from typing import Union
 
 # Change the next line replacing False to True if you need to debug. Case matters
-DEBUG = False
+DEBUG = True
 
-VERSION = "0.6"
+VERSION = "0.6.1"
 
 import_message_error = None
 
@@ -104,11 +105,6 @@ Name of the client sent to API
 DEFAULT_HEIGHT = 384
 DEFAULT_WIDTH = 384
 
-# onaction = "service:org.fectp.StableHordeForLibreOffice$validate_form?language=Python"
-# onhelp = "service:org.fectp.StableHordeForLibreOffice$get_help?language=Python&location=application"
-# onmenupopup = "vnd.sun.star.script:stablediffusion|StableHordeForLibreOffice.py$popup_click?language=Python&location=user"
-# https://wiki.documentfoundation.org/Documentation/DevGuide/Scripting_Framework#Python_script When migrating to extension, change this one
-
 
 # gettext usual alias for i18n
 _ = gettext.gettext
@@ -122,14 +118,6 @@ def validate_form(event: uno):
     dialog = ctrl.Parent
     btn_ok = dialog.Controls("btn_ok")
     btn_ok.Enabled = len(dialog.Controls("txt_prompt").Value) > 10
-
-
-def get_help(event: uno):
-    if event is None:
-        return
-    session = CreateScriptService("Session")
-    session.OpenURLInBrowser(HELP_URL)
-    session.Dispose()
 
 
 def popup_click(poEvent: uno = None):
@@ -147,7 +135,7 @@ def popup_click(poEvent: uno = None):
     my_popup.Dispose()
 
 
-class LibreOfficeInteraction(InformerFrontend):
+class LibreOfficeInteraction(unohelper.Base, InformerFrontend, XActionListener):
     def get_type_doc(self, doc):
         TYPE_DOC = {
             "calc": "com.sun.star.sheet.SpreadsheetDocument",
@@ -165,6 +153,9 @@ class LibreOfficeInteraction(InformerFrontend):
         self.desktop = desktop
         self.context = context
         self.model = self.desktop.getCurrentComponent()
+        self.toolkit = self.context.ServiceManager.createInstanceWithContext(
+            "com.sun.star.awt.ExtToolkit", self.context
+        )
 
         self.bas = CreateScriptService("Basic")
         self.ui = CreateScriptService("UI")
@@ -202,237 +193,324 @@ class LibreOfficeInteraction(InformerFrontend):
         self.dlg = self.__create_dialog__()
 
     def __create_dialog__(self):
-        dlg = CreateScriptService(
-            "NewDialog", "AIHordeOptionsDialog", (47, 10, 265, 206)
+        def create_widget(
+            dlg, typename: str, identifier: str, x: int, y: int, width: int, height: int
+        ):
+            """
+            Adds to the dlg a control Model, with the identifier, positioned with
+            widthxheight.
+            https://api.libreoffice.org/docs/idl/ref/namespacecom_1_1sun_1_1star_1_1awt.html
+            """
+            cmpt_type = f"com.sun.star.awt.UnoControl{typename}Model"
+            cmpt = dlg.createInstance(cmpt_type)
+            cmpt.Name = identifier
+            cmpt.PositionX = str(x)
+            cmpt.PositionY = str(y)
+            cmpt.Width = width
+            cmpt.Height = height
+            dlg.insertByName(identifier, cmpt)
+            return cmpt
+
+        dc = self.context.ServiceManager.createInstanceWithContext(
+            "com.sun.star.awt.UnoControlDialog", self.context
         )
-        dlg.Caption = _("AI Horde for LibreOffice - ") + VERSION
-        dlg.CreateGroupBox("framebox", (16, 9, 236, 165))
+        dm = self.context.ServiceManager.createInstance(
+            "com.sun.star.awt.UnoControlDialogModel"
+        )
+        dc.setModel(dm)
+        dm.Name = "stablehordeoptions"
+        dm.PositionX = "47"
+        dm.PositionY = "10"
+        dm.Width = 265
+        dm.Height = 216
+        dm.Closeable = True
+        dm.Moveable = True
+        dm.Title = _("AI Horde for LibreOffice - ") + VERSION
+
         # Labels
-        lbl = dlg.CreateFixedText("label_prompt", (29, 31, 45, 13))
-        lbl.Caption = _("Prompt")
-        lbl = dlg.CreateFixedText("label_height", (155, 65, 45, 13))
-        lbl.Caption = _("Height")
-        lbl = dlg.CreateFixedText("label_width", (29, 65, 45, 13))
-        lbl.Caption = _("Width")
-        lbl = dlg.CreateFixedText("label_model", (29, 82, 45, 13))
-        lbl.Caption = _("Model")
-        lbl = dlg.CreateFixedText("label_max_wait", (155, 82, 45, 13))
-        lbl.Caption = _("Max Wait")
-        lbl = dlg.CreateFixedText("label_strength", (29, 99, 45, 13))
-        lbl.Caption = _("Strength")
-        lbl = dlg.CreateFixedText("label_steps", (155, 99, 45, 13))
-        lbl.Caption = _("Steps")
-        lbl = dlg.CreateFixedText("label_seed", (96, 130, 49, 13))
-        lbl.Caption = _("Seed (Optional)")
-        lbl = dlg.CreateFixedText("label_token", (96, 149, 49, 13))
-        lbl.Caption = _("ApiKey (Optional)")
-
-        # Buttons
-        button_ok = dlg.CreateButton("btn_ok", (73, 182, 49, 13), push="OK")
-        button_ok.Caption = _("Process")
-        button_ok.TabIndex = 4
-        button_cancel = dlg.CreateButton(
-            "btn_cancel", (145, 182, 49, 13), push="CANCEL"
-        )
-        button_cancel.Caption = _("Cancel")
-        button_cancel.TabIndex = 13
-        # button_help = dlg.CreateButton("CommandButton1", (23, 15, 13, 10))
-        # button_help.Caption = "?"
-        # button_help.TipText = _("About Horde")
-        # button_help.OnMouseReleased = onhelp
-        # button_ok.TabIndex = 14
-
-        # Controls
-        ctrl = dlg.CreateComboBox(
-            "lst_model",
-            (60, 80, 79, 15),
-            linecount=10,
-        )
-        ctrl.TabIndex = 3
-        ctrl = dlg.CreateTextField(
-            "txt_prompt",
-            (60, 16, 188, 42),
-            multiline=True,
-        )
-        ctrl.TabIndex = 1
-        ctrl.TipText = _("""
-        Let your imagination run wild or put a proper description of your
-        desired output. Use full grammar for Flux, use tag-like language
-        for sd15, use short phrases for sdxl.
-
-        Write at least 5 words or 10 characters.
-        """)
-        # ctrl.OnTextChanged = onaction
-        ctrl = dlg.CreateTextField("txt_token", (155, 147, 92, 13))
-        ctrl.TabIndex = 11
-        ctrl.TipText = _("""
-        Get yours at https://aihorde.net/ for free. Recommended:
-        Anonymous users are last in the queue.
-        """)
-
-        ctrl = dlg.CreateTextField("txt_seed", (155, 128, 92, 13))
-        ctrl.TabIndex = 2
-        ctrl.TipText = _(
-            "Set a seed to regenerate (reproducible), or it'll be chosen at random by the worker."
-        )
-
-        ctrl = dlg.CreateNumericField(
-            "int_width",
-            (91, 63, 48, 13),
-            accuracy=0,
-            minvalue=MIN_WIDTH,
-            maxvalue=MAX_WIDTH,
-            increment=64,
-            spinbutton=True,
-        )
-        ctrl.Value = DEFAULT_WIDTH
-        ctrl.TabIndex = 5
-        ctrl.TipText = _(
-            "Height and Width together at most can be 2048x2048=4194304 pixels"
-        )
-        ctrl = dlg.CreateNumericField(
-            "int_strength",
-            (91, 100, 48, 13),
-            minvalue=0,
-            maxvalue=20,
-            increment=0.5,
-            accuracy=2,
-            spinbutton=True,
-        )
-        ctrl.Value = 15
-        ctrl.TabIndex = 7
-        ctrl.TipText = _("""
-         How strongly the AI follows the prompt vs how much creativity to allow it.
-        Set to 1 for Flux, use 2-4 for LCM and lightning, 5-7 is common for SDXL
-        models, 6-9 is common for sd15.
-        """)
-        ctrl = dlg.CreateNumericField(
-            "int_height",
-            (200, 63, 48, 13),
-            accuracy=0,
-            minvalue=MIN_HEIGHT,
-            maxvalue=MAX_HEIGHT,
-            increment=64,
-            spinbutton=True,
-        )
-        ctrl.Value = DEFAULT_HEIGHT
-        ctrl.TabIndex = 6
-        ctrl.TipText = _(
-            "Height and Width together at most can be 2048x2048=4194304 pixels"
-        )
-        ctrl = dlg.CreateNumericField(
-            "int_waiting",
-            (200, 80, 48, 13),
-            minvalue=1,
-            maxvalue=15,
-            spinbutton=True,
-            accuracy=0,
-        )
-        ctrl.Value = 5
-        ctrl.TabIndex = 8
-        ctrl.TipText = _("""
-        How long to wait(minutes) for your generation to complete.
-        Depends on number of workers and user priority (more
-        kudos = more priority. Anonymous users are last)
-        """)
-        ctrl = dlg.CreateNumericField(
-            "int_steps",
-            (200, 97, 48, 13),
-            minvalue=1,
-            maxvalue=150,
-            spinbutton=True,
-            increment=10,
-            accuracy=0,
-        )
-        ctrl.Value = 25
-        ctrl.TabIndex = 7
-        ctrl.TipText = _("""
-        How many sampling steps to perform for generation. Should
-        generally be at least double the CFG unless using a second-order
-        or higher sampler (anything with dpmpp is second order)
-        """)
-        ctrl = dlg.CreateCheckBox("bool_nsfw", (29, 130, 55, 10))
-        ctrl.Caption = _("NSFW")
-        ctrl.TabIndex = 9
-        ctrl.TipText = _("""
-        Whether or not your image is intended to be NSFW. May
-        reduce generation speed (workers can choose if they wish
-        to take nsfw requests)
-        """)
-
-        ctrl = dlg.CreateCheckBox("bool_censure", (29, 145, 55, 10))
-        ctrl.Caption = _("Censor NSFW")
-        ctrl.TipText = _("""
-        Separate from the NSFW flag, should workers
-        return nsfw images. Censorship is implemented to be safe
-        and overcensor rather than risk returning unwanted NSFW.
-        """)
-        ctrl.TabIndex = 10
+        create_widget(dm, "GroupBox", "framebox", 16, 9, 236, 165)
+        lbl = create_widget(dm, "FixedText", "label_prompt", 29, 31, 45, 13)
+        lbl.Label = _("Prompt")
+        lbl = create_widget(dm, "FixedText", "label_height", 155, 65, 45, 13)
+        lbl.Label = _("Height")
+        lbl = create_widget(dm, "FixedText", "label_width", 29, 65, 45, 13)
+        lbl.Label = _("Width")
+        lbl = create_widget(dm, "FixedText", "label_model", 29, 82, 45, 13)
+        lbl.Label = _("Model")
+        lbl = create_widget(dm, "FixedText", "label_max_wait", 155, 82, 45, 13)
+        lbl.Label = _("Max Wait")
+        lbl = create_widget(dm, "FixedText", "label_strength", 29, 99, 45, 13)
+        lbl.Label = _("Strength")
+        lbl = create_widget(dm, "FixedText", "label_steps", 155, 99, 45, 13)
+        lbl.Label = _("Steps")
+        lbl = create_widget(dm, "FixedText", "label_seed", 96, 130, 49, 13)
+        lbl.Label = _("Seed (Optional)")
+        lbl = create_widget(dm, "FixedText", "label_token", 96, 149, 49, 13)
+        lbl.Label = _("ApiKey (Optional)")
         if DEBUG:
-            ctrl = dlg.CreateFixedText("lbl_debug", (19, 162, 50, 10))
-            ctrl.Caption = f"📜 {log_file}"
-            ctrl.TipText = (
+            ctrl = create_widget(dm, "FixedText", "lbl_debug", 19, 162, 50, 10)
+            ctrl.Label = f"📜 {log_file}"
+            ctrl.HelpText = (
                 _(
                     "You are debugging, make sure opening LibreOffice from the command line. Consider using"
                 )
                 + f"\n\n   tailf { log_file }"
             )
 
-        return dlg
+        # Buttons
+        button_ok = create_widget(dm, "Button", "btn_ok", 73, 182, 49, 13)
+        button_ok.Label = _("Process")
+        button_ok.TabIndex = 4
+        button_ok.PushButtonType = 1  # OK
+        dc.getControl("btn_ok").addActionListener(self)
+        dc.getControl("btn_ok").setActionCommand("btn_ok_OnClick")
+
+        button_cancel = create_widget(dm, "Button", "btn_cancel", 145, 182, 49, 13)
+        button_cancel.Label = _("Cancel")
+        button_cancel.TabIndex = 13
+        button_cancel.PushButtonType = 2
+        dc.getControl("btn_cancel").addActionListener(self)
+        dc.getControl("btn_cancel").setActionCommand("btn_cancel_OnClick")
+
+        button_help = create_widget(dm, "Button", "btn_help", 23, 15, 13, 10)
+        button_help.Label = "?"
+        button_help.HelpText = _("About Horde")
+        button_help.TabIndex = 14
+        dc.getControl("btn_help").addActionListener(self)
+        dc.getControl("btn_help").setActionCommand("btn_help_OnClick")
+
+        # Controls
+        ctrl = create_widget(
+            dm,
+            "ComboBox",
+            "lst_model",
+            60,
+            80,
+            79,
+            15,
+        )
+        ctrl.TabIndex = 3
+        ctrl.Dropdown = True
+        ctrl.LineCount = 10
+
+        ctrl = create_widget(
+            dm,
+            "Edit",
+            "txt_prompt",
+            60,
+            16,
+            188,
+            42,
+        )
+        ctrl.MultiLine = True
+        ctrl.TabIndex = 1
+        ctrl.HelpText = _("""
+        Let your imagination run wild or put a proper description of your
+        desired output. Use full grammar for Flux, use tag-like language
+        for sd15, use short phrases for sdxl.
+
+        Write at least 5 words or 10 characters.
+        """)
+
+        ctrl = create_widget(dm, "Edit", "txt_token", 155, 147, 92, 13)
+        ctrl.TabIndex = 11
+        ctrl.HelpText = _("""
+        Get yours at https://aihorde.net/ for free. Recommended:
+        Anonymous users are last in the queue.
+        """)
+
+        ctrl = create_widget(dm, "Edit", "txt_seed", 155, 128, 92, 13)
+        ctrl.TabIndex = 2
+        ctrl.HelpText = _(
+            "Set a seed to regenerate (reproducible), or it'll be chosen at random by the worker."
+        )
+
+        ctrl = create_widget(dm, "NumericField", "int_width", 91, 63, 48, 13)
+        ctrl.DecimalAccuracy = 0
+        ctrl.ValueMin = MIN_WIDTH
+        ctrl.ValueMax = MAX_WIDTH
+        ctrl.ValueStep = 64
+        ctrl.Spin = True
+        ctrl.Value = DEFAULT_WIDTH
+        ctrl.TabIndex = 5
+        ctrl.HelpText = _(
+            "Height and Width together at most can be 2048x2048=4194304 pixels"
+        )
+
+        ctrl = create_widget(dm, "NumericField", "int_strength", 91, 100, 48, 13)
+        ctrl.ValueMin = 0
+        ctrl.ValueMax = 20
+        ctrl.ValueStep = 0.5
+        ctrl.DecimalAccuracy = 2
+        ctrl.Spin = True
+        ctrl.Value = 15
+        ctrl.TabIndex = 7
+        ctrl.HelpText = _("""
+         How strongly the AI follows the prompt vs how much creativity to allow it.
+        Set to 1 for Flux, use 2-4 for LCM and lightning, 5-7 is common for SDXL
+        models, 6-9 is common for sd15.
+        """)
+
+        ctrl = create_widget(
+            dm,
+            "NumericField",
+            "int_height",
+            200,
+            63,
+            48,
+            13,
+        )
+        ctrl.DecimalAccuracy = 0
+        ctrl.ValueMin = MIN_HEIGHT
+        ctrl.ValueMax = MAX_HEIGHT
+        ctrl.ValueStep = 64
+        ctrl.Spin = True
+        ctrl.Value = DEFAULT_HEIGHT
+        ctrl.TabIndex = 6
+        ctrl.HelpText = _(
+            "Height and Width together at most can be 2048x2048=4194304 pixels"
+        )
+
+        ctrl = create_widget(
+            dm,
+            "NumericField",
+            "int_waiting",
+            200,
+            80,
+            48,
+            13,
+        )
+        ctrl.ValueMin = 1
+        ctrl.ValueMax = 15
+        ctrl.Spin = True
+        ctrl.DecimalAccuracy = 0
+        ctrl.Value = 5
+        ctrl.TabIndex = 8
+        ctrl.HelpText = _("""
+        How long to wait(minutes) for your generation to complete.
+        Depends on number of workers and user priority (more
+        kudos = more priority. Anonymous users are last)
+        """)
+
+        ctrl = create_widget(
+            dm,
+            "NumericField",
+            "int_steps",
+            200,
+            97,
+            48,
+            13,
+        )
+        ctrl.ValueMin = 1
+        ctrl.ValueMax = 150
+        ctrl.Spin = True
+        ctrl.ValueStep = 10
+        ctrl.DecimalAccuracy = 0
+        ctrl.Value = 25
+        ctrl.TabIndex = 7
+        ctrl.HelpText = _("""
+        How many sampling steps to perform for generation. Should
+        generally be at least double the CFG unless using a second-order
+        or higher sampler (anything with dpmpp is second order)
+        """)
+
+        ctrl = create_widget(dm, "CheckBox", "bool_nsfw", 29, 130, 55, 10)
+        ctrl.Label = _("NSFW")
+        ctrl.TabIndex = 9
+        ctrl.HelpText = _("""
+        Whether or not your image is intended to be NSFW. May
+        reduce generation speed (workers can choose if they wish
+        to take nsfw requests)
+        """)
+
+        ctrl = create_widget(dm, "CheckBox", "bool_censure", 29, 145, 55, 10)
+        ctrl.Label = _("Censor NSFW")
+        ctrl.TabIndex = 10
+        ctrl.HelpText = _("""
+        Separate from the NSFW flag, should workers
+        return nsfw images. Censorship is implemented to be safe
+        and overcensor rather than risk returning unwanted NSFW.
+        """)
+
+        return dc
+
+    def show_dlg(self):
+        self.dlg.setVisible(True)
+        self.dlg.createPeer(self.toolkit, None)
+        return self.dlg.execute()
+
+    def actionPerformed(self, oActionEvent):
+        """
+        Function invoked when an event is fired from a widget
+        """
+        print(oActionEvent.ActionCommand)
+        logger.debug(oActionEvent.ActionCommand)
+        if oActionEvent.ActionCommand == "btn_ok_OnClick":
+            self.dlg.setVisible(False)
+        if oActionEvent.ActionCommand == "btn_cancel_OnClick":
+            self.dlg.setVisible(False)
+        if oActionEvent.ActionCommand == "btn_help_OnClick":
+            self.session.OpenURLInBrowser(HELP_URL)
 
     def prepare_options(self, options: json = None) -> json:
         dlg = self.dlg
-        dlg.Controls("txt_prompt").Value = self.selected
         api_key = options.get("api_key", ANONYMOUS_KEY)
-        ctrl_token = dlg.Controls("txt_token")
-        ctrl_token.Value = api_key
+        ctrl_token = dlg.getControl("txt_token")
+        ctrl_token.setText(api_key)
         if api_key == ANONYMOUS_KEY:
-            ctrl_token.Value = ""
-            ctrl_token.TabIndex = 1
+            ctrl_token.setText("")
+            ctrl_token.getModel().TabIndex = 1
         choices = options.get("local_settings", {"models": MODELS}).get(
             "models", MODELS
         )
         choices = choices or MODELS
-        dlg.Controls("lst_model").RowSource = choices
-        dlg.Controls("lst_model").Value = DEFAULT_MODEL
-        # dlg.Controls("btn_ok").Enabled = len(self.selected) > MIN_PROMPT_LENGTH
+        lst_rep_model = dlg.getControl("lst_model").getModel()
+        for i in range(len(choices)):
+            lst_rep_model.insertItemText(i, choices[i])
+        dlg.getControl("lst_model").Text = options.get("model", DEFAULT_MODEL)
+        # dlg.getControl("btn_ok").Enabled = len(self.selected) > MIN_PROMPT_LENGTH
 
-        dlg.Controls("txt_prompt").Value = options.get("prompt", DEFAULT_WIDTH)
-        dlg.Controls("int_width").Value = options.get("image_width", DEFAULT_WIDTH)
-        dlg.Controls("int_height").Value = options.get("image_height", DEFAULT_HEIGHT)
-        dlg.Controls("lst_model").Value = options.get("model", DEFAULT_MODEL)
-        dlg.Controls("int_strength").Value = options.get("prompt_strength", 6.3)
-        dlg.Controls("int_steps").Value = options.get("steps", 25)
-        dlg.Controls("bool_nsfw").Value = options.get("nsfw", 0)
-        dlg.Controls("bool_censure").Value = options.get("censor_nsfw", 1)
-        dlg.Controls("int_waiting").Value = options.get("max_wait_minutes", 15)
-        dlg.Controls("txt_seed").Value = options.get("seed", "")
-        rc = dlg.Execute()
+        dlg.getControl("txt_prompt").setText(options.get("prompt", ""))
+        dlg.getControl("txt_seed").setText(options.get("seed", ""))
+        dlg.getControl("int_width").getModel().Value = options.get(
+            "image_width", DEFAULT_WIDTH
+        )
+        dlg.getControl("int_height").getModel().Value = options.get(
+            "image_height", DEFAULT_HEIGHT
+        )
+        dlg.getControl("int_strength").getModel().Value = options.get(
+            "prompt_strength", 6.3
+        )
+        dlg.getControl("int_steps").getModel().Value = options.get("steps", 25)
+        dlg.getControl("int_waiting").getModel().Value = options.get(
+            "max_wait_minutes", 15
+        )
+        dlg.getControl("bool_nsfw").State = options.get("nsfw", 0)
+        dlg.getControl("bool_censure").State = options.get("censor_nsfw", 1)
 
-        if rc != dlg.OKBUTTON:
+        rc = self.show_dlg()
+
+        if rc != 1:
             logger.debug("User scaped, nothing to do")
-            dlg.Terminate()
-            dlg.Dispose()
+            dlg.dispose()
             return None
         logger.debug("good")
-
         options.update(
             {
-                "prompt": dlg.Controls("txt_prompt").Value,
-                "image_width": dlg.Controls("int_width").Value,
-                "image_height": dlg.Controls("int_height").Value,
-                "model": dlg.Controls("lst_model").Value,
-                "prompt_strength": dlg.Controls("int_strength").Value,
-                "steps": dlg.Controls("int_steps").Value,
-                "nsfw": dlg.Controls("bool_nsfw").Value == 1,
-                "censor_nsfw": dlg.Controls("bool_censure").Value == 1,
-                "api_key": dlg.Controls("txt_token").Value or ANONYMOUS_KEY,
-                "max_wait_minutes": dlg.Controls("int_waiting").Value,
-                "seed": dlg.Controls("txt_seed").Value,
+                "prompt": dlg.getControl("txt_prompt").Text,
+                "image_width": dlg.getControl("int_width").Value,
+                "image_height": dlg.getControl("int_height").Value,
+                "model": dlg.getControl("lst_model").Text,
+                "prompt_strength": dlg.getControl("int_strength").Value,
+                "steps": dlg.getControl("int_steps").Value,
+                "nsfw": dlg.getControl("bool_nsfw").State == 1,
+                "censor_nsfw": dlg.getControl("bool_censure").State == 1,
+                "api_key": dlg.getControl("txt_token").Text or ANONYMOUS_KEY,
+                "max_wait_minutes": dlg.getControl("int_waiting").Value,
+                "seed": dlg.getControl("txt_seed").Text,
             }
         )
-        dlg.Terminate()
-        dlg.Dispose()
+        dlg.dispose()
         self.options = options
         return options
 
@@ -732,10 +810,6 @@ class AiHordeForLibreOffice(unohelper.Base, XJobExecutor, XEventListener):
     def trigger(self, args):
         if args == "create_image":
             generate_image(self.desktop, self.context)
-        # if args == "validate_form":
-        #     print(dir(self))
-        # if args == "get_help":
-        #     print(dir(self))
 
     def __init__(self, context):
         self.context = context
@@ -771,7 +845,7 @@ g_ImplementationHelper = unohelper.ImplementationHelper()
 g_ImplementationHelper.addImplementation(
     AiHordeForLibreOffice,
     LIBREOFFICE_EXTENSION_ID,
-    ("com.sun.star.task.JobExecutor",),
+    ("com.sun.star.task.theJobExecutor",),
 )
 
 # TODO:
@@ -782,8 +856,11 @@ g_ImplementationHelper.addImplementation(
 # * [X] Change Accelerator to global
 # * [X] Close bug with solution
 # * [X] Use singleton path for the config path
-# * [ ] Recover help button
+# * [X] Recover help button
 # * [ ] Recover form validation
+# * [X] Listen for <Esc> to minimize dialog
+# * [ ] Explore lateral bar dialog
+# * [ ] Add progress bar inside dialog
 # * [ ] Replace label by button to copy to clipboard, or open in browser
 # * [ ] Only one runner should be working
 #    - Define where to put the lock
