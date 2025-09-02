@@ -464,7 +464,7 @@ class LibreOfficeInteraction(unohelper.Base, InformerFrontend, XActionListener):
         self.DEFAULT_DLG_HEIGHT = size.Height
         self.displacement = self.dlg.getControl("label_progress").getPosSize().Y - 5
 
-    def toggle_controls(self):
+    def toggle_dialog(self):
         size = self.dlg.getPosSize()
         lbl = self.dlg.getControl("label_progress")
         btn = self.dlg.getControl("btn_toggle")
@@ -514,7 +514,7 @@ class LibreOfficeInteraction(unohelper.Base, InformerFrontend, XActionListener):
             self.in_progress = True
             self.start_processing()
         elif oActionEvent.ActionCommand == "btn_toggle_OnClick":
-            self.toggle_controls()
+            self.toggle_dialog()
         elif oActionEvent.ActionCommand == "btn_cancel_OnClick":
             # Check if running, invoke de invoke delete on client
             logger.debug("User scaped, nothing to do")
@@ -547,6 +547,12 @@ class LibreOfficeInteraction(unohelper.Base, InformerFrontend, XActionListener):
         #     return
 
         self.dlg.getControl("btn_ok").getModel().Enabled = False
+        cancel_button = self.dlg.getControl("btn_cancel")
+        cancel_button.setLabel(_("Close"))
+        cancel_button.getModel().HelpText = _(
+            "The image generation will continue while you are doing other tasks"
+        )
+        self.toggle_dialog()
         self.get_options_from_dialog()
         logger.debug(self.options)
 
@@ -938,8 +944,6 @@ g_ImplementationHelper.addImplementation(
 #    - We need a progress (Y)
 #    - Make the thing smaller, (Y)
 #    - We need a panel to show the tip
-#    - Show the resulting image and put it in a container, then allow to
-# move to the document.
 #    - We need a button to expand and allow people to read
 #    - Invite people to grow the knowledge
 # * [ ] Cancel generation
