@@ -28,6 +28,7 @@ import unohelper
 from com.sun.star.awt import Point
 from com.sun.star.awt import Size
 from com.sun.star.awt import XActionListener
+from com.sun.star.awt import XKeyListener
 from com.sun.star.beans import PropertyExistException
 from com.sun.star.beans import UnknownPropertyException
 from com.sun.star.beans.PropertyAttribute import TRANSIENT
@@ -135,7 +136,9 @@ def popup_click(poEvent: uno = None):
     my_popup.Dispose()
 
 
-class LibreOfficeInteraction(unohelper.Base, InformerFrontend, XActionListener):
+class LibreOfficeInteraction(
+    unohelper.Base, InformerFrontend, XActionListener, XKeyListener
+):
     def get_type_doc(self, doc):
         TYPE_DOC = {
             "calc": "com.sun.star.sheet.SpreadsheetDocument",
@@ -156,6 +159,8 @@ class LibreOfficeInteraction(unohelper.Base, InformerFrontend, XActionListener):
         self.toolkit = self.context.ServiceManager.createInstanceWithContext(
             "com.sun.star.awt.ExtToolkit", self.context
         )
+
+        self.in_progress = False
 
         self.bas = CreateScriptService("Basic")
         self.ui = CreateScriptService("UI")
@@ -218,6 +223,7 @@ class LibreOfficeInteraction(unohelper.Base, InformerFrontend, XActionListener):
             "com.sun.star.awt.UnoControlDialogModel"
         )
         dc.setModel(dm)
+        dc.addKeyListener(self)
         dm.Name = "stablehordeoptions"
         dm.PositionX = "47"
         dm.PositionY = "10"
@@ -261,14 +267,12 @@ class LibreOfficeInteraction(unohelper.Base, InformerFrontend, XActionListener):
         button_ok = create_widget(dm, "Button", "btn_ok", 73, 182, 49, 13)
         button_ok.Label = _("Process")
         button_ok.TabIndex = 4
-        button_ok.PushButtonType = 1  # OK
         dc.getControl("btn_ok").addActionListener(self)
         dc.getControl("btn_ok").setActionCommand("btn_ok_OnClick")
 
         button_cancel = create_widget(dm, "Button", "btn_cancel", 145, 182, 49, 13)
         button_cancel.Label = _("Cancel")
         button_cancel.TabIndex = 13
-        button_cancel.PushButtonType = 2
         dc.getControl("btn_cancel").addActionListener(self)
         dc.getControl("btn_cancel").setActionCommand("btn_cancel_OnClick")
 
@@ -431,28 +435,101 @@ class LibreOfficeInteraction(unohelper.Base, InformerFrontend, XActionListener):
         return nsfw images. Censorship is implemented to be safe
         and overcensor rather than risk returning unwanted NSFW.
         """)
+        lbl = create_widget(dm, "FixedText", "label_progress", 2, 205, 95, 10)
+        lbl.Label = ""
+        ctrl = create_widget(
+            dm,
+            "ProgressBar",
+            "prog_status",
+            -3,
+            203,
+            270,
+            13,
+        )
+        self.progress_label = lbl
+        self.progress_meter = ctrl
 
         return dc
 
     def show_dlg(self):
         self.dlg.setVisible(True)
         self.dlg.createPeer(self.toolkit, None)
-        return self.dlg.execute()
+
+    def keyPressed(self, oKeyEvent):
+        print(oKeyEvent)
+        breakpoint
+        pass
+        # if oKeyEvent.ActionComand == "key_thing":
+        #     breakpoint()
 
     def actionPerformed(self, oActionEvent):
         """
         Function invoked when an event is fired from a widget
         """
-        print(oActionEvent.ActionCommand)
-        logger.debug(oActionEvent.ActionCommand)
         if oActionEvent.ActionCommand == "btn_ok_OnClick":
-            self.dlg.setVisible(False)
-        if oActionEvent.ActionCommand == "btn_cancel_OnClick":
-            self.dlg.setVisible(False)
-        if oActionEvent.ActionCommand == "btn_help_OnClick":
+            if self.in_progress:
+                # Fast clickers,need to learn to wait
+                return
+            self.dlg.getControl("btn_ok").getModel().Enabled = False
+            self.in_progress = True
+            self.start_processing()
+        elif oActionEvent.ActionCommand == "btn_cancel_OnClick":
+            logger.debug("User scaped, nothing to do")
+            self.dlg.dispose()
+        elif oActionEvent.ActionCommand == "btn_help_OnClick":
             self.session.OpenURLInBrowser(HELP_URL)
 
-    def prepare_options(self, options: json = None) -> json:
+    def start_processing(self):
+        # TODO: Manage validations
+        # if len(self.options["prompt"]) < MIN_PROMPT_LENGTH:
+        #     self.show_error(_("Please provide a prompt with at least 5 words"))
+        #     self.free()
+        #     return
+
+        logger.debug(self.options)
+
+        def __real_work_with_api__():
+            """
+            Once we have collected everything, we make calls to the API and
+            maintain LibreOffice interface responsive, show a message and
+            insert the image in the cursor position.  It will need some
+            refactor to have the dialog visible and the progressbar inside
+            it.we have collected everything, we make calls to the API and
+            maintain LibreOffice interface responsive, show a message and
+            insert the image in the cursor position.  It will need some
+            refactor to have the dialog visible and the progressbar inside
+            it."""
+            images_paths = self.sh_client.generate_image(self.options)
+
+            logger.debug(images_paths)
+            if images_paths:
+                self.update_status("", 100)
+                bas = CreateScriptService("Basic")
+                bas.MsgBox(
+                    _("Your image was generated"), title=_("AIHorde has good news")
+                )
+                bas.Dispose()
+
+                self.insert_image(
+                    images_paths[0],
+                    self.options["image_width"],
+                    self.options["image_height"],
+                    self.sh_client,
+                )
+                self.st_manager.save(self.sh_client.get_settings())
+
+            self.free()
+
+        from threading import Thread
+
+        self.worker = Thread(target=__real_work_with_api__)
+        self.worker.start()
+
+    def prepare_options(
+        self, sh_client: AiHordeClient, st_manager: HordeClientSettings, options: json
+    ) -> json:
+        self.sh_client = sh_client
+        self.st_manager = st_manager
         dlg = self.dlg
         api_key = options.get("api_key", ANONYMOUS_KEY)
         ctrl_token = dlg.getControl("txt_token")
@@ -488,12 +565,8 @@ class LibreOfficeInteraction(unohelper.Base, InformerFrontend, XActionListener):
         dlg.getControl("bool_nsfw").State = options.get("nsfw", 0)
         dlg.getControl("bool_censure").State = options.get("censor_nsfw", 1)
 
-        rc = self.show_dlg()
+        self.show_dlg()
 
-        if rc != 1:
-            logger.debug("User scaped, nothing to do")
-            dlg.dispose()
-            return None
         logger.debug("good")
         options.update(
             {
@@ -510,16 +583,15 @@ class LibreOfficeInteraction(unohelper.Base, InformerFrontend, XActionListener):
                 "seed": dlg.getControl("txt_seed").Text,
             }
         )
-        dlg.dispose()
         self.options = options
         return options
 
     def free(self):
+        self.dlg.dispose()
         self.bas.Dispose()
         self.ui.Dispose()
         self.platform.Dispose()
         self.session.Dispose()
-        self.set_finished()
 
     def update_status(self, text: str, progress: float = 0.0):
         """
@@ -527,13 +599,15 @@ class LibreOfficeInteraction(unohelper.Base, InformerFrontend, XActionListener):
         """
         if progress:
             self.progress = progress
-        self.ui.SetStatusbar(text.rjust(32), self.progress)
+        self.progress_label.Label = text
+        self.progress_meter.ProgressValue = self.progress
 
     def set_finished(self):
         """
         Tells the frontend that the process has finished successfully
         """
-        self.ui.SetStatusbar("")
+        self.progress_label.Label = ""
+        self.progress_meter.ProgressValue = 100
 
     def __msg_usr__(self, message, buttons=0, title="", url=""):
         """
@@ -754,52 +828,7 @@ def generate_image(desktop=None, context=None):
 
     logger.debug(lo_manager.base_info)
 
-    options = lo_manager.prepare_options(saved_options)
-
-    if options is None:
-        # User cancelled, nothing to be done
-        lo_manager.free()
-        return
-    elif len(options["prompt"]) < MIN_PROMPT_LENGTH:
-        lo_manager.show_error(_("Please provide a prompt with at least 5 words"))
-        lo_manager.free()
-        return
-
-    logger.debug(options)
-
-    def __real_work_with_api__():
-        """
-        Once we have collected everything, we make calls to the API and
-        maintain LibreOffice interface responsive, show a message and
-        insert the image in the cursor position.  It will need some
-        refactor to have the dialog visible and the progressbar inside
-        it.we have collected everything, we make calls to the API and
-        maintain LibreOffice interface responsive, show a message and
-        insert the image in the cursor position.  It will need some
-        refactor to have the dialog visible and the progressbar inside
-        it."""
-        images_paths = sh_client.generate_image(options)
-
-        logger.debug(images_paths)
-        if images_paths:
-            bas = CreateScriptService("Basic")
-            bas.MsgBox(_("Your image was generated"), title=_("AIHorde has good news"))
-            bas.Dispose()
-
-            lo_manager.insert_image(
-                images_paths[0],
-                options["image_width"],
-                options["image_height"],
-                sh_client,
-            )
-            st_manager.save(sh_client.get_settings())
-
-        lo_manager.free()
-
-    from threading import Thread
-
-    t = Thread(target=__real_work_with_api__)
-    t.start()
+    lo_manager.prepare_options(sh_client, st_manager, saved_options)
 
 
 class AiHordeForLibreOffice(unohelper.Base, XJobExecutor, XEventListener):
@@ -858,11 +887,12 @@ g_ImplementationHelper.addImplementation(
 # * [X] Use singleton path for the config path
 # * [X] Recover help button
 # * [ ] Recover form validation
-# * [X] Listen for <Esc> to minimize dialog
+# * [ ] Listen for <Esc> to close dialog or ask if really interrupt the process
 # * [ ] Explore lateral bar dialog
-# * [ ] Add progress bar inside dialog
-# * [ ] Replace label by button to copy to clipboard, or open in browser
-# * [ ] Only one runner should be working
+# *  -  If lateral, cancel with confirm
+#    -  If not lateral, change behaviour to Hide
+# * [X] Add progress bar inside dialog
+# * [ ] Only one runner should be working? Nooo... Ask better in the channel
 #    - Define where to put the lock
 #    - Remove the lock when initializing
 #    - Add the lock when the process starts
@@ -872,6 +902,8 @@ g_ImplementationHelper.addImplementation(
 # * [ ] Preserve dialog open when running
 #    - We need a progress
 #    - We need a panel to show the tip
+#    - Show the resulting image and put it in a container, then allow to
+# move to the document.
 #    - We need a button to expand and allow people to read
 #    - Invite people to grow the knowledge
 # * [ ] Cancel generation
@@ -881,6 +913,7 @@ g_ImplementationHelper.addImplementation(
 #    - They can be in github and refreshed each 10 days
 #    -  url, title, description, image, visibility
 # * [ ] Wishlist to have right alignment for numeric control option
+# * [ ] Add translation using https://huggingface.co/spaces/Helsinki-NLP/opus-translate ,  understand how to avoid using gradio client
 # * [ ] Recommend to use a shared key to users
 # * [ ] Automate version propagation when publishing: Wishlist for extensions
 # * [ ] Add a popup context menu: Generate Image... [programming] https://wiki.documentfoundation.org/Macros/ScriptForge/PopupMenuExample
