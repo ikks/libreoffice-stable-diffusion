@@ -1,6 +1,27 @@
 #!/bin/bash
 VERSION=$(grep "VERSION = " src/StableHordeForLibreOffice.py | sed -E 's/VERSION = "(.+)"/\1/')
 
+XMLVER=$(grep "version value" oxt/description.xml | sed -E 's/.*"(.*)".*/\1/')
+if [ "$VERSION" != "$XMLVER" ]; then
+  sed -i -E 's/version value="([0-9]+(\.[0-9]+)*)/version value=\"'$VERSION'/g' oxt/description.xml
+  MODVER=$(grep "version value" oxt/description.xml | sed -E 's/.*"(.*)".*/\1/')
+  if [ "$VERSION" != "$MODVER" ]; then
+    echo "Please review oxt/description.xml and make the version match $VERSION" 
+  else
+    echo "I just modified the oxt/description.xml , make sure you"
+    echo "git add oxt/description.xml; git commit -m \"sync version\""
+  fi
+  exit 1
+fi
+
+CHANGE=$(grep "## \[$VERSION\] - " CHANGELOG.md | sed -E 's/.*\[(.*)].*/\1/')
+echo $CHANGE
+if [ "$VERSION" != "$CHANGE" ]; then
+  echo "hx CHANGELOG.md;git add CHANGELOG.md"
+  echo "To update the Changelog"
+  exit 1
+fi
+
 TAGVER=$(git tag --list | grep "$VERSION")
 if [ "$VERSION" != "$TAGVER" ]; then
   echo "git tag $VERSION; git push --tags"
@@ -9,22 +30,13 @@ if [ "$VERSION" != "$TAGVER" ]; then
 fi
 
 ADVERTISING=$(grep '"version":' version.json | sed -E 's/.* "(.*)",/\1/')
-
 if [ "$VERSION" != "$ADVERTISING" ]; then
   echo "hx version.json"
-  echo "to update the advertised version"
+  echo "to update the advertised version.  It's ok to release, and later advertise, do:"
+  echo gh release create "$VERSION" && echo gh release upload "$VERSION" loshd.oxt 
   exit 1
 fi
 
-CHANGE=$(grep "## \[$VERSION\] - " CHANGELOG.md | sed -E 's/.*\[(.*)].*/\1/')
-
-echo $CHANGE
-if [ "$VERSION" != "$CHANGE" ]; then
-  echo "hx CHANGELOG.md;git add CHANGELOG.md"
-  echo "To update the Changelog"
-  exit 1
-fi
 
 # TODO introspect description.xml
 
-echo gh release create "$VERSION" && echo gh release upload "$VERSION" loshd.oxt 
