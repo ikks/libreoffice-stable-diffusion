@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-08-25 12:01-0500\n"
+"POT-Creation-Date: 2025-09-02 19:17-0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -144,7 +144,7 @@ msgid ""
 " * "
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:145
+#: src/StableHordeForLibreOffice.py:136
 msgid "Generate Image"
 msgstr ""
 
@@ -152,47 +152,47 @@ msgstr ""
 msgid "AIHorde for LibreOffice - "
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:214
+#: src/StableHordeForLibreOffice.py:251
 msgid "Prompt"
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:216
+#: src/StableHordeForLibreOffice.py:253
 msgid "Height"
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:218
+#: src/StableHordeForLibreOffice.py:255
 msgid "Width"
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:220
+#: src/StableHordeForLibreOffice.py:257
 msgid "Model"
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:222
+#: src/StableHordeForLibreOffice.py:259
 msgid "Max Wait"
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:224
+#: src/StableHordeForLibreOffice.py:261
 msgid "Strength"
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:226
+#: src/StableHordeForLibreOffice.py:263
 msgid "Steps"
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:228
+#: src/StableHordeForLibreOffice.py:265
 msgid "Seed (Optional)"
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:230
+#: src/StableHordeForLibreOffice.py:267
 msgid "ApiKey (Optional)"
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:234
+#: src/StableHordeForLibreOffice.py:280
 msgid "Process"
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:239
+#: src/StableHordeForLibreOffice.py:287
 msgid "Cancel"
 msgstr ""
 
@@ -230,7 +230,7 @@ msgid ""
 "message if timeout is reached"
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:357
+#: src/StableHordeForLibreOffice.py:450
 msgid "NSFW"
 msgstr ""
 
@@ -238,7 +238,7 @@ msgstr ""
 msgid "If not marked, it's faster, when marked you are on the edge..."
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:366
+#: src/StableHordeForLibreOffice.py:459
 msgid "Censor NSFW"
 msgstr ""
 
@@ -246,11 +246,11 @@ msgstr ""
 msgid "Allow if you want to avoid unexpected images..."
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:490
+#: src/StableHordeForLibreOffice.py:757
 msgid "Watch out!"
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:504
+#: src/StableHordeForLibreOffice.py:771
 msgid "Good"
 msgstr ""
 
@@ -338,7 +338,7 @@ msgid ""
 " * "
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:260
+#: src/StableHordeForLibreOffice.py:331
 msgid ""
 "\n"
 "        Let your imagination run wild or put a proper description of your\n"
@@ -357,17 +357,17 @@ msgid ""
 "        "
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:278
+#: src/StableHordeForLibreOffice.py:351
 msgid ""
 "Set a seed to regenerate (reproducible), or it'll be chosen at random by the "
 "worker."
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:324
+#: src/StableHordeForLibreOffice.py:400
 msgid "Height and Width together at most can be 2048x2048=4194304 pixels"
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:306
+#: src/StableHordeForLibreOffice.py:377
 msgid ""
 "\n"
 "         How strongly the AI follows the prompt vs how much creativity to "
@@ -387,7 +387,7 @@ msgid ""
 "        "
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:351
+#: src/StableHordeForLibreOffice.py:443
 msgid ""
 "\n"
 "        How many sampling steps to perform for generation. Should\n"
@@ -396,7 +396,7 @@ msgid ""
 "        "
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:359
+#: src/StableHordeForLibreOffice.py:452
 msgid ""
 "\n"
 "        Whether or not your image is intended to be NSFW. May\n"
@@ -405,7 +405,7 @@ msgid ""
 "        "
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:367
+#: src/StableHordeForLibreOffice.py:461
 msgid ""
 "\n"
 "        Separate from the NSFW flag, should workers\n"
@@ -414,11 +414,11 @@ msgid ""
 "        "
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:713
+#: src/StableHordeForLibreOffice.py:642
 msgid "Your image was generated"
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:713
+#: src/StableHordeForLibreOffice.py:642
 msgid "AIHorde has good news"
 msgstr ""
 
@@ -434,11 +434,11 @@ msgstr ""
 msgid "AIhorde response: "
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:210
+#: src/StableHordeForLibreOffice.py:247
 msgid "AI Horde for LibreOffice - "
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:270
+#: src/StableHordeForLibreOffice.py:343
 msgid ""
 "\n"
 "        Get yours at https://aihorde.net/ for free. Recommended:\n"
@@ -450,7 +450,7 @@ msgstr ""
 msgid " is censored, try changing the prompt wording"
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:335
+#: src/StableHordeForLibreOffice.py:421
 msgid ""
 "\n"
 "        How long to wait(minutes) for your generation to complete.\n"
@@ -459,16 +459,32 @@ msgid ""
 "        "
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:378
+#: src/StableHordeForLibreOffice.py:273
 msgid ""
 "You are debugging, make sure opening LibreOffice from the command line. "
 "Consider using"
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:756
+#: src/StableHordeForLibreOffice.py:974
 msgid "To view debugging messages, edit"
 msgstr ""
 
-#: src/StableHordeForLibreOffice.py:758
+#: src/StableHordeForLibreOffice.py:976
 msgid "and set DEBUG to True (case matters)"
+msgstr ""
+
+#: src/StableHordeForLibreOffice.py:294
+msgid "About Horde"
+msgstr ""
+
+#: src/StableHordeForLibreOffice.py:301
+msgid "Toggle"
+msgstr ""
+
+#: src/StableHordeForLibreOffice.py:616
+msgid "Close"
+msgstr ""
+
+#: src/StableHordeForLibreOffice.py:618
+msgid "The image generation will continue while you are doing other tasks"
 msgstr ""

@@ -11,23 +11,19 @@ from pathlib import Path
 from zipfile import ZipFile
 
 scriptdir = os.path.dirname(os.path.abspath(sys.argv[0]))
-license_source = Path(scriptdir, "..", "LICENSE")
-license_destination = Path(scriptdir, "description", "license.txt")
-shutil.copy(license_source, license_destination)
 
-macro_source = Path(scriptdir, "..", "src", "StableHordeForLibreOffice.py")
-macro_destination = scriptdir
-shutil.copy(macro_source, macro_destination)
+files = [
+    (["..", "LICENSE"], ["description", "license.txt"]),
+    (["..", "src", "StableHordeForLibreOffice.py"], [""]),
+    (["..", "docs", "README.md"], ["README"]),
+    (
+        ["..", "modules", "aihordeclient", "src", "aihordeclient", "__init__.py"],
+        ["module", "aihordeclient.py"],
+    ),
+]
 
-readme_source = Path(scriptdir, "..", "docs", "README.md")
-readme_destination = Path(scriptdir, "README")
-shutil.copy(readme_source, readme_destination)
-
-script_source = Path(
-    scriptdir, "..", "modules", "aihordeclient", "src", "aihordeclient", "__init__.py"
-)
-script_destination = Path(scriptdir, "module", "aihordeclient.py")
-shutil.copy(script_source, script_destination)
+for pair in files:
+    shutil.copy(Path(scriptdir, *pair[0]), Path(scriptdir, *pair[1]))
 
 extensionname = (
     open(os.path.join(scriptdir, "extensionname.txt")).readlines()[0].rstrip("\n")
