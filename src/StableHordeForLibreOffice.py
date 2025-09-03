@@ -42,19 +42,22 @@ from com.sun.star.awt.Key import ESCAPE
 from com.sun.star.beans import PropertyExistException
 from com.sun.star.beans import UnknownPropertyException
 from com.sun.star.beans.PropertyAttribute import TRANSIENT
+from com.sun.star.datatransfer import DataFlavor
+from com.sun.star.datatransfer import XTransferable
 from com.sun.star.document import XEventListener
 from com.sun.star.task import XJobExecutor
 from com.sun.star.text.TextContentAnchorType import AS_CHARACTER
 
+from collections.abc import Iterable
 from math import sqrt
 from pathlib import Path
 from scriptforge import CreateScriptService
 from typing import Any, Dict, List, Union
 
 # Change the next line replacing False to True if you need to debug. Case matters
-DEBUG = False
+DEBUG = True
 
-VERSION = "0.6"
+VERSION = "0.7"
 
 import_message_error = None
 
@@ -119,6 +122,9 @@ Name of the client sent to API
 DEFAULT_HEIGHT = 384
 DEFAULT_WIDTH = 384
 
+TRANSLATION_URL = "https://huggingface.co/spaces/Helsinki-NLP/opus-translate"
+
+CLIPBOARD_TEXT_FORMAT = "text/plain;charset=utf-16"
 
 # gettext usual alias for i18n
 _ = gettext.gettext
@@ -138,6 +144,33 @@ def popup_click(poEvent: uno = None) -> None:
     response = my_popup.Execute()
     logger.debug(response)
     my_popup.Dispose()
+
+
+class DataTransferable(unohelper.Base, XTransferable):
+    """Exchange data with Clipboard"""
+
+    def __init__(self, text: str):
+        dft = DataFlavor()
+        dft.MimeType = CLIPBOARD_TEXT_FORMAT
+        dft.HumanPresentableName = "Unicode-Text"
+        self.data = {}
+
+        if isinstance(text, str):
+            self.data[CLIPBOARD_TEXT_FORMAT] = text
+        self.flavors: Iterable(DataFlavor) = (dft,)
+
+    def getTransferData(self, flavor: DataFlavor):
+        if not flavor:
+            return
+        return self.data.get(flavor.MimeType)
+
+    def getTransferDataFlavors(self) -> None:
+        return self.flavors
+
+    def isDataFlavorSupported(self, flavor: DataFlavor) -> bool:
+        if not flavor:
+            return False
+        return flavor.MimeType in self.data.keys()
 
 
 class LibreOfficeInteraction(
@@ -295,6 +328,13 @@ class LibreOfficeInteraction(
         button_help.TabIndex = 14
         dc.getControl("btn_help").addActionListener(self)
         dc.getControl("btn_help").setActionCommand("btn_help_OnClick")
+
+        button_trans = create_widget(dm, "Button", "btn_trans", 43, 45, 13, 10)
+        button_trans.Label = "🌏"
+        button_trans.HelpText = _("Translate to English")
+        button_trans.TabIndex = 14
+        dc.getControl("btn_trans").addActionListener(self)
+        dc.getControl("btn_trans").setActionCommand("btn_trans_OnClick")
 
         button_toggle = create_widget(dm, "Button", "btn_toggle", 2, 204, 12, 10)
         button_toggle.Label = "_"
@@ -536,6 +576,19 @@ class LibreOfficeInteraction(
             <= MAX_MP
         )
         self.ok_btn.Enabled = enable_ok
+        self.dlg.getControl("btn_trans").Enabled = enable_ok
+
+    def translate(self) -> None:
+        text = self.dlg.getControl("txt_prompt").Text
+        if len(text) < MIN_PROMPT_LENGTH:
+            return
+        clipboard = self.context.ServiceManager.createInstanceWithContext(
+            "com.sun.star.datatransfer.clipboard.SystemClipboard", self.context
+        )
+        transfer_text = DataTransferable(text)
+        clipboard.setContents(transfer_text, None)
+
+        self.session.OpenURLInBrowser(TRANSLATION_URL)
 
     def focusLost(self, oFocusEvent: FocusEvent) -> None:
         element = oFocusEvent.Source.getModel()
@@ -584,6 +637,8 @@ class LibreOfficeInteraction(
             self.toggle_dialog()
         elif oActionEvent.ActionCommand == "btn_cancel_OnClick":
             self.dlg.dispose()
+        elif oActionEvent.ActionCommand == "btn_trans_OnClick":
+            self.translate()
         elif oActionEvent.ActionCommand == "btn_help_OnClick":
             self.session.OpenURLInBrowser(HELP_URL)
 
@@ -1014,7 +1069,7 @@ g_ImplementationHelper.addImplementation(
 #    - They can be in github and refreshed each 10 days
 #    -  url, title, description, image, visibility
 # * [ ] Wishlist to have right alignment for numeric control option
-# * [ ] Add translation using https://huggingface.co/spaces/Helsinki-NLP/opus-translate ,  understand how to avoid using gradio client, put the thing to be translated in the clipboard
+# * [X] Add translation using https://huggingface.co/spaces/Helsinki-NLP/opus-translate ,  understand how to avoid using gradio client, put the thing to be translated in the clipboard
 # * [ ] Recommend to use a shared key to users
 # * [ ] Automate version propagation when publishing: Wishlist for extensions
 # * [ ] Add a popup context menu: Generate Image... [programming] https://wiki.documentfoundation.org/Macros/ScriptForge/PopupMenuExample
