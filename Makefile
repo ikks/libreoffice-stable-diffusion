@@ -36,6 +36,7 @@ src/po/messages.pot: src/$(SCRIPTNAME).py
 	xgettext -j -o $@ --add-comments=TRANSLATORS: --keyword=_ --flag=_:1:pass-python-format --directory=. $<
 
 $(EXEC): src/$(SCRIPTNAME).py oxt/description.xml oxt/build
+	mkdir -p oxt/module
 	oxt/build
 
 langs: src/po/messages.pot $(MO_FILES)

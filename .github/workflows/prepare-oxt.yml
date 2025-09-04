@@ -1,0 +1,26 @@
+name: prepare-oxt
+run-name: OXT preparation
+on: [push]
+
+jobs:
+  locales-and-oxt:
+     name: Locales and extension
+     runs-on: ubuntu-latest
+     steps:
+        - uses: actions/checkout@v4
+          with:
+            submodules: recursive
+        - run: sudo apt install -y gettext make zip coreutils potool
+        - name: Creating oxt
+          id: creating_oxt
+          run: |
+            make langs
+            make
+            export MD=$(git rev-parse --short=8 HEAD)
+            mkdir out
+            cp loshd.oxt out/loshd.oxt
+            echo "output_oxt=loshd.$MD.oxt" >> $GITHUB_OUTPUT
+        - uses: actions/upload-artifact@v4
+          with:
+            name: ${{ steps.creating_oxt.outputs.output_oxt }}
+            path: out/loshd.oxt
