@@ -1,3 +1,9 @@
 [submodule "modules/aihordeclient"]
 	path = modules/aihordeclient
 	url = https://github.com/ikks/aihordeclient/
+[submodule "modules/urllib3"]
+	path = modules/urllib3
+	url = https://github.com/urllib3/urllib3/
+[submodule "modules/sseclient-py"]
+	path = modules/sseclient-py
+	url = https://github.com/mpetazzoni/sseclient

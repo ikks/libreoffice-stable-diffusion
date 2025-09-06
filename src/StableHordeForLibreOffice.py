@@ -91,11 +91,13 @@ from aihordeclient import (  # noqa: E402
     MIN_HEIGHT,
     MAX_HEIGHT,
     MODELS,
+    OPUSTM_SOURCE_LANGUAGES,
 )
 from aihordeclient import (  # noqa: E402
     AiHordeClient,
     InformerFrontend,
     HordeClientSettings,
+    opustm_hf_translate,
 )
 
 HELP_URL = "https://aihorde.net/faq"
@@ -122,7 +124,6 @@ Name of the client sent to API
 DEFAULT_HEIGHT = 384
 DEFAULT_WIDTH = 384
 
-TRANSLATION_URL = "https://huggingface.co/spaces/Helsinki-NLP/opus-translate"
 
 CLIPBOARD_TEXT_FORMAT = "text/plain;charset=utf-16"
 
@@ -196,7 +197,6 @@ class LibreOfficeInteraction(
         return "new-writer"
 
     def __init__(self, desktop, context):
-        self.options = {}
         self.desktop = desktop
         self.context = context
         self.model = self.desktop.getCurrentComponent()
@@ -242,6 +242,37 @@ class LibreOfficeInteraction(
         self.displacement = 180
         self.ok_btn = None
         self.dlg = self.__create_dialog__()
+        self.options = {}
+
+        self.initial_prompt: str = ""
+        self.initial_lang = "en"
+
+    def get_language(self) -> str:
+        """
+        Determines the UI current language
+        Taken from MRI
+        https://github.com/hanya/MRI
+        """
+        from com.sun.star.beans import PropertyValue
+
+        cp = self.context.getServiceManager().createInstanceWithContext(
+            "com.sun.star.configuration.ConfigurationProvider", self.context
+        )
+        node = PropertyValue()
+        node.Name = "nodepath"
+        node.Value = "/org.openoffice.Setup/L10N"
+        prop = "ooLocale"
+        try:
+            cr = cp.createInstanceWithArguments(
+                "com.sun.star.configuration.ConfigurationAccess", (node,)
+            )
+            if cr and (cr.hasByName(prop)):
+                return cr.getPropertyValue(prop)
+        except Exception as ex:
+            logger.warning(
+                "Unable to determine user locale, defaulting to en", ex, stack_info=True
+            )
+            return ""
 
     def __create_dialog__(self):
         def create_widget(
@@ -261,6 +292,9 @@ class LibreOfficeInteraction(
             cmpt.Height = height
             dlg.insertByName(identifier, cmpt)
             return cmpt
+
+        current_language = self.get_language()
+        self.show_language = not current_language.startswith("en")
 
         dc = self.context.ServiceManager.createInstanceWithContext(
             "com.sun.star.awt.UnoControlDialog", self.context
@@ -312,29 +346,66 @@ class LibreOfficeInteraction(
         button_ok = create_widget(dm, "Button", "btn_ok", 73, 182, 49, 13)
         button_ok.Label = _("Process")
         button_ok.TabIndex = 4
-        dc.getControl("btn_ok").addActionListener(self)
-        dc.getControl("btn_ok").setActionCommand("btn_ok_OnClick")
+        btn_ok = dc.getControl("btn_ok")
+        btn_ok.addActionListener(self)
+        btn_ok.setActionCommand("btn_ok_OnClick")
         self.ok_btn = button_ok
 
         button_cancel = create_widget(dm, "Button", "btn_cancel", 145, 182, 49, 13)
         button_cancel.Label = _("Cancel")
         button_cancel.TabIndex = 13
-        dc.getControl("btn_cancel").addActionListener(self)
-        dc.getControl("btn_cancel").setActionCommand("btn_cancel_OnClick")
+        btn_cancel = dc.getControl("btn_cancel")
+        btn_cancel.addActionListener(self)
+        btn_cancel.setActionCommand("btn_cancel_OnClick")
 
         button_help = create_widget(dm, "Button", "btn_help", 23, 15, 13, 10)
         button_help.Label = "?"
         button_help.HelpText = _("About Horde")
         button_help.TabIndex = 14
-        dc.getControl("btn_help").addActionListener(self)
-        dc.getControl("btn_help").setActionCommand("btn_help_OnClick")
+        btn_help = dc.getControl("btn_help")
+        btn_help.addActionListener(self)
+        btn_help.setActionCommand("btn_help_OnClick")
 
-        button_trans = create_widget(dm, "Button", "btn_trans", 43, 45, 13, 10)
+        button_trans = create_widget(dm, "Button", "btn_trans", 41, 35, 13, 10)
         button_trans.Label = "🌏"
         button_trans.HelpText = _("Translate to English")
-        button_trans.TabIndex = 14
-        dc.getControl("btn_trans").addActionListener(self)
-        dc.getControl("btn_trans").setActionCommand("btn_trans_OnClick")
+        btn_trans = dc.getControl("btn_trans")
+        btn_trans.addActionListener(self)
+        btn_trans.setActionCommand("btn_trans_OnClick")
+
+        if current_language:
+            button_trans.TabIndex = 2
+
+        ctrl = create_widget(
+            dm,
+            "ComboBox",
+            "lst_language",
+            130,
+            65,
+            109,
+            15,
+        )
+        ctrl.TabIndex = 3
+        ctrl.Dropdown = True
+        ctrl.LineCount = 10
+        ctrl.HelpText = _(
+            "Prompt language, we translate it to the original model language to offer the best possible results"
+        )
+        lst_lang_model = dc.getControl("lst_language").getModel()
+        self.language_selection = []
+        for i, key in enumerate(OPUSTM_SOURCE_LANGUAGES):
+            formatted = "{} - {}".format(*OPUSTM_SOURCE_LANGUAGES[key])
+            lst_lang_model.insertItemText(i, formatted)
+            self.language_selection.append(
+                (key, formatted, OPUSTM_SOURCE_LANGUAGES[key][0])
+            )
+
+        logger.debug(f"current language {current_language}")
+        selection = list(
+            filter(lambda x: x[0] == current_language, self.language_selection)
+        )
+        if selection:
+            lst_lang_model.Text = selection[0][1]
 
         button_toggle = create_widget(dm, "Button", "btn_toggle", 2, 204, 12, 10)
         button_toggle.Label = "_"
@@ -523,6 +594,8 @@ class LibreOfficeInteraction(
         self.dlg.setVisible(True)
         self.dlg.createPeer(self.toolkit, None)
         self.dlg.getControl("btn_toggle").setVisible(False)
+        self.dlg.getControl("btn_trans").setVisible(self.show_language)
+        self.dlg.getControl("lst_language").setVisible(self.show_language)
         size = self.dlg.getPosSize()
         self.DEFAULT_DLG_HEIGHT = size.Height
         self.displacement = self.dlg.getControl("label_progress").getPosSize().Y - 5
@@ -576,19 +649,38 @@ class LibreOfficeInteraction(
             <= MAX_MP
         )
         self.ok_btn.Enabled = enable_ok
-        self.dlg.getControl("btn_trans").Enabled = enable_ok
+        self.dlg.getControl("btn_trans").Enable = enable_ok
 
     def translate(self) -> None:
-        text = self.dlg.getControl("txt_prompt").Text
+        self.dlg.getControl("btn_trans").Enable = False
+        prompt_control = self.dlg.getControl("txt_prompt")
+        lst_language = self.dlg.getControl("lst_language")
+        prompt_control.Enable = False
+        self.ok_btn.Enabled = False
+        text = prompt_control.Text
+        self.initial_prompt = text
         if len(text) < MIN_PROMPT_LENGTH:
+            prompt_control.Enable = True
+            self.dlg.getControl("btn_trans").Enable = True
+            self.validate_fields()
             return
-        clipboard = self.context.ServiceManager.createInstanceWithContext(
-            "com.sun.star.datatransfer.clipboard.SystemClipboard", self.context
-        )
-        transfer_text = DataTransferable(text)
-        clipboard.setContents(transfer_text, None)
-
-        self.session.OpenURLInBrowser(TRANSLATION_URL)
+        try:
+            current_language = list(
+                filter(lambda x: x[1] == lst_language.Text, self.language_selection)
+            )
+            if current_language:
+                self.initial_lang = current_language[0][0]
+                translated_text = opustm_hf_translate(text, current_language[0][2])
+            else:
+                # The language selection was not valid
+                translated_text = text
+        except Exception as e:
+            e = e
+        finally:
+            prompt_control.Enable = True
+            self.dlg.getControl("btn_trans").Enable = True
+            self.validate_fields()
+            prompt_control.Text = translated_text or text
 
     def focusLost(self, oFocusEvent: FocusEvent) -> None:
         element = oFocusEvent.Source.getModel()
@@ -738,7 +830,6 @@ class LibreOfficeInteraction(
         for i in range(len(choices)):
             lst_rep_model.insertItemText(i, choices[i])
         dlg.getControl("lst_model").Text = options.get("model", DEFAULT_MODEL)
-        # dlg.getControl("btn_ok").Enabled = len(self.selected) > MIN_PROMPT_LENGTH
 
         dlg.getControl("txt_prompt").setText(options.get("prompt", ""))
         dlg.getControl("txt_seed").setText(options.get("seed", ""))
@@ -847,6 +938,17 @@ class LibreOfficeInteraction(
         width = width * 25.4
         height = height * 25.4
 
+        def locale_description(incoming_description):
+            if self.show_language:
+                full_description = (
+                    f"original_prompt : {self.initial_prompt}\nsource_lang : {self.initial_lang}\n"
+                    + incoming_description
+                )
+            else:
+                full_description = incoming_description
+
+            return full_description
+
         def __insert_image_as_draw__():
             """
             Inserts the image with width*height from the path in the document adding
@@ -871,7 +973,10 @@ class LibreOfficeInteraction(
 
             added_image.Title = sh_client.get_title()
             added_image.Name = sh_client.get_imagename()
-            added_image.Description = sh_client.get_full_description()
+            added_image.Description = locale_description(
+                sh_client.get_full_description()
+            )
+
             added_image.Visible = True
             self.model.Modified = True
             os.unlink(img_path)
@@ -900,8 +1005,8 @@ class LibreOfficeInteraction(
             image.Height = height
             image.Tooltip = sh_client.get_tooltip()
             image.Name = sh_client.get_imagename()
-            image.Description = sh_client.get_full_description()
             image.Title = sh_client.get_title()
+            image.Description = locale_description(sh_client.get_full_description())
 
             curview = self.model.CurrentController.ViewCursor
             self.model.Text.insertTextContent(curview, image, False)
@@ -1054,22 +1159,33 @@ g_ImplementationHelper.addImplementation(
 
 # TODO:
 # Great you are here looking at this, take a look at docs/CONTRIBUTING.md
-# * [X] Recover form validation
-#    -  Minimum length for prompt
-#    -  Maximum size 4MP
-# * [X] Add progress bar inside dialog
+# * [X] Add translation using https://huggingface.co/spaces/Helsinki-NLP/opus-translate ,  understand how to avoid using gradio client, put the thing to be translated in the clipboard
+# * [X] Build workflow in github
+# * [X] Choose current language
+#    -  Detect Language and show in combobox
+#    -  Send selected language from combobox
+#    -  Show translation to english
+#    -  Store in the information image the original string and language
+#   [ ] Show spinner
+# * [ ] Decouple dialog logic in a new class
+# * [ ] Add an option to write the prompt with the image
+# * [ ] Add an option to use the main progressbar
+# * [X] Add README and LICENSE files of vendored libs
+# * [ ] Store generated images and browse them.  Generated images should have this information
+#    -  All the data that generated the image
+#    -  Generation date
+#    -  We can also add which worker made the image
+#    -  Add an option to delete stored images to free up some space
 # * [ ] Cancel generation
 #    - requires to have a flag to continue running or abort
 #    - should_stop
 #    - send delete
-# * [ ] Add tips to show. Localized messages. Inpainting, Gimp.
+# * [ ] Add tips to show. Localized messages. Inpainting, Gimp. Artbot https://artbot.site/
 #    - We need a panel to show the tip
-#    - We need a button to expand and allow people to read
 #    - Invite people to grow the knowledge
 #    - They can be in github and refreshed each 10 days
 #    -  url, title, description, image, visibility
 # * [ ] Wishlist to have right alignment for numeric control option
-# * [X] Add translation using https://huggingface.co/spaces/Helsinki-NLP/opus-translate ,  understand how to avoid using gradio client, put the thing to be translated in the clipboard
 # * [ ] Recommend to use a shared key to users
 # * [ ] Automate version propagation when publishing: Wishlist for extensions
 # * [ ] Add a popup context menu: Generate Image... [programming] https://wiki.documentfoundation.org/Macros/ScriptForge/PopupMenuExample
