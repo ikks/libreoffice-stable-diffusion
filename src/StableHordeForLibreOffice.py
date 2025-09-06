@@ -310,7 +310,7 @@ class LibreOfficeInteraction(
             self.local_language = current_language
             logger.info(f"locale is «{self.local_language}»")
         else:
-            logger.info("locale is «{current_locale}», non translatable")
+            logger.warning("locale is «{current_locale}», non translatable")
 
         dc = self.context.ServiceManager.createInstanceWithContext(
             "com.sun.star.awt.UnoControlDialog", self.context
@@ -374,7 +374,7 @@ class LibreOfficeInteraction(
         btn_cancel.addActionListener(self)
         btn_cancel.setActionCommand("btn_cancel_OnClick")
 
-        button_help = create_widget(dm, "Button", "btn_help", 23, 15, 13, 10)
+        button_help = create_widget(dm, "Button", "btn_help", 250, 204, 13, 10)
         button_help.Label = "?"
         button_help.HelpText = _("About Horde")
         button_help.TabIndex = 14
@@ -452,7 +452,7 @@ class LibreOfficeInteraction(
         dc.getControl("int_width").addSpinListener(self)
         dc.getControl("int_width").addFocusListener(self)
 
-        ctrl = create_widget(dm, "NumericField", "int_strength", 91, 100, 48, 13)
+        ctrl = create_widget(dm, "NumericField", "int_strength", 91, 97, 48, 13)
         ctrl.ValueMin = 0
         ctrl.ValueMax = 20
         ctrl.ValueStep = 0.5
@@ -569,7 +569,7 @@ class LibreOfficeInteraction(
             "prog_status",
             14,
             203,
-            253,
+            235,
             13,
         )
         self.progress_label = lbl
@@ -590,6 +590,7 @@ class LibreOfficeInteraction(
         size = self.dlg.getPosSize()
         lbl = self.dlg.getControl("label_progress")
         btn = self.dlg.getControl("btn_toggle")
+        hlp = self.dlg.getControl("btn_help")
         prg = self.dlg.getControl("prog_status")
         frame = self.dlg.getControl("framebox")
         if size.Height == self.DEFAULT_DLG_HEIGHT:
@@ -601,6 +602,10 @@ class LibreOfficeInteraction(
             )
             size = btn.getPosSize()
             btn.setPosSize(
+                size.X, size.Y - self.displacement, size.Height, size.Width, PosSize.Y
+            )
+            size = hlp.getPosSize()
+            hlp.setPosSize(
                 size.X, size.Y - self.displacement, size.Height, size.Width, PosSize.Y
             )
             size = prg.getPosSize()
@@ -617,6 +622,10 @@ class LibreOfficeInteraction(
             )
             size = btn.getPosSize()
             btn.setPosSize(
+                size.X, size.Y + self.displacement, size.Height, size.Width, PosSize.Y
+            )
+            size = hlp.getPosSize()
+            hlp.setPosSize(
                 size.X, size.Y + self.displacement, size.Height, size.Width, PosSize.Y
             )
             size = prg.getPosSize()
