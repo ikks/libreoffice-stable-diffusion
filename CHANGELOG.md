@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 This project is [semver](https://semver.org/) based
 
+## [0.7] - Automatic pretranslation
+
+### Added
+
+* Option for 50 languages to pretranslate to english
+* Option to write the text for writer
+* Option to use full progressbar
+
+### Changed
+
 ## [0.6] - Web and XML Support
 
 ### Added
