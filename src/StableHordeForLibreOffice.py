@@ -25,6 +25,7 @@ import tempfile
 import uno
 import unohelper
 
+from collections import OrderedDict
 from com.sun.star.awt import Point
 from com.sun.star.awt import PosSize
 from com.sun.star.awt import Size
@@ -199,27 +200,38 @@ class LibreOfficeInteraction(
     def __init__(self, desktop, context):
         self.desktop = desktop
         self.context = context
+
+        # Allows to store the URL of the image in case of an error
+        self.generated_url: str = ""
+
+        # Helps determine if on text, calc, draw, etc...
         self.model = self.desktop.getCurrentComponent()
+
         self.toolkit = self.context.ServiceManager.createInstanceWithContext(
             "com.sun.star.awt.ExtToolkit", self.context
         )
 
-        self.in_progress = False
+        # Used to control UI state
+        self.in_progress: bool = False
 
         self.bas = CreateScriptService("Basic")
         self.ui = CreateScriptService("UI")
         self.platform = CreateScriptService("Platform")
         self.session = CreateScriptService("Session")
-        self.base_info = "-_".join(
+
+        self.key_debug_info = OrderedDict(
             [
-                HORDE_CLIENT_NAME,
-                VERSION,
-                self.platform.OSPlatform,
-                self.platform.PythonVersion,
-                self.platform.OfficeVersion,
-                self.platform.Machine,
+                ("name", HORDE_CLIENT_NAME),
+                ("version", VERSION),
+                ("os", self.platform.OSPlatform),
+                ("python", self.platform.PythonVersion),
+                ("libreoffice", self.platform.OfficeVersion),
+                ("arch", self.platform.Machine),
             ]
         )
+
+        # Client identification to API
+        self.base_info = "-_".join(self.key_debug_info.values())
 
         self.inside = self.get_type_doc(self.model)
         if self.inside == "new-writer":
@@ -238,14 +250,14 @@ class LibreOfficeInteraction(
             # If the selection is not text, let's wait for the user to write down
             self.selected = ""
 
-        self.DEFAULT_DLG_HEIGHT = 216
-        self.displacement = 180
+        self.DEFAULT_DLG_HEIGHT: int = 216
+        self.displacement: int = 180
         self.ok_btn = None
+        self.local_language: str = ""
+        self.initial_prompt: str = ""
         self.dlg = self.__create_dialog__()
         self.options = {}
-
-        self.initial_prompt: str = ""
-        self.initial_lang = "en"
+        self.progress: float = 0.0
 
     def get_language(self) -> str:
         """
@@ -269,9 +281,8 @@ class LibreOfficeInteraction(
             if cr and (cr.hasByName(prop)):
                 return cr.getPropertyValue(prop)
         except Exception as ex:
-            logger.warning(
-                "Unable to determine user locale, defaulting to en", ex, stack_info=True
-            )
+            logger.info("Not able to fetch current locale")
+            logger.debug(ex, stack_info=True)
             return ""
 
     def __create_dialog__(self):
@@ -294,7 +305,12 @@ class LibreOfficeInteraction(
             return cmpt
 
         current_language = self.get_language()
-        self.show_language = not current_language.startswith("en")
+        self.show_language = current_language in OPUSTM_SOURCE_LANGUAGES
+        if self.show_language:
+            self.local_language = current_language
+            logger.info(f"locale is «{self.local_language}»")
+        else:
+            logger.info("locale is «{current_locale}», non translatable")
 
         dc = self.context.ServiceManager.createInstanceWithContext(
             "com.sun.star.awt.UnoControlDialog", self.context
@@ -365,47 +381,6 @@ class LibreOfficeInteraction(
         btn_help = dc.getControl("btn_help")
         btn_help.addActionListener(self)
         btn_help.setActionCommand("btn_help_OnClick")
-
-        button_trans = create_widget(dm, "Button", "btn_trans", 41, 35, 13, 10)
-        button_trans.Label = "🌏"
-        button_trans.HelpText = _("Translate to English")
-        btn_trans = dc.getControl("btn_trans")
-        btn_trans.addActionListener(self)
-        btn_trans.setActionCommand("btn_trans_OnClick")
-
-        if current_language:
-            button_trans.TabIndex = 2
-
-        ctrl = create_widget(
-            dm,
-            "ComboBox",
-            "lst_language",
-            130,
-            65,
-            109,
-            15,
-        )
-        ctrl.TabIndex = 3
-        ctrl.Dropdown = True
-        ctrl.LineCount = 10
-        ctrl.HelpText = _(
-            "Prompt language, we translate it to the original model language to offer the best possible results"
-        )
-        lst_lang_model = dc.getControl("lst_language").getModel()
-        self.language_selection = []
-        for i, key in enumerate(OPUSTM_SOURCE_LANGUAGES):
-            formatted = "{} - {}".format(*OPUSTM_SOURCE_LANGUAGES[key])
-            lst_lang_model.insertItemText(i, formatted)
-            self.language_selection.append(
-                (key, formatted, OPUSTM_SOURCE_LANGUAGES[key][0])
-            )
-
-        logger.debug(f"current language {current_language}")
-        selection = list(
-            filter(lambda x: x[0] == current_language, self.language_selection)
-        )
-        if selection:
-            lst_lang_model.Text = selection[0][1]
 
         button_toggle = create_widget(dm, "Button", "btn_toggle", 2, 204, 12, 10)
         button_toggle.Label = "_"
@@ -557,6 +532,18 @@ class LibreOfficeInteraction(
         or higher sampler (anything with dpmpp is second order)
         """)
 
+        ctrl = create_widget(dm, "CheckBox", "bool_trans", 29, 45, 30, 10)
+        ctrl.Label = "🌏"
+        ctrl.HelpText = _(
+            """
+            Translate the prompt to English, wishing for the best.  If the result is not
+            the expected, try toggling or changing the model
+            """
+        )
+
+        if self.show_language:
+            ctrl.TabIndex = 2
+
         ctrl = create_widget(dm, "CheckBox", "bool_nsfw", 29, 130, 55, 10)
         ctrl.Label = _("NSFW")
         ctrl.TabIndex = 9
@@ -594,8 +581,7 @@ class LibreOfficeInteraction(
         self.dlg.setVisible(True)
         self.dlg.createPeer(self.toolkit, None)
         self.dlg.getControl("btn_toggle").setVisible(False)
-        self.dlg.getControl("btn_trans").setVisible(self.show_language)
-        self.dlg.getControl("lst_language").setVisible(self.show_language)
+        self.dlg.getControl("bool_trans").setVisible(self.show_language)
         size = self.dlg.getPosSize()
         self.DEFAULT_DLG_HEIGHT = size.Height
         self.displacement = self.dlg.getControl("label_progress").getPosSize().Y - 5
@@ -652,34 +638,18 @@ class LibreOfficeInteraction(
         self.dlg.getControl("btn_trans").Enable = enable_ok
 
     def translate(self) -> None:
-        self.dlg.getControl("btn_trans").Enable = False
+        if not self.show_language:
+            return
         prompt_control = self.dlg.getControl("txt_prompt")
-        lst_language = self.dlg.getControl("lst_language")
-        prompt_control.Enable = False
-        self.ok_btn.Enabled = False
         text = prompt_control.Text
         self.initial_prompt = text
-        if len(text) < MIN_PROMPT_LENGTH:
-            prompt_control.Enable = True
-            self.dlg.getControl("btn_trans").Enable = True
-            self.validate_fields()
-            return
         try:
-            current_language = list(
-                filter(lambda x: x[1] == lst_language.Text, self.language_selection)
-            )
-            if current_language:
-                self.initial_lang = current_language[0][0]
-                translated_text = opustm_hf_translate(text, current_language[0][2])
-            else:
-                # The language selection was not valid
-                translated_text = text
-        except Exception as e:
-            e = e
+            self.update_status(_("Translating"), 1.0)
+            logger.info(f"Translating {text} from {self.local_language}")
+            translated_text = opustm_hf_translate(text, self.local_language)
+        except Exception as ex:
+            logger.info(ex, stack_info=True)
         finally:
-            prompt_control.Enable = True
-            self.dlg.getControl("btn_trans").Enable = True
-            self.validate_fields()
             prompt_control.Text = translated_text or text
 
     def focusLost(self, oFocusEvent: FocusEvent) -> None:
@@ -729,8 +699,6 @@ class LibreOfficeInteraction(
             self.toggle_dialog()
         elif oActionEvent.ActionCommand == "btn_cancel_OnClick":
             self.dlg.dispose()
-        elif oActionEvent.ActionCommand == "btn_trans_OnClick":
-            self.translate()
         elif oActionEvent.ActionCommand == "btn_help_OnClick":
             self.session.OpenURLInBrowser(HELP_URL)
 
@@ -764,6 +732,8 @@ class LibreOfficeInteraction(
         cancel_button.getModel().HelpText = _(
             "The image generation will continue while you are doing other tasks"
         )
+        if self.show_language and self.dlg.getControl("bool_trans").State == 1:
+            self.translate()
         self.toggle_dialog()
         self.get_options_from_dialog()
         logger.debug(self.options)
@@ -902,6 +872,8 @@ class LibreOfficeInteraction(
         if title == "":
             title = _("Watch out!")
         buttons = buttons | self.bas.MB_ICONSTOP
+        if not url and self.generated_url:
+            url = self.generated_url
         self.__msg_usr__(message, buttons=buttons, title=title, url=url)
         self.set_finished()
 
@@ -941,7 +913,7 @@ class LibreOfficeInteraction(
         def locale_description(incoming_description):
             if self.show_language:
                 full_description = (
-                    f"original_prompt : {self.initial_prompt}\nsource_lang : {self.initial_lang}\n"
+                    f"original_prompt : {self.initial_prompt}\nsource_lang : {self.local_language}\n"
                     + incoming_description
                 )
             else:
@@ -1162,20 +1134,22 @@ g_ImplementationHelper.addImplementation(
 # * [X] Add translation using https://huggingface.co/spaces/Helsinki-NLP/opus-translate ,  understand how to avoid using gradio client, put the thing to be translated in the clipboard
 # * [X] Build workflow in github
 # * [X] Choose current language
-#    -  Detect Language and show in combobox
-#    -  Send selected language from combobox
-#    -  Show translation to english
-#    -  Store in the information image the original string and language
-#   [ ] Show spinner
+# * [X] When something fails in the middle, it's possible to show an URL to allow to recover the generated image by hand
 # * [ ] Decouple dialog logic in a new class
-# * [ ] Add an option to write the prompt with the image
-# * [ ] Add an option to use the main progressbar
+# * [X] If the locale can be translated, show a control allowing to autotranslate translate_for_me
+# * [ ] Add an option to write the prompt with the image write_text
+# * [ ] Add an option to use the main progressbar use_full_progress
+# * [ ] Store and retrieve the UI options
 # * [X] Add README and LICENSE files of vendored libs
 # * [ ] Store generated images and browse them.  Generated images should have this information
 #    -  All the data that generated the image
 #    -  Generation date
 #    -  We can also add which worker made the image
 #    -  Add an option to delete stored images to free up some space
+#    -  kudos consumed
+#    -  The cache can be opened with Explorer to allow user to delete and clean images
+#    -  If there are missing images, the db should update without problems
+# * [ ] Show a dialog with info that will be copied to the clipboard to allow easier info sharing
 # * [ ] Cancel generation
 #    - requires to have a flag to continue running or abort
 #    - should_stop
