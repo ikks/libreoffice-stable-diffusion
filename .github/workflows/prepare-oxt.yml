@@ -14,6 +14,9 @@ jobs:
         - name: Creating oxt
           id: creating_oxt
           run: |
+            cd modules/urllib3
+            git status
+            cd ../..
             make langs
             make
             export MD=$(git rev-parse --short=8 HEAD)
