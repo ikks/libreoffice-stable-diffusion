@@ -37,6 +37,7 @@ src/po/messages.pot: src/$(SCRIPTNAME).py
 
 $(EXEC): src/$(SCRIPTNAME).py oxt/description.xml oxt/build
 	mkdir -p oxt/module/{aihordeclient,sseclient,urllib3}
+	tree oxt
 	oxt/build
 
 langs: src/po/messages.pot $(MO_FILES)
