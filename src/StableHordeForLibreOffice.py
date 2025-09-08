@@ -53,10 +53,19 @@ from collections.abc import Iterable
 from math import sqrt
 from pathlib import Path
 from scriptforge import CreateScriptService
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, TYPE_CHECKING, Union
+
+if TYPE_CHECKING:
+    from com.sun.star.awt import UnoControlDialog
+    from com.sun.star.awt import UnoControlButtonModel
+    from com.sun.star.awt import UnoControlEditModel
+    from com.sun.star.frame import Desktop
+    from com.sun.star.frame import DispatchHelper
+    from com.sun.star.awt import ExtToolkit
+    from com.sun.star.awt import UnoControlDialogModel
 
 # Change the next line replacing False to True if you need to debug. Case matters
-DEBUG = True
+DEBUG = False
 
 VERSION = "0.7"
 
@@ -155,7 +164,7 @@ class DataTransferable(unohelper.Base, XTransferable):
         dft = DataFlavor()
         dft.MimeType = CLIPBOARD_TEXT_FORMAT
         dft.HumanPresentableName = "Unicode-Text"
-        self.data = {}
+        self.data: Dict[str, str] = {}
 
         if isinstance(text, str):
             self.data[CLIPBOARD_TEXT_FORMAT] = text
@@ -198,7 +207,7 @@ class LibreOfficeInteraction(
         return "new-writer"
 
     def __init__(self, desktop, context):
-        self.desktop = desktop
+        self.desktop: Desktop = desktop
         self.context = context
 
         # Allows to store the URL of the image in case of an error
@@ -207,13 +216,19 @@ class LibreOfficeInteraction(
         # Helps determine if on text, calc, draw, etc...
         self.model = self.desktop.getCurrentComponent()
 
-        self.toolkit = self.context.ServiceManager.createInstanceWithContext(
-            "com.sun.star.awt.ExtToolkit", self.context
+        self.toolkit: ExtToolkit = (
+            self.context.ServiceManager.createInstanceWithContext(
+                "com.sun.star.awt.ExtToolkit", self.context
+            )
         )
 
         # Used to control UI state
         self.in_progress: bool = False
 
+        # Retrieves the previously selected text in LO
+        self.selected: str = ""
+
+        self.inside: str = "new-writer"
         self.bas = CreateScriptService("Basic")
         self.ui = CreateScriptService("UI")
         self.platform = CreateScriptService("Platform")
@@ -252,11 +267,11 @@ class LibreOfficeInteraction(
 
         self.DEFAULT_DLG_HEIGHT: int = 216
         self.displacement: int = 180
-        self.ok_btn = None
+        self.ok_btn: UnoControlButtonModel = None
         self.local_language: str = ""
         self.initial_prompt: str = ""
-        self.dlg = self.__create_dialog__()
-        self.options = {}
+        self.dlg: UnoControlDialog = self.__create_dialog__()
+        self.options: Dict[str, Any] = {}
         self.progress: float = 0.0
 
     def get_language(self) -> str:
@@ -287,13 +302,23 @@ class LibreOfficeInteraction(
 
     def __create_dialog__(self):
         def create_widget(
-            dlg, typename: str, identifier: str, x: int, y: int, width: int, height: int
+            dlg,
+            typename: str,
+            identifier: str,
+            x: int,
+            y: int,
+            width: int,
+            height: int,
+            container=None,
         ):
             """
             Adds to the dlg a control Model, with the identifier, positioned with
-            widthxheight. For typename see UnoControl* at
+            widthxheight, and put it inside container For typename see UnoControl* at
             https://api.libreoffice.org/docs/idl/ref/namespacecom_1_1sun_1_1star_1_1awt.html
             """
+            if not container:
+                container = dlg
+
             cmpt_type = f"com.sun.star.awt.UnoControl{typename}Model"
             cmpt = dlg.createInstance(cmpt_type)
             cmpt.Name = identifier
@@ -301,7 +326,7 @@ class LibreOfficeInteraction(
             cmpt.PositionY = str(y)
             cmpt.Width = width
             cmpt.Height = height
-            dlg.insertByName(identifier, cmpt)
+            container.insertByName(identifier, cmpt)
             return cmpt
 
         current_language = self.get_language()
@@ -312,14 +337,15 @@ class LibreOfficeInteraction(
         else:
             logger.warning("locale is «{current_locale}», non translatable")
 
-        dc = self.context.ServiceManager.createInstanceWithContext(
+        dc: UnoControlDialog = self.context.ServiceManager.createInstanceWithContext(
             "com.sun.star.awt.UnoControlDialog", self.context
         )
-        dm = self.context.ServiceManager.createInstance(
+        dm: UnoControlDialogModel = self.context.ServiceManager.createInstance(
             "com.sun.star.awt.UnoControlDialogModel"
         )
         dc.setModel(dm)
         dc.addKeyListener(self)
+
         dm.Name = "stablehordeoptions"
         dm.PositionX = "47"
         dm.PositionY = "10"
@@ -359,13 +385,15 @@ class LibreOfficeInteraction(
             )
 
         # Buttons
-        button_ok = create_widget(dm, "Button", "btn_ok", 73, 182, 49, 13)
+        button_ok: UnoControlButtonModel = create_widget(
+            dm, "Button", "btn_ok", 73, 182, 49, 13
+        )
         button_ok.Label = _("Process")
         button_ok.TabIndex = 4
         btn_ok = dc.getControl("btn_ok")
         btn_ok.addActionListener(self)
         btn_ok.setActionCommand("btn_ok_OnClick")
-        self.ok_btn = button_ok
+        self.ok_btn: UnoControlButtonModel = button_ok
 
         button_cancel = create_widget(dm, "Button", "btn_cancel", 145, 182, 49, 13)
         button_cancel.Label = _("Cancel")
@@ -403,7 +431,7 @@ class LibreOfficeInteraction(
         ctrl.Dropdown = True
         ctrl.LineCount = 10
 
-        ctrl = create_widget(
+        ctrl: UnoControlEditModel = create_widget(
             dm,
             "Edit",
             "txt_prompt",
@@ -810,7 +838,7 @@ class LibreOfficeInteraction(
             lst_rep_model.insertItemText(i, choices[i])
         dlg.getControl("lst_model").Text = options.get("model", DEFAULT_MODEL)
 
-        dlg.getControl("txt_prompt").setText(options.get("prompt", ""))
+        dlg.getControl("txt_prompt").setText(self.selected or options.get("prompt", ""))
         dlg.getControl("txt_seed").setText(options.get("seed", ""))
         dlg.getControl("int_width").getModel().Value = options.get(
             "image_width", DEFAULT_WIDTH
@@ -1005,14 +1033,15 @@ class LibreOfficeInteraction(
 
     def get_frontend_property(self, property_name: str) -> Union[str, bool, None]:
         """
-        Gets a property from the frontend application, used to retrieved stored
-        information during this session.  Used when checking for update
+        Returns the value stored for this session of the property_name, if not
+        present, returns False.
+        Used when checking for update.
         """
         value = None
         oDocProps = self.model.getDocumentProperties()
-        self.userProps = oDocProps.getUserDefinedProperties()
+        userProps = oDocProps.getUserDefinedProperties()
         try:
-            value = self.userProps.getPropertyValue(property_name)
+            value = userProps.getPropertyValue(property_name)
         except UnknownPropertyException:
             # Expected when the property was not present
             return False
@@ -1028,21 +1057,21 @@ class LibreOfficeInteraction(
 
     def set_frontend_property(self, property_name: str, value: Union[str, bool]):
         """
-        Sets a property in the frontend application, used to retrieved stored
-        information during this session.  Used when checking for update.
+        Sets property_name with value for the current session.
+        Used when checking for update.
         """
         oDocProps = self.model.getDocumentProperties()
-        self.userProps = oDocProps.getUserDefinedProperties()
+        userProps = oDocProps.getUserDefinedProperties()
         if value is None:
             str_value = ""
         else:
             str_value = str(value)
 
         try:
-            self.userProps.addProperty(property_name, TRANSIENT, str_value)
+            userProps.addProperty(property_name, TRANSIENT, str_value)
         except PropertyExistException:
             # It's ok, if the property existed, we update it
-            self.userProps.setPropertyValue(property_name, str_value)
+            userProps.setPropertyValue(property_name, str_value)
 
     def path_store_directory(self) -> str:
         """
@@ -1104,9 +1133,11 @@ class AiHordeForLibreOffice(unohelper.Base, XJobExecutor, XEventListener):
     def __init__(self, context):
         self.context = context
         # see https://api.libreoffice.org/docs/idl/ref/servicecom_1_1sun_1_1star_1_1frame_1_1Desktop.html
-        self.desktop = self.createUnoService("com.sun.star.frame.Desktop")
+        self.desktop: Desktop = self.createUnoService("com.sun.star.frame.Desktop")
         # see https://api.libreoffice.org/docs/idl/ref/servicecom_1_1sun_1_1star_1_1frame_1_1DispatchHelper.html
-        self.dispatchhelper = self.createUnoService("com.sun.star.frame.DispatchHelper")
+        self.dispatchhelper: DispatchHelper = self.createUnoService(
+            "com.sun.star.frame.DispatchHelper"
+        )
 
         if DEBUG:
             print(f"your log is at {log_file}")
@@ -1148,7 +1179,7 @@ g_ImplementationHelper.addImplementation(
 # * [X] If the locale can be translated, show a control allowing to autotranslate translate_for_me
 # * [ ] Add an option to write the prompt with the image write_text
 # * [ ] Add an option to use the main progressbar use_full_progress
-# * [ ] Store and retrieve the UI options
+# * [ ] Store and retrieve the UI options: translation, put text with the image, use full progress
 # * [X] Add README and LICENSE files of vendored libs
 # * [ ] Store generated images and browse them.  Generated images should have this information
 #    -  All the data that generated the image
