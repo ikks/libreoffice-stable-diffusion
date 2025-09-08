@@ -10,7 +10,7 @@ jobs:
         - uses: actions/checkout@v4
           with:
             submodules: recursive
-        - run: sudo apt install -y gettext make zip coreutils potool tree
+        - run: sudo apt install -y gettext make zip coreutils potool
         - name: Creating oxt
           id: creating_oxt
           run: |

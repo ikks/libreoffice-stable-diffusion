@@ -36,8 +36,7 @@ src/po/messages.pot: src/$(SCRIPTNAME).py
 	xgettext -j -o $@ --add-comments=TRANSLATORS: --keyword=_ --flag=_:1:pass-python-format --directory=. $<
 
 $(EXEC): src/$(SCRIPTNAME).py oxt/description.xml oxt/build
-	mkdir -p oxt/module/{aihordeclient,sseclient,urllib3}
-	tree oxt
+	cd oxt/module/ && mkdir aihordeclient sseclient urllib3 && cd ../..
 	oxt/build
 
 langs: src/po/messages.pot $(MO_FILES)
