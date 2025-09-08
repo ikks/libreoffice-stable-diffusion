@@ -63,6 +63,7 @@ if TYPE_CHECKING:
     from com.sun.star.frame import DispatchHelper
     from com.sun.star.awt import ExtToolkit
     from com.sun.star.awt import UnoControlDialogModel
+    from com.sun.star.awt import UnoControlCheckBoxModel
 
 # Change the next line replacing False to True if you need to debug. Case matters
 DEBUG = False
@@ -442,22 +443,17 @@ class LibreOfficeInteraction(
         )
         ctrl.MultiLine = True
         ctrl.TabIndex = 1
-        ctrl.HelpText = _("""
-        Let your imagination run wild or put a proper description of your
+        ctrl.HelpText = _("""        Let your imagination run wild or put a proper description of your
         desired output. Use full grammar for Flux, use tag-like language
         for sd15, use short phrases for sdxl.
-
-        Write at least 5 words or 10 characters.
-        """)
+        Write at least 5 words or 10 characters.""")
         dc.getControl("txt_prompt").addTextListener(self)
         dc.getControl("txt_prompt").addKeyListener(self)
 
         ctrl = create_widget(dm, "Edit", "txt_token", 155, 147, 92, 13)
         ctrl.TabIndex = 11
-        ctrl.HelpText = _("""
-        Get yours at https://aihorde.net/ for free. Recommended:
-        Anonymous users are last in the queue.
-        """)
+        ctrl.HelpText = _("""        Get yours at https://aihorde.net/ for free. Recommended:
+        Anonymous users are last in the queue.""")
 
         ctrl = create_widget(dm, "Edit", "txt_seed", 155, 128, 92, 13)
         ctrl.TabIndex = 2
@@ -488,11 +484,9 @@ class LibreOfficeInteraction(
         ctrl.Spin = True
         ctrl.Value = 15
         ctrl.TabIndex = 7
-        ctrl.HelpText = _("""
-         How strongly the AI follows the prompt vs how much creativity to allow it.
+        ctrl.HelpText = _("""        How strongly the AI follows the prompt vs how much creativity to allow it.
         Set to 1 for Flux, use 2-4 for LCM and lightning, 5-7 is common for SDXL
-        models, 6-9 is common for sd15.
-        """)
+        models, 6-9 is common for sd15.""")
 
         ctrl = create_widget(
             dm,
@@ -532,11 +526,9 @@ class LibreOfficeInteraction(
         ctrl.DecimalAccuracy = 0
         ctrl.Value = 5
         ctrl.TabIndex = 8
-        ctrl.HelpText = _("""
-        How long to wait(minutes) for your generation to complete.
+        ctrl.HelpText = _("""        How long to wait(minutes) for your generation to complete.
         Depends on number of workers and user priority (more
-        kudos = more priority. Anonymous users are last)
-        """)
+        kudos = more priority. Anonymous users are last)""")
 
         ctrl = create_widget(
             dm,
@@ -554,20 +546,16 @@ class LibreOfficeInteraction(
         ctrl.DecimalAccuracy = 0
         ctrl.Value = 25
         ctrl.TabIndex = 7
-        ctrl.HelpText = _("""
-        How many sampling steps to perform for generation. Should
+        ctrl.HelpText = _("""        How many sampling steps to perform for generation. Should
         generally be at least double the CFG unless using a second-order
-        or higher sampler (anything with dpmpp is second order)
-        """)
+        or higher sampler (anything with dpmpp is second order)""")
 
-        ctrl = create_widget(dm, "CheckBox", "bool_trans", 29, 45, 30, 10)
-        ctrl.Label = "🌏"
-        ctrl.HelpText = _(
-            """
-            Translate the prompt to English, wishing for the best.  If the result is not
-            the expected, try toggling or changing the model
-            """
+        ctrl: UnoControlCheckBoxModel = create_widget(
+            dm, "CheckBox", "bool_trans", 29, 45, 30, 10
         )
+        ctrl.Label = "🌏"
+        ctrl.HelpText = _("""           Translate the prompt to English, wishing for the best.  If the result is not
+        the expected, try toggling or changing the model""")
 
         if self.show_language:
             ctrl.TabIndex = 2
@@ -575,20 +563,17 @@ class LibreOfficeInteraction(
         ctrl = create_widget(dm, "CheckBox", "bool_nsfw", 29, 130, 55, 10)
         ctrl.Label = _("NSFW")
         ctrl.TabIndex = 9
-        ctrl.HelpText = _("""
-        Whether or not your image is intended to be NSFW. May
+        ctrl.HelpText = _("""        Whether or not your image is intended to be NSFW. May
         reduce generation speed (workers can choose if they wish
-        to take nsfw requests)
-        """)
+        to take nsfw requests)""")
 
         ctrl = create_widget(dm, "CheckBox", "bool_censure", 29, 145, 55, 10)
         ctrl.Label = _("Censor NSFW")
         ctrl.TabIndex = 10
-        ctrl.HelpText = _("""
-        Separate from the NSFW flag, should workers
+        ctrl.HelpText = _("""        Separate from the NSFW flag, should workers
         return nsfw images. Censorship is implemented to be safe
-        and overcensor rather than risk returning unwanted NSFW.
-        """)
+        and overcensor rather than risk returning unwanted NSFW.""")
+
         lbl = create_widget(dm, "FixedText", "label_progress", 20, 205, 150, 10)
         lbl.Label = ""
         ctrl = create_widget(
@@ -855,6 +840,7 @@ class LibreOfficeInteraction(
         )
         dlg.getControl("bool_nsfw").State = options.get("nsfw", 0)
         dlg.getControl("bool_censure").State = options.get("censor_nsfw", 1)
+        dlg.getControl("bool_trans").State = 1
 
     def free(self):
         self.dlg.dispose()
@@ -1145,7 +1131,7 @@ class AiHordeForLibreOffice(unohelper.Base, XJobExecutor, XEventListener):
             message = (
                 _("To view debugging messages, edit")
                 + "\n\n   {}\n\n".format(script_path)
-                + _("and set DEBUG to True (case matters)")
+                + _("and change DEBUG = False to DEBUG = True")
             )
             print(message)
 
@@ -1175,7 +1161,6 @@ g_ImplementationHelper.addImplementation(
 # * [X] Build workflow in github
 # * [X] Choose current language
 # * [X] When something fails in the middle, it's possible to show an URL to allow to recover the generated image by hand
-# * [ ] Decouple dialog logic in a new class
 # * [X] If the locale can be translated, show a control allowing to autotranslate translate_for_me
 # * [ ] Add an option to write the prompt with the image write_text
 # * [ ] Add an option to use the main progressbar use_full_progress
