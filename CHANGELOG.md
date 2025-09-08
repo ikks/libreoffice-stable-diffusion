@@ -14,6 +14,8 @@ This project is [semver](https://semver.org/) based
 
 ### Changed
 
+* Fixed regression that didn't take the selected text
+
 ## [0.6] - Web and XML Support
 
 ### Added
