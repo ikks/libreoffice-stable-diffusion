@@ -66,9 +66,9 @@ if TYPE_CHECKING:
     from com.sun.star.awt import UnoControlCheckBoxModel
 
 # Change the next line replacing False to True if you need to debug. Case matters
-DEBUG = False
+DEBUG = True
 
-VERSION = "0.7"
+VERSION = "0.7.1"
 
 import_message_error = None
 
@@ -89,7 +89,7 @@ logging.basicConfig(
 
 script_path = os.path.realpath(__file__)
 file_path = os.path.dirname(script_path)
-submodule_path = os.path.join(file_path, "module")
+submodule_path = os.path.join(file_path, "python_path")
 sys.path.append(str(submodule_path))
 
 from aihordeclient import (  # noqa: E402

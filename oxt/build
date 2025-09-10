@@ -8,14 +8,14 @@ import os.path
 import sys
 import shutil
 from pathlib import Path
-from zipfile import ZipFile
+from zipfile import ZipFile, ZIP_DEFLATED
 
 scriptdir = os.path.dirname(os.path.abspath(sys.argv[0]))
 
 module_dirs = [
-    ("module", "aihordeclient"),
-    ("module", "urllib3"),
-    ("module", "sseclient"),
+    ("python_path", "aihordeclient"),
+    ("python_path", "urllib3"),
+    ("python_path", "sseclient"),
 ]
 
 for module_dir in module_dirs:
@@ -25,12 +25,21 @@ files = [
     (["..", "LICENSE"], ["description", "license.txt"]),
     (["..", "src", "StableHordeForLibreOffice.py"], [""]),
     (["..", "docs", "README.md"], ["README"]),
-    (["..", "modules", "urllib3", "README.md"], ["module", "urllib3", "README.md"]),
-    (["..", "modules", "urllib3", "LICENSE.txt"], ["module", "urllib3", "LICENSE.txt"]),
-    (["..", "modules", "sseclient-py", "LICENSE"], ["module", "sseclient", "LICENSE"]),
+    (
+        ["..", "modules", "urllib3", "README.md"],
+        ["python_path", "urllib3", "README.md"],
+    ),
+    (
+        ["..", "modules", "urllib3", "LICENSE.txt"],
+        ["python_path", "urllib3", "LICENSE.txt"],
+    ),
+    (
+        ["..", "modules", "sseclient-py", "LICENSE"],
+        ["python_path", "sseclient", "LICENSE"],
+    ),
     (
         ["..", "modules", "sseclient-py", "README.rst"],
-        ["module", "sseclient", "README.rst"],
+        ["python_path", "sseclient", "README.rst"],
     ),
 ]
 
@@ -40,10 +49,10 @@ for pair in files:
 my_dirs = [
     (
         ["..", "modules", "aihordeclient", "src", "aihordeclient"],
-        ["module", "aihordeclient"],
+        ["python_path", "aihordeclient"],
     ),
-    (["..", "modules", "urllib3", "src", "urllib3"], ["module", "urllib3"]),
-    (["..", "modules", "sseclient-py", "sseclient"], ["module", "sseclient"]),
+    (["..", "modules", "urllib3", "src", "urllib3"], ["python_path", "urllib3"]),
+    (["..", "modules", "sseclient-py", "sseclient"], ["python_path", "sseclient"]),
 ]
 
 for pair in my_dirs:
@@ -55,7 +64,7 @@ for pair in my_dirs:
 extensionname = (
     open(os.path.join(scriptdir, "extensionname.txt")).readlines()[0].rstrip("\n")
 )
-with ZipFile(extensionname, "w") as zipfile:
+with ZipFile(extensionname, "w", compression=ZIP_DEFLATED) as zipfile:
     os.chdir(scriptdir)
     for root, dirs, files in os.walk("."):
         for name in files:
