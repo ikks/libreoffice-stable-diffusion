@@ -11,8 +11,8 @@ jobs:
           with:
             submodules: recursive
         - run: |
-          sudo apt install -y gettext make zip coreutils potool curl
-          curl -LsSf https://astral.sh/uv/install.sh | sh
+            sudo apt install -y gettext make zip coreutils potool curl
+            curl -LsSf https://astral.sh/uv/install.sh | sh
         - name: Creating oxt
           id: creating_oxt
           run: |
