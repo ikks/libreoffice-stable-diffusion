@@ -66,7 +66,7 @@ if TYPE_CHECKING:
     from com.sun.star.awt import UnoControlCheckBoxModel
 
 # Change the next line replacing False to True if you need to debug. Case matters
-DEBUG = True
+DEBUG = False
 
 VERSION = "0.7.1"
 
@@ -78,7 +78,7 @@ LOGGING_LEVEL = logging.ERROR
 LIBREOFFICE_EXTENSION_ID = "org.fectp.StableHordeForLibreOffice"
 GETTEXT_DOMAIN = "stablehordeforlibreoffice"
 
-log_file = os.path.join(tempfile.gettempdir(), "libreoffice_shotd.log")
+log_file = os.path.realpath(Path(tempfile.gettempdir(), "libreoffice_shotd.log"))
 if DEBUG:
     LOGGING_LEVEL = logging.DEBUG
 logging.basicConfig(
@@ -1125,6 +1125,9 @@ class AiHordeForLibreOffice(unohelper.Base, XJobExecutor, XEventListener):
             "com.sun.star.frame.DispatchHelper"
         )
 
+        log_file = os.path.realpath(
+            Path(tempfile.gettempdir(), "libreoffice_shotd.log")
+        )
         if DEBUG:
             print(f"your log is at {log_file}")
         else:

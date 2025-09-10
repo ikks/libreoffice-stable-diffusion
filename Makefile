@@ -13,10 +13,13 @@
 # to different places in the file.
 # Then run
 #    make langs
+#
+# When testing a flatpak  use: flatpak run org.libreoffice.LibreOffice
 
-
+PREFIX ?= /usr/bin
 EXEC=loshd.oxt
-UNOPKG=unopkg
+UNOPKG ?= $(PREFIX)/unopkg
+LOBIN ?= $(PREFIX)/libreoffice
 CURRENT_LANG=es
 SCRIPTNAME=StableHordeForLibreOffice
 GETTEXTDOMAIN=stablehordeforlibreoffice
@@ -36,16 +39,17 @@ src/po/messages.pot: src/$(SCRIPTNAME).py
 	xgettext -j -o $@ --add-comments=TRANSLATORS: --keyword=_ --flag=_:1:pass-python-format --directory=. $<
 
 $(EXEC): src/$(SCRIPTNAME).py oxt/description.xml oxt/build
+	cd modules/urllib3 && uv build -q && unzip -q -o dist/*whl -d ../../oxt/python_path/
 	oxt/build
 
 langs: src/po/messages.pot $(MO_FILES)
 	postats src/po/*.po
-	
+
 clean:
 	rm  -rf oxt/locale loshd.oxt src/po/*~ src/po/*bak
 
 install:
-	unopkg add -s -f loshd.oxt
+	$(UNOPKG) add -s -f loshd.oxt
 
 publish:
 	sh scripts/publish
@@ -53,10 +57,8 @@ publish:
 run:
 	make
 	make install
-	libreoffice --writer
+	$(LOBIN) --writer
 
 
 .PHONY: clean install langs publish run 
-
-
 

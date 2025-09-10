@@ -15,6 +15,27 @@ all the communication with aihorde.
 
 ## Help and resources
 
+## Testing distribution, LibreOffice and flatpak
+
+### Linux
+
+Look in Makefile to test flatpak, usually from CLI can be
+invoked via
+
+ flatpak run org.libreoffice.LibreOffice
+
+LibreOffice distributes packages that do not clash with distro
+packages. Are installed in /opt/libreofficeYY.M/program/
+
+Linux distribution binaries are usually in /usr/bin
+
+Envvars can be changed with
+
+PREFIX : By default point to /usr/bin , can be changed to /opt/libre...
+UNOPKG : The name of the extension installer
+LOBIN : The name of LibreOffice executable
+
+
 ### Interaction
 
 * [💬 irc #libreoffice-dev](https://web.libera.chat)

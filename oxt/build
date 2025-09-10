@@ -14,7 +14,6 @@ scriptdir = os.path.dirname(os.path.abspath(sys.argv[0]))
 
 module_dirs = [
     ("python_path", "aihordeclient"),
-    ("python_path", "urllib3"),
     ("python_path", "sseclient"),
 ]
 
@@ -25,14 +24,6 @@ files = [
     (["..", "LICENSE"], ["description", "license.txt"]),
     (["..", "src", "StableHordeForLibreOffice.py"], [""]),
     (["..", "docs", "README.md"], ["README"]),
-    (
-        ["..", "modules", "urllib3", "README.md"],
-        ["python_path", "urllib3", "README.md"],
-    ),
-    (
-        ["..", "modules", "urllib3", "LICENSE.txt"],
-        ["python_path", "urllib3", "LICENSE.txt"],
-    ),
     (
         ["..", "modules", "sseclient-py", "LICENSE"],
         ["python_path", "sseclient", "LICENSE"],
@@ -51,7 +42,6 @@ my_dirs = [
         ["..", "modules", "aihordeclient", "src", "aihordeclient"],
         ["python_path", "aihordeclient"],
     ),
-    (["..", "modules", "urllib3", "src", "urllib3"], ["python_path", "urllib3"]),
     (["..", "modules", "sseclient-py", "sseclient"], ["python_path", "sseclient"]),
 ]
 
