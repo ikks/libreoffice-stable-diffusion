@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 This project is [semver](https://semver.org/) based
 
+## [0.7.1] - Automatic pretranslation
+
+### Changed
+
+* Fixed regression on flatpak distribution
+
+
 ## [0.7] - Automatic pretranslation
 
 ### Added
@@ -15,6 +22,7 @@ This project is [semver](https://semver.org/) based
 ### Changed
 
 * Fixed regression that didn't take the selected text
+
 
 ## [0.6] - Web and XML Support
 
@@ -32,6 +40,7 @@ This project is [semver](https://semver.org/) based
 * Text image placeholder fixed in Impress
 * Start using aihordeclient
 * Progressbar is now inside the dialog
+
 
 ## [0.5] - Calc and Draw support
 
@@ -52,6 +61,7 @@ This project is [semver](https://semver.org/) based
   white image.
 * Updated spanish translation
 
+
 ## [0.4.2] - Allow to work while image is being generated
 
 ### Added
@@ -66,11 +76,13 @@ previous to 3.11, it's not guaranteed and patience will be needed.
 * Process and Cancel buttons were swapped
 * Initial models are chosen from the most popular ones
 
+
 ## [0.4.1] - Hotfix
 
 ### Changed
 
 * Bug when getting one new model when updating
+
 
 ## [0.4] - Add support for Spanish
 
@@ -85,6 +97,7 @@ previous to 3.11, it's not guaranteed and patience will be needed.
 * Improved proressbar ticks
 * Fallback on older python versions for progressbar
 * Warnings are fixed
+
 
 ## [0.3.1] - Bugfix that prevented using Windows, Mac and Older Python Version
 
@@ -101,6 +114,7 @@ previous to 3.11, it's not guaranteed and patience will be needed.
 
 * Use of logging
 
+
 ## [0.2] - Model List is updated from Stable Horde API
 
 ### Added
@@ -114,6 +128,7 @@ previous to 3.11, it's not guaranteed and patience will be needed.
 * The settings file is readable only by the user, no others,
    except admins
 * Bugfixes
+
 
 ## [0.1] - First Release of LibreOffice Macro
 
