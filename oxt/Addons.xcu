@@ -6,109 +6,105 @@
  *
 -->
 <oor:component-data xmlns:oor="http://openoffice.org/2001/registry" xmlns:xs="http://www.w3.org/2001/XMLSchema" oor:name="Addons" oor:package="org.openoffice.Office">
-    <node oor:name="AddonUI">
-        <!-- see https://wiki.openoffice.org/wiki/Framework/Article/Addon_Menu_Toolbar_Merging for details -->
-
-        <node oor:name="OfficeMenuBarMerging">
-            <!--
+  <node oor:name="AddonUI">
+    <!-- see https://wiki.openoffice.org/wiki/Framework/Article/Addon_Menu_Toolbar_Merging for details -->
+    <node oor:name="OfficeMenuBarMerging">
+      <!--
                 calling the org.fectp.StableHordeForLibreOffice service.
                 see https://opengrok.libreoffice.org/xref/core/framework/source/uielement/menubarmerger.cxx for the gory details
             -->
-            <node oor:name="org.fectp.StableHordeForLibreOffice.menus" oor:op="replace">
-                <node oor:name="menu1" oor:op="replace">
-                    <prop oor:name="MergePoint">
-                        <!--
+      <node oor:name="org.fectp.StableHordeForLibreOffice.menus" oor:op="replace">
+        <node oor:name="menu1" oor:op="replace">
+          <prop oor:name="MergePoint">
+            <!--
                             After Insert->InsertGraphics
                             see e.g. /usr/lib/libreoffice/share/config/soffice.cfg/modules/swriter/menubar/menubar.xml for reference
                         -->
-                        <value>.uno:InsertMenu\.uno:InsertGraphic</value>
-                    </prop>
-                    <prop oor:name="MergeCommand">
-                        <!--
+            <value>.uno:InsertMenu\.uno:InsertGraphic</value>
+          </prop>
+          <prop oor:name="MergeCommand">
+            <!--
                             possible merge commands are: AddAfter, AddBefore, Replace, Remove
                         -->
-                        <value>AddAfter</value>
-                    </prop>
-                    <prop oor:name="MergeFallback">
-                        <value>AddLast</value>
-                    </prop>
-                    <node oor:name="MenuItems">
-                        <node oor:name="submenu1" oor:op="replace">
-                            <prop oor:name="URL" oor:type="xs:string">
-                                <!--
+            <value>AddAfter</value>
+          </prop>
+          <prop oor:name="MergeFallback">
+            <value>AddLast</value>
+          </prop>
+          <node oor:name="MenuItems">
+            <node oor:name="submenu1" oor:op="replace">
+              <prop oor:name="URL" oor:type="xs:string">
+                <!--
                                     service is implemented in StableHordeForLibreOffice.py
                                     see https://opengrok.libreoffice.org/search?q=ServiceHandler%3A%3Aimplts_dispatch&project=core for the gory details
                                 -->
-                                <value>service:org.fectp.StableHordeForLibreOffice?create_image</value>
-                            </prop>
-                            <prop oor:name="ImageIdentifier" oor:type="xs:string">
-                                <value>%origin%/images/loshd</value>
-                            </prop>
-                            <prop oor:name="Target" oor:type="xs:string">
-                                <!--
+                <value>service:org.fectp.StableHordeForLibreOffice?create_image</value>
+              </prop>
+              <prop oor:name="ImageIdentifier" oor:type="xs:string">
+                <value>%origin%/images/loshd</value>
+              </prop>
+              <prop oor:name="Target" oor:type="xs:string">
+                <!--
                                     options here are:
                                         - _self: current window
                                         - _default: default behaviour
                                         - _bland: create new window
                                 -->
-                                <value>_self</value>
-                            </prop>
-                            <prop oor:name="Title" oor:type="xs:string">
-                                <value xml:lang="en-US">Image from Text...</value>
-                                <value xml:lang="es">Imagen a partir de texto...</value>
-                                <value>Image from Text...</value>
-                            </prop>
-                        </node>
-                    </node>
-                </node>
+                <value>_self</value>
+              </prop>
+              <prop oor:name="Title" oor:type="xs:string">
+                <value xml:lang="en-US">Image from Text...</value>
+                <value xml:lang="es">Imagen a partir de texto...</value>
+                <value>Image from Text...</value>
+              </prop>
             </node>
+          </node>
         </node>
-
-
-        <node oor:name="OfficeToolbarMerging">
-            <!--
+      </node>
+    </node>
+    <node oor:name="OfficeToolbarMerging">
+      <!--
                 We modify the toolbar here to replace the:
                  - print button on the standard toolbar with our own implementation
                  - print button on the preview toolbar with our own implementation
                 calling the org.fectp.StableHordeForLibreOffice service.
                 see https://opengrok.libreoffice.org/xref/core/framework/source/uielement/toolbarmerger.cxx for the gory details
             -->
-            <node oor:name="org.fectp.StableHordeForLibreOffice.standardbar" oor:op="replace">
-                <node oor:name="toolbar1" oor:op="replace">
-                    <prop oor:name="MergeToolBar">
-                        <!--
+      <node oor:name="org.fectp.StableHordeForLibreOffice.standardbar" oor:op="replace">
+        <node oor:name="toolbar1" oor:op="replace">
+          <prop oor:name="MergeToolBar">
+            <!--
                             After InsertGraphic
                             see e.g. /usr/lib/libreoffice/share/config/soffice.cfg/modules/swriter/toolbar/standardbar.xml
                         -->
-                        <value>standardbar</value>
-                    </prop>
-                    <prop oor:name="MergePoint">
-                        <value>.uno:InsertGraphic</value>
-                    </prop>
-                    <prop oor:name="MergeCommand">
-                        <value>AddAfter</value>
-                    </prop>
-                    <node oor:name="ToolBarItems">
-                        <node oor:name="button1" oor:op="replace">
-                            <prop oor:name="URL" oor:type="xs:string">
-                                <value>service:org.fectp.StableHordeForLibreOffice?create_image</value>
-                            </prop>
-                            <prop oor:name="ImageIdentifier" oor:type="xs:string">
-                                <value>%origin%/images/loshd</value>
-                            </prop>
-                            <prop oor:name="Target" oor:type="xs:string">
-                                <value>_self</value>
-                            </prop>
-                            <prop oor:name="Title" oor:type="xs:string">
-                                <value xml:lang="en-US">Image from Text...</value>
-                                <value xml:lang="es">Imagen a partir de texto...</value>
-                                <value>Image from Text</value>
-                            </prop>
-                        </node>
-                    </node>
-                </node>
+            <value>standardbar</value>
+          </prop>
+          <prop oor:name="MergePoint">
+            <value>.uno:InsertGraphic</value>
+          </prop>
+          <prop oor:name="MergeCommand">
+            <value>AddAfter</value>
+          </prop>
+          <node oor:name="ToolBarItems">
+            <node oor:name="button1" oor:op="replace">
+              <prop oor:name="URL" oor:type="xs:string">
+                <value>service:org.fectp.StableHordeForLibreOffice?create_image</value>
+              </prop>
+              <prop oor:name="ImageIdentifier" oor:type="xs:string">
+                <value>%origin%/images/loshd</value>
+              </prop>
+              <prop oor:name="Target" oor:type="xs:string">
+                <value>_self</value>
+              </prop>
+              <prop oor:name="Title" oor:type="xs:string">
+                <value xml:lang="en-US">Image from Text...</value>
+                <value xml:lang="es">Imagen a partir de texto...</value>
+                <value>Image from Text</value>
+              </prop>
             </node>
+          </node>
         </node>
-
+      </node>
     </node>
+  </node>
 </oor:component-data>
