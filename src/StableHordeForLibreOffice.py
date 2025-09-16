@@ -21,6 +21,7 @@ import gettext
 import logging
 import os
 import platform
+import shutil
 import sys
 import tempfile
 import uno
@@ -67,16 +68,21 @@ if TYPE_CHECKING:
     from com.sun.star.awt import ExtToolkit
     from com.sun.star.awt import UnoControlDialogModel
     from com.sun.star.awt import UnoControlCheckBoxModel
+    from com.sun.star.gallery import GalleryTheme
+    from com.sun.star.gallery import GalleryThemeProvider
 
 # Change the next line replacing False to True if you need to debug. Case matters
-DEBUG = False
+DEBUG = True
 
-VERSION = "0.7.1"
+VERSION = "0.8"
 
 import_message_error = None
 
 logger = logging.getLogger(__name__)
 LOGGING_LEVEL = logging.ERROR
+GALLERY_NAME = "aihorde.net"
+
+GALLERY_IMAGE_DIR = GALLERY_NAME + "_images"
 
 LIBREOFFICE_EXTENSION_ID = "org.fectp.StableHordeForLibreOffice"
 GETTEXT_DOMAIN = "stablehordeforlibreoffice"
@@ -999,7 +1005,6 @@ class LibreOfficeInteraction(
 
             added_image.Visible = True
             self.model.Modified = True
-            os.unlink(img_path)
 
             if self.inside == "calc":
                 return
@@ -1030,7 +1035,6 @@ class LibreOfficeInteraction(
 
             curview = self.model.CurrentController.ViewCursor
             self.model.Text.insertTextContent(curview, image, False)
-            os.unlink(img_path)
 
         image_insert_to = {
             "calc": __insert_image_as_draw__,
@@ -1039,8 +1043,10 @@ class LibreOfficeInteraction(
             "web": __insert_image_in_text__,
             "writer": __insert_image_in_text__,
         }
-        # Normalizing pixel to cm
         image_insert_to[self.inside]()
+
+        # Add image to gallery
+        self.add_image_to_gallery([img_path, sh_client.get_full_description()])
 
     def get_frontend_property(self, property_name: str) -> Union[str, bool, None]:
         """
@@ -1084,6 +1090,65 @@ class LibreOfficeInteraction(
             # It's ok, if the property existed, we update it
             userProps.setPropertyValue(property_name, str_value)
 
+    def add_image_to_gallery(self, image_info: List[str]) -> None:
+        """
+        Adds the image in image_path to the gallery theme, the image
+        is moved from image_path to the store.
+        """
+
+        def path_store_images_directory() -> str:
+            """
+            Returns the basepath for the store objects directory
+            to store images. Created if did not exist
+            """
+            # https://api.libreoffice.org/docs/idl/ref/singletoncom_1_1sun_1_1star_1_1util_1_1thePathSettings.html
+
+            psettings = self.context.getByName(
+                "/singletons/com.sun.star.util.thePathSettings"
+            )
+            images_local_path = (
+                Path(uno.fileUrlToSystemPath(psettings.Storage_writable))
+                / GALLERY_IMAGE_DIR
+            )
+            os.makedirs(images_local_path, exist_ok=True)
+
+            return Path(images_local_path)
+
+        def the_gallery():
+            """
+            Returns the default gallerytheme, creating it if if it did not exist
+            https://api.libreoffice.org/docs/idl/ref/servicecom_1_1sun_1_1star_1_1gallery_1_1GalleryTheme.html
+            """
+            themes_list: GalleryThemeProvider = (
+                self.context.ServiceManager.createInstanceWithContext(
+                    "com.sun.star.gallery.GalleryThemeProvider", self.context
+                )
+            )
+            if themes_list.hasByName(GALLERY_NAME):
+                logger.debug("Using existing theme gallery")
+                aihorde_theme: GalleryTheme = themes_list.getByName(GALLERY_NAME)
+            else:
+                logger.debug("Creating theme gallery")
+                aihorde_theme: GalleryTheme = themes_list.insertNewByName(GALLERY_NAME)
+            return aihorde_theme
+
+        images_dir = path_store_images_directory()
+        image_filename = os.path.basename(image_info[0])
+        shutil.move(image_info[0], images_dir)
+        target_image = str(images_dir / image_filename)
+
+        aihorde_theme: GalleryTheme = the_gallery()
+        result = aihorde_theme.insertURLByIndex(
+            uno.systemPathToFileUrl(target_image), -1
+        )
+        if result:
+            logger.error(
+                f"unable to set {target_image} in the gallery, reported result {result}"
+            )
+        image_ref = aihorde_theme.getByIndex(0)
+        image_ref.Title = image_info[1]
+        aihorde_theme.update()
+
     def path_store_directory(self) -> str:
         """
         Returns the basepath for the directory offered by the frontend
@@ -1091,8 +1156,10 @@ class LibreOfficeInteraction(
         """
         # https://api.libreoffice.org/docs/idl/ref/singletoncom_1_1sun_1_1star_1_1util_1_1thePathSettings.html
 
-        pip = self.context.getByName("/singletons/com.sun.star.util.thePathSettings")
-        config_path = uno.fileUrlToSystemPath(pip.BasePathUserLayer)
+        psettings = self.context.getByName(
+            "/singletons/com.sun.star.util.thePathSettings"
+        )
+        config_path = uno.fileUrlToSystemPath(psettings.BasePathUserLayer)
 
         return Path(config_path)
 
@@ -1214,30 +1281,22 @@ if __name__ == "__main__":
         "com.sun.star.frame.Desktop", remote_ctx
     )
     generate_image(desktop, remote_ctx)
+    print("You will only see the dialog, for full testing issue: make run")
 
 
 # TODO:
 # Great you are here looking at this, take a look at docs/CONTRIBUTING.md
-# * [X] Add translation using https://huggingface.co/spaces/Helsinki-NLP/opus-translate ,  understand how to avoid using gradio client, put the thing to be translated in the clipboard
-# * [X] Build workflow in github
-# * [X] Choose current language
-# * [X] When something fails in the middle, it's possible to show an URL to allow to recover the generated image by hand
-# * [X] If the locale can be translated, show a control allowing to autotranslate translate_for_me
-# * [ ] Store the retrieved images in a gallery, make oxt create the gallery, use path to gallery, singleton?
-# * [X] Make easier to test as a running macro
+# * [X] Store retrieved images in the gallery
+# * [ ] Make the extension appear in the Extension tabs
+# * [ ] Add the Messagebox with path to gallery and copy system information
+#       to send a bug report.
+# * [ ] Show a dialog with info that will be copied to the clipboard to allow easier info sharing
+# --- 0.8
+# * [ ] When something fails in the middle, it's possible to show an URL to allow to recover the generated image by hand
 # * [ ] Add an option to write the prompt with the image write_text
 # * [ ] Add an option to use the main progressbar use_full_progress
-# * [ ] Store and retrieve the UI options: translation, put text with the image, use full progress
-# * [X] Add README and LICENSE files of vendored libs
-# * [ ] Store generated images and browse them.  Generated images should have this information
-#    -  All the data that generated the image
-#    -  Generation date
-#    -  We can also add which worker made the image
-#    -  Add an option to delete stored images to free up some space
-#    -  kudos consumed
-#    -  The cache can be opened with Explorer to allow user to delete and clean images
-#    -  If there are missing images, the db should update without problems
-# * [ ] Show a dialog with info that will be copied to the clipboard to allow easier info sharing
+# * [ ] Add an option to store in the gallery
+# * [ ] Store and retrieve the UI options: translation, put text with the image, use full progress, add to gallery
 # * [ ] Cancel generation
 #    - requires to have a flag to continue running or abort
 #    - should_stop

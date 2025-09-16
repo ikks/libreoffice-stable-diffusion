@@ -8,6 +8,13 @@ new compositions, models are trained with specific use cases, for example, targe
 to photograph quality, cartoons and different styles.  The number of different variations
 is bounded by the computing capacity.
 
+## I created an image and I want to reuse it, where I can find it?
+
+Starting from Version 0.8, the downloaded images are stored in the `store/aihorde.net_images`
+directory. It's possible to free some space removing the images that you dont want to
+have anymore.
+
+
 ## Why the images I'm getting are not as good as other services out there?
 
 With the same prompt on different providers and different runs on the same provider
