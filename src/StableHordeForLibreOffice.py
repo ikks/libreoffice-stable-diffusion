@@ -26,6 +26,7 @@ import sys
 import tempfile
 import uno
 import unohelper
+import webbrowser
 
 from collections import OrderedDict
 from com.sun.star.awt import Point
@@ -243,7 +244,6 @@ class LibreOfficeInteraction(
 
         self.inside: str = "new-writer"
         self.bas = CreateScriptService("Basic")
-        self.session = CreateScriptService("Session")
         self.key_debug_info = OrderedDict(
             [
                 ("name", HORDE_CLIENT_NAME),
@@ -755,7 +755,7 @@ class LibreOfficeInteraction(
         elif oActionEvent.ActionCommand == "btn_cancel_OnClick":
             self.dlg.dispose()
         elif oActionEvent.ActionCommand == "btn_help_OnClick":
-            self.session.OpenURLInBrowser(HELP_URL)
+            webbrowser.open(HELP_URL, new=2)
 
     def get_options_from_dialog(self) -> List[Dict[str, Any]]:
         """
@@ -878,7 +878,6 @@ class LibreOfficeInteraction(
     def free(self):
         self.dlg.dispose()
         self.bas.Dispose()
-        self.session.Dispose()
 
     def update_status(self, text: str, progress: float = 0.0):
         """
@@ -910,7 +909,7 @@ class LibreOfficeInteraction(
                 title=title,
             )
             if res == self.bas.IDOK:
-                self.session.OpenURLInBrowser(url)
+                webbrowser.open(url, new=2)
             return
 
         self.bas.MsgBox(message, buttons=buttons, title=title)
