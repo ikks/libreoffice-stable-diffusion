@@ -20,6 +20,7 @@
 import gettext
 import logging
 import os
+import platform
 import sys
 import tempfile
 import uno
@@ -41,11 +42,13 @@ from com.sun.star.awt import XSpinListener
 from com.sun.star.awt import XTextListener
 from com.sun.star.awt.Key import ESCAPE
 from com.sun.star.beans import PropertyExistException
+from com.sun.star.beans import PropertyValue
 from com.sun.star.beans import UnknownPropertyException
 from com.sun.star.beans.PropertyAttribute import TRANSIENT
 from com.sun.star.datatransfer import DataFlavor
 from com.sun.star.datatransfer import XTransferable
 from com.sun.star.document import XEventListener
+from com.sun.star.uno import XComponentContext
 from com.sun.star.task import XJobExecutor
 from com.sun.star.text.TextContentAnchorType import AS_CHARACTER
 
@@ -210,6 +213,9 @@ class LibreOfficeInteraction(
     def __init__(self, desktop, context):
         self.desktop: Desktop = desktop
         self.context = context
+        self.cp = self.context.getServiceManager().createInstanceWithContext(
+            "com.sun.star.configuration.ConfigurationProvider", self.context
+        )
 
         # Allows to store the URL of the image in case of an error
         self.generated_url: str = ""
@@ -231,18 +237,15 @@ class LibreOfficeInteraction(
 
         self.inside: str = "new-writer"
         self.bas = CreateScriptService("Basic")
-        self.ui = CreateScriptService("UI")
-        self.platform = CreateScriptService("Platform")
         self.session = CreateScriptService("Session")
-
         self.key_debug_info = OrderedDict(
             [
                 ("name", HORDE_CLIENT_NAME),
                 ("version", VERSION),
-                ("os", self.platform.OSPlatform),
-                ("python", self.platform.PythonVersion),
-                ("libreoffice", self.platform.OfficeVersion),
-                ("arch", self.platform.Machine),
+                ("os", platform.system()),
+                ("python", platform.python_version()),
+                ("libreoffice", self.get_libreoffice_version()),
+                ("arch", platform.machine()),
             ]
         )
 
@@ -275,31 +278,55 @@ class LibreOfficeInteraction(
         self.options: Dict[str, Any] = {}
         self.progress: float = 0.0
 
+    def get_configuration_value(
+        self,
+        property_name: str,
+        section: str,
+        category: str = "Setup",
+        prefix="org.openoffice",
+    ):
+        """
+        To discover which properties are available as part of Setup,
+        go to Tools > Options > Advanced > Open Expert configurations
+        """
+        node = PropertyValue()
+        node.Name = "nodepath"
+        node.Value = f"/{prefix}.{category}/{section}"
+        prop = property_name
+        try:
+            cr = self.cp.createInstanceWithArguments(
+                "com.sun.star.configuration.ConfigurationAccess", (node,)
+            )
+            if cr and (cr.hasByName(prop)):
+                return cr.getPropertyValue(prop)
+        except Exception as ex:
+            logger.info(
+                f"The property /{prefix}.{category}/{section} {property_name} is not present"
+            )
+            logger.debug(ex, stack_info=True)
+            return ""
+
+        logger.debug(
+            f"The property /{prefix}.{category}/{section} {property_name} is not present"
+        )
+        return ""
+
+    def get_libreoffice_version(self) -> str:
+        return " ".join(
+            [
+                self.get_configuration_value("ooName", "Product"),
+                self.get_configuration_value("ooSetupVersionAboutBox", "Product"),
+                "(" + self.get_configuration_value("ooVendor", "Product") + ")",
+            ]
+        )
+
     def get_language(self) -> str:
         """
         Determines the UI current language
         Taken from MRI
         https://github.com/hanya/MRI
         """
-        from com.sun.star.beans import PropertyValue
-
-        cp = self.context.getServiceManager().createInstanceWithContext(
-            "com.sun.star.configuration.ConfigurationProvider", self.context
-        )
-        node = PropertyValue()
-        node.Name = "nodepath"
-        node.Value = "/org.openoffice.Setup/L10N"
-        prop = "ooLocale"
-        try:
-            cr = cp.createInstanceWithArguments(
-                "com.sun.star.configuration.ConfigurationAccess", (node,)
-            )
-            if cr and (cr.hasByName(prop)):
-                return cr.getPropertyValue(prop)
-        except Exception as ex:
-            logger.info("Not able to fetch current locale")
-            logger.debug(ex, stack_info=True)
-            return ""
+        return self.get_configuration_value("ooLocale", "L10N")
 
     def __create_dialog__(self):
         def create_widget(
@@ -845,8 +872,6 @@ class LibreOfficeInteraction(
     def free(self):
         self.dlg.dispose()
         self.bas.Dispose()
-        self.ui.Dispose()
-        self.platform.Dispose()
         self.session.Dispose()
 
     def update_status(self, text: str, progress: float = 0.0):
@@ -1158,6 +1183,39 @@ g_ImplementationHelper.addImplementation(
     ("com.sun.star.task.theJobExecutor",),
 )
 
+if __name__ == "__main__":
+    """ Connect to LibreOffice proccess.
+    1) Start the office in shell with command:
+    libreoffice "--accept=socket,host=127.0.0.1,port=2002,tcpNoDelay=1;urp;StarOffice.ComponentContext" --norestore
+    2) Run script
+    """
+
+    local_ctx: XComponentContext = uno.getComponentContext()
+    resolver = local_ctx.ServiceManager.createInstance(
+        "com.sun.star.bridge.UnoUrlResolver"
+    )
+    try:
+        remote_ctx: XComponentContext = resolver.resolve(
+            "uno:socket,"
+            "host=127.0.0.1,"
+            "port=2002,"
+            "tcpNoDelay=1;"
+            "urp;"
+            "StarOffice.ComponentContext"
+        )
+    except Exception as err:
+        print("""You are not running a libreoffice instance, to do so from a command line that has `libreoffice` in the path run:
+
+       libreoffice "--accept=socket,host=127.0.0.1,port=2002,tcpNoDelay=1;urp;StarOffice.ComponentContext" --norestore  \nAnd try again
+        """)
+        err = err
+        exit(1)
+    desktop = remote_ctx.getServiceManager().createInstanceWithContext(
+        "com.sun.star.frame.Desktop", remote_ctx
+    )
+    generate_image(desktop, remote_ctx)
+
+
 # TODO:
 # Great you are here looking at this, take a look at docs/CONTRIBUTING.md
 # * [X] Add translation using https://huggingface.co/spaces/Helsinki-NLP/opus-translate ,  understand how to avoid using gradio client, put the thing to be translated in the clipboard
@@ -1165,6 +1223,8 @@ g_ImplementationHelper.addImplementation(
 # * [X] Choose current language
 # * [X] When something fails in the middle, it's possible to show an URL to allow to recover the generated image by hand
 # * [X] If the locale can be translated, show a control allowing to autotranslate translate_for_me
+# * [ ] Store the retrieved images in a gallery, make oxt create the gallery, use path to gallery, singleton?
+# * [X] Make easier to test as a running macro
 # * [ ] Add an option to write the prompt with the image write_text
 # * [ ] Add an option to use the main progressbar use_full_progress
 # * [ ] Store and retrieve the UI options: translation, put text with the image, use full progress
