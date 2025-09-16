@@ -37,6 +37,10 @@ from com.sun.star.awt import XFocusListener
 from com.sun.star.awt import ActionEvent
 from com.sun.star.awt import FocusEvent
 from com.sun.star.awt import KeyEvent
+from com.sun.star.awt import MessageBoxButtons as mbb
+from com.sun.star.awt import MessageBoxResults as mbr
+from com.sun.star.awt.MessageBoxType import MESSAGEBOX
+from com.sun.star.awt.MessageBoxType import WARNINGBOX
 from com.sun.star.awt import SpinEvent
 from com.sun.star.awt import TextEvent
 from com.sun.star.awt import XKeyListener
@@ -57,7 +61,6 @@ from com.sun.star.text.TextContentAnchorType import AS_CHARACTER
 from collections.abc import Iterable
 from math import sqrt
 from pathlib import Path
-from scriptforge import CreateScriptService
 from typing import Any, Dict, List, TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
@@ -66,6 +69,7 @@ if TYPE_CHECKING:
     from com.sun.star.awt import UnoControlEditModel
     from com.sun.star.frame import Desktop
     from com.sun.star.frame import DispatchHelper
+    from com.sun.star.awt import Toolkit
     from com.sun.star.awt import ExtToolkit
     from com.sun.star.awt import UnoControlDialogModel
     from com.sun.star.awt import UnoControlCheckBoxModel
@@ -153,19 +157,18 @@ _ = gettext.gettext
 gettext.textdomain(GETTEXT_DOMAIN)
 
 
-def popup_click(poEvent: uno = None) -> None:
-    """
-    Intended for popup
-    """
-    if poEvent is None:
-        return
-    my_popup = CreateScriptService("SFWidgets.PopupMenu", poEvent)
-
-    my_popup.AddItem(_("Generate Image"))
-    # Populate popupmenu with items
-    response = my_popup.Execute()
-    logger.debug(response)
-    my_popup.Dispose()
+# def popup_click(poEvent: uno = None) -> None:
+#     """
+#     Intended for popup
+#     """
+#     if poEvent is None:
+#         return
+#     my_popup = CreateScriptService("SFWidgets.PopupMenu", poEvent)
+#     my_popup.AddItem(_("Generate Image"))
+#     # Populate popupmenu with items
+#     response = my_popup.Execute()
+#     logger.debug(response)
+#     my_popup.Dispose()
 
 
 class DataTransferable(unohelper.Base, XTransferable):
@@ -229,8 +232,10 @@ class LibreOfficeInteraction(
 
         # Helps determine if on text, calc, draw, etc...
         self.model = self.desktop.getCurrentComponent()
-
-        self.toolkit: ExtToolkit = (
+        self.toolkit: Toolkit = self.context.ServiceManager.createInstanceWithContext(
+            "com.sun.star.awt.Toolkit", self.context
+        )
+        self.extoolkit: ExtToolkit = (
             self.context.ServiceManager.createInstanceWithContext(
                 "com.sun.star.awt.ExtToolkit", self.context
             )
@@ -243,7 +248,6 @@ class LibreOfficeInteraction(
         self.selected: str = ""
 
         self.inside: str = "new-writer"
-        self.bas = CreateScriptService("Basic")
         self.key_debug_info = OrderedDict(
             [
                 ("name", HORDE_CLIENT_NAME),
@@ -625,7 +629,7 @@ class LibreOfficeInteraction(
 
     def show_ui(self):
         self.dlg.setVisible(True)
-        self.dlg.createPeer(self.toolkit, None)
+        self.dlg.createPeer(self.extoolkit, None)
         self.dlg.getControl("btn_toggle").setVisible(False)
         self.dlg.getControl("bool_trans").setVisible(self.show_language)
         size = self.dlg.getPosSize()
@@ -809,11 +813,11 @@ class LibreOfficeInteraction(
             logger.debug(images_paths)
             if images_paths:
                 self.update_status("", 100)
-                bas = CreateScriptService("Basic")
-                bas.MsgBox(
-                    _("Your image was generated"), title=_("AIHorde has good news")
+                self.__msg_usr__(
+                    _("Your image was generated"),
+                    buttons=mbb.BUTTONS_OK,
+                    title=_("AIHorde has good news"),
                 )
-                bas.Dispose()
 
                 self.insert_image(
                     images_paths[0],
@@ -877,7 +881,6 @@ class LibreOfficeInteraction(
 
     def free(self):
         self.dlg.dispose()
-        self.bas.Dispose()
 
     def update_status(self, text: str, progress: float = 0.0):
         """
@@ -895,24 +898,26 @@ class LibreOfficeInteraction(
         self.progress_label.Label = ""
         self.progress_meter.ProgressValue = 100
 
-    def __msg_usr__(self, message, buttons=0, title="", url=""):
+    def __msg_usr__(
+        self, message, buttons=0, title="", url="", box_type=MESSAGEBOX
+    ) -> int:
         """
         Shows a message dialog, if url is given, shows
         OK, Cancel, when the user presses OK, opens the URL in the
-        browser
+        browser.  Returns the status of the messagebox.
         """
         if url:
-            buttons = self.bas.MB_OKCANCEL | buttons
-            res = self.bas.MsgBox(
-                message,
-                buttons=buttons,
-                title=title,
-            )
-            if res == self.bas.IDOK:
+            buttons = mbb.BUTTONS_OK_CANCEL | buttons
+            res = self.toolkit.createMessageBox(
+                self.extoolkit, box_type, buttons, title, message
+            ).execute()
+            if res == mbr.OK:
                 webbrowser.open(url, new=2)
-            return
+            return res
 
-        self.bas.MsgBox(message, buttons=buttons, title=title)
+        return self.toolkit.createMessageBox(
+            self.extoolkit, box_type, buttons, title, message
+        ).execute()
 
     def show_error(self, message, url="", title="", buttons=0):
         """
@@ -924,10 +929,11 @@ class LibreOfficeInteraction(
         """
         if title == "":
             title = _("Watch out!")
-        buttons = buttons | self.bas.MB_ICONSTOP
         if not url and self.generated_url:
             url = self.generated_url
-        self.__msg_usr__(message, buttons=buttons, title=title, url=url)
+        self.__msg_usr__(
+            message, buttons=buttons, title=title, url=url, box_type=WARNINGBOX
+        )
         self.set_finished()
 
     def show_message(self, message, url="", title="", buttons=0):
@@ -940,12 +946,7 @@ class LibreOfficeInteraction(
         """
         if title == "":
             title = _("Good")
-        self.__msg_usr__(
-            message,
-            buttons=buttons + self.bas.MB_ICONINFORMATION,
-            title=title,
-            url=url,
-        )
+        self.__msg_usr__(message, buttons=buttons, title=title, url=url)
 
     def insert_image(
         self, img_path: str, width: int, height: int, sh_client: AiHordeClient
@@ -1287,11 +1288,12 @@ if __name__ == "__main__":
 # Great you are here looking at this, take a look at docs/CONTRIBUTING.md
 # * [X] Store retrieved images in the gallery
 # * [ ] Make the extension appear in the Extension tabs
+# --- 0.8
+# * [ ] When something fails in the middle, it's possible to show an URL to allow to recover the generated image by hand
+# * [ ] Use TabPage for generate images, UX and information
 # * [ ] Add the Messagebox with path to gallery and copy system information
 #       to send a bug report.
 # * [ ] Show a dialog with info that will be copied to the clipboard to allow easier info sharing
-# --- 0.8
-# * [ ] When something fails in the middle, it's possible to show an URL to allow to recover the generated image by hand
 # * [ ] Add an option to write the prompt with the image write_text
 # * [ ] Add an option to use the main progressbar use_full_progress
 # * [ ] Add an option to store in the gallery
