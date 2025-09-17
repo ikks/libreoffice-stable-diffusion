@@ -61,7 +61,7 @@ from com.sun.star.text.TextContentAnchorType import AS_CHARACTER
 from collections.abc import Iterable
 from math import sqrt
 from pathlib import Path
-from typing import Any, Dict, List, TYPE_CHECKING, Union
+from typing import Any, Dict, List, TYPE_CHECKING, Tuple, Union
 
 if TYPE_CHECKING:
     from com.sun.star.awt import UnoControlDialog
@@ -73,6 +73,9 @@ if TYPE_CHECKING:
     from com.sun.star.awt import ExtToolkit
     from com.sun.star.awt import UnoControlDialogModel
     from com.sun.star.awt import UnoControlCheckBoxModel
+    from com.sun.star.awt import UnoControlModel
+    from com.sun.star.awt.tab import UnoControlTabPageContainerModel
+    from com.sun.star.awt.tab import UnoControlTabPageModel
     from com.sun.star.gallery import GalleryTheme
     from com.sun.star.gallery import GalleryThemeProvider
 
@@ -155,20 +158,6 @@ CLIPBOARD_TEXT_FORMAT = "text/plain;charset=utf-16"
 # gettext usual alias for i18n
 _ = gettext.gettext
 gettext.textdomain(GETTEXT_DOMAIN)
-
-
-# def popup_click(poEvent: uno = None) -> None:
-#     """
-#     Intended for popup
-#     """
-#     if poEvent is None:
-#         return
-#     my_popup = CreateScriptService("SFWidgets.PopupMenu", poEvent)
-#     my_popup.AddItem(_("Generate Image"))
-#     # Populate popupmenu with items
-#     response = my_popup.Execute()
-#     logger.debug(response)
-#     my_popup.Dispose()
 
 
 class DataTransferable(unohelper.Base, XTransferable):
@@ -279,7 +268,7 @@ class LibreOfficeInteraction(
             # If the selection is not text, let's wait for the user to write down
             self.selected = ""
 
-        self.DEFAULT_DLG_HEIGHT: int = 216
+        self.DEFAULT_DLG_HEIGHT: int = 316
         self.displacement: int = 180
         self.ok_btn: UnoControlButtonModel = None
         self.local_language: str = ""
@@ -340,33 +329,51 @@ class LibreOfficeInteraction(
 
     def __create_dialog__(self):
         def create_widget(
-            dlg,
+            container,
             typename: str,
             identifier: str,
-            x: int,
-            y: int,
-            width: int,
-            height: int,
-            container=None,
+            rect: Tuple[int, int, int, int],
+            add_now: bool = True,
+            additional_properties: List[Tuple[str, Any]] = None,
         ):
             """
             Adds to the dlg a control Model, with the identifier, positioned with
             widthxheight, and put it inside container For typename see UnoControl* at
             https://api.libreoffice.org/docs/idl/ref/namespacecom_1_1sun_1_1star_1_1awt.html
             """
-            if not container:
-                container = dlg
 
-            cmpt_type = f"com.sun.star.awt.UnoControl{typename}Model"
-            cmpt = dlg.createInstance(cmpt_type)
-            cmpt.Name = identifier
-            cmpt.PositionX = str(x)
-            cmpt.PositionY = str(y)
-            cmpt.Width = width
-            cmpt.Height = height
-            container.insertByName(identifier, cmpt)
+            if typename.startswith("TabPage"):
+                cmpt_type = f"com.sun.star.awt.tab.UnoControl{typename}Model"
+            else:
+                cmpt_type = f"com.sun.star.awt.UnoControl{typename}Model"
+
+            cmpt: UnoControlModel = container.createInstance(cmpt_type)
+            cmpt.setPropertyValues(
+                [
+                    "Name",
+                    "PositionX",
+                    "PositionY",
+                    "Width",
+                    "Height",
+                ],
+                [
+                    identifier,
+                    rect[0],
+                    rect[1],
+                    rect[2],
+                    rect[3],
+                ],
+            )
+            if add_now:
+                container.insertByName(identifier, cmpt)
+            else:
+                self.insert_in.append((container, cmpt))
+
+            if additional_properties:
+                cmpt.setPropertyValues(*zip(*additional_properties))
             return cmpt
 
+        self.insert_in = []
         current_language = self.get_language()
         self.show_language = current_language in OPUSTM_SOURCE_LANGUAGES
         if self.show_language:
@@ -382,8 +389,22 @@ class LibreOfficeInteraction(
             "com.sun.star.awt.UnoControlDialogModel"
         )
         dc.setModel(dm)
+        dc.createPeer(self.extoolkit, None)
         dc.addKeyListener(self)
 
+        book: UnoControlTabPageContainerModel = create_widget(
+            dm, "TabPageContainer", "tab_book", (18, 115, 230, 130)
+        )
+        page_ad: UnoControlTabPageModel = book.createTabPage(1)
+        page_ad.Title = "✨ Generate"
+        book.insertByIndex(0, page_ad)
+        page_ux: UnoControlTabPageModel = book.createTabPage(2)
+        page_ux.Title = "🛠️ Configuration"
+        book.insertByIndex(1, page_ux)
+        page_in: UnoControlTabPageModel = book.createTabPage(3)
+        page_in.Title = "👀 Information"
+        book.insertByIndex(1, page_in)
+        self.book: UnoControlTabPageContainerModel = dc.getControl("tab_book")
         dm.Name = "stablehordeoptions"
         dm.PositionX = "47"
         dm.PositionY = "10"
@@ -393,27 +414,27 @@ class LibreOfficeInteraction(
         dm.Moveable = True
         dm.Title = _("AI Horde for LibreOffice - ") + VERSION
 
-        create_widget(dm, "GroupBox", "framebox", 16, 9, 236, 165)
-        lbl = create_widget(dm, "FixedText", "label_prompt", 29, 31, 45, 13)
+        create_widget(dm, "GroupBox", "framebox", (16, 9, 236, 165))
+        lbl = create_widget(dm, "FixedText", "label_prompt", (29, 31, 45, 13))
         lbl.Label = _("Prompt")
-        lbl = create_widget(dm, "FixedText", "label_height", 155, 65, 45, 13)
+        lbl = create_widget(page_ad, "FixedText", "label_height", (65, 25, 45, 13))
         lbl.Label = _("Height")
-        lbl = create_widget(dm, "FixedText", "label_width", 29, 65, 45, 13)
+        lbl = create_widget(page_ad, "FixedText", "label_width", (5, 25, 45, 13))
         lbl.Label = _("Width")
-        lbl = create_widget(dm, "FixedText", "label_model", 29, 82, 45, 13)
+        lbl = create_widget(page_ad, "FixedText", "label_model", (30, 45, 45, 13))
         lbl.Label = _("Model")
-        lbl = create_widget(dm, "FixedText", "label_max_wait", 155, 82, 45, 13)
+        lbl = create_widget(page_ux, "FixedText", "label_max_wait", (65, 5, 45, 13))
         lbl.Label = _("Max Wait")
-        lbl = create_widget(dm, "FixedText", "label_strength", 29, 99, 45, 13)
+        lbl = create_widget(page_ad, "FixedText", "label_strength", (65, 65, 45, 13))
         lbl.Label = _("Strength")
-        lbl = create_widget(dm, "FixedText", "label_steps", 155, 99, 45, 13)
+        lbl = create_widget(page_ad, "FixedText", "label_steps", (65, 85, 45, 13))
         lbl.Label = _("Steps")
-        lbl = create_widget(dm, "FixedText", "label_seed", 96, 130, 49, 13)
+        lbl = create_widget(page_ad, "FixedText", "label_seed", (35, 85, 49, 13))
         lbl.Label = _("Seed (Optional)")
-        lbl = create_widget(dm, "FixedText", "label_token", 96, 149, 49, 13)
+        lbl = create_widget(page_ux, "FixedText", "label_token", (65, 35, 49, 13))
         lbl.Label = _("ApiKey (Optional)")
         if DEBUG:
-            ctrl = create_widget(dm, "FixedText", "lbl_debug", 19, 162, 50, 10)
+            ctrl = create_widget(page_ux, "FixedText", "lbl_debug", (5, 45, 50, 10))
             ctrl.Label = f"📜 {log_file}"
             ctrl.HelpText = (
                 _(
@@ -424,7 +445,7 @@ class LibreOfficeInteraction(
 
         # Buttons
         button_ok: UnoControlButtonModel = create_widget(
-            dm, "Button", "btn_ok", 73, 182, 49, 13
+            dm, "Button", "btn_ok", (73, 182, 49, 13)
         )
         button_ok.Label = _("Process")
         button_ok.TabIndex = 4
@@ -433,14 +454,14 @@ class LibreOfficeInteraction(
         btn_ok.setActionCommand("btn_ok_OnClick")
         self.ok_btn: UnoControlButtonModel = button_ok
 
-        button_cancel = create_widget(dm, "Button", "btn_cancel", 145, 182, 49, 13)
+        button_cancel = create_widget(dm, "Button", "btn_cancel", (145, 182, 49, 13))
         button_cancel.Label = _("Cancel")
         button_cancel.TabIndex = 13
         btn_cancel = dc.getControl("btn_cancel")
         btn_cancel.addActionListener(self)
         btn_cancel.setActionCommand("btn_cancel_OnClick")
 
-        button_help = create_widget(dm, "Button", "btn_help", 250, 204, 13, 10)
+        button_help = create_widget(dm, "Button", "btn_help", (250, 204, 13, 10))
         button_help.Label = "?"
         button_help.HelpText = _("About Horde")
         button_help.TabIndex = 14
@@ -448,7 +469,7 @@ class LibreOfficeInteraction(
         btn_help.addActionListener(self)
         btn_help.setActionCommand("btn_help_OnClick")
 
-        button_toggle = create_widget(dm, "Button", "btn_toggle", 2, 204, 12, 10)
+        button_toggle = create_widget(dm, "Button", "btn_toggle", (2, 204, 12, 10))
         button_toggle.Label = "_"
         button_toggle.HelpText = _("Toggle")
         button_toggle.TabIndex = 15
@@ -456,139 +477,152 @@ class LibreOfficeInteraction(
         dc.getControl("btn_toggle").setActionCommand("btn_toggle_OnClick")
 
         # Controls
-        ctrl = create_widget(
-            dm,
+        self.lst_model = create_widget(
+            page_ad,
             "ComboBox",
             "lst_model",
-            60,
-            80,
-            79,
-            15,
+            (
+                60,
+                80,
+                79,
+                15,
+            ),
+            add_now=False,
         )
-        ctrl.TabIndex = 3
-        ctrl.Dropdown = True
-        ctrl.LineCount = 10
+        self.lst_model.TabIndex = 3
+        self.lst_model.Dropdown = True
+        self.lst_model.LineCount = 10
 
-        ctrl: UnoControlEditModel = create_widget(
+        self.txt_prompt: UnoControlEditModel = create_widget(
             dm,
             "Edit",
             "txt_prompt",
-            60,
-            16,
-            188,
-            42,
+            (
+                60,
+                16,
+                188,
+                42,
+            ),
+            add_now=False,
         )
-        ctrl.MultiLine = True
-        ctrl.TabIndex = 1
-        ctrl.HelpText = _("""        Let your imagination run wild or put a proper description of your
+        self.txt_prompt.MultiLine = True
+        self.txt_prompt.TabIndex = 1
+        self.txt_prompt.HelpText = _("""        Let your imagination run wild or put a proper description of your
         desired output. Use full grammar for Flux, use tag-like language
         for sd15, use short phrases for sdxl.
         Write at least 5 words or 10 characters.""")
-        dc.getControl("txt_prompt").addTextListener(self)
-        dc.getControl("txt_prompt").addKeyListener(self)
 
-        ctrl = create_widget(dm, "Edit", "txt_token", 155, 147, 92, 13)
-        ctrl.TabIndex = 11
-        ctrl.HelpText = _("""        Get yours at https://aihorde.net/ for free. Recommended:
+        self.ctrl_token = create_widget(
+            page_ux, "Edit", "txt_token", (155, 147, 92, 13)
+        )
+        self.ctrl_token.TabIndex = 11
+        self.ctrl_token.HelpText = _("""        Get yours at https://aihorde.net/ for free. Recommended:
         Anonymous users are last in the queue.""")
 
-        ctrl = create_widget(dm, "Edit", "txt_seed", 155, 128, 92, 13)
-        ctrl.TabIndex = 2
-        ctrl.HelpText = _(
+        self.txt_seed = create_widget(page_ad, "Edit", "txt_seed", (155, 128, 92, 13))
+        self.txt_seed.TabIndex = 2
+        self.txt_seed.HelpText = _(
             "Set a seed to regenerate (reproducible), or it'll be chosen at random by the worker."
         )
 
-        ctrl = create_widget(dm, "NumericField", "int_width", 91, 63, 48, 13)
-        ctrl.DecimalAccuracy = 0
-        ctrl.ValueMin = MIN_WIDTH
-        ctrl.ValueMax = MAX_WIDTH
-        ctrl.ValueStep = 64
-        ctrl.Spin = True
-        ctrl.Value = DEFAULT_WIDTH
-        ctrl.TabIndex = 5
-        ctrl.HelpText = _(
+        self.int_width = create_widget(
+            page_ad, "NumericField", "int_width", (91, 63, 48, 13), add_now=False
+        )
+        self.int_width.DecimalAccuracy = 0
+        self.int_width.ValueMin = MIN_WIDTH
+        self.int_width.ValueMax = MAX_WIDTH
+        self.int_width.ValueStep = 64
+        self.int_width.Spin = True
+        self.int_width.Value = DEFAULT_WIDTH
+        self.int_width.TabIndex = 5
+        self.int_width.HelpText = _(
             "Height and Width together at most can be 2048x2048=4194304 pixels"
         )
-        dc.getControl("int_width").addTextListener(self)
-        dc.getControl("int_width").addSpinListener(self)
-        dc.getControl("int_width").addFocusListener(self)
 
-        ctrl = create_widget(dm, "NumericField", "int_strength", 91, 97, 48, 13)
-        ctrl.ValueMin = 0
-        ctrl.ValueMax = 20
-        ctrl.ValueStep = 0.5
-        ctrl.DecimalAccuracy = 2
-        ctrl.Spin = True
-        ctrl.Value = 15
-        ctrl.TabIndex = 7
-        ctrl.HelpText = _("""        How strongly the AI follows the prompt vs how much creativity to allow it.
+        self.int_strength = create_widget(
+            page_ad, "NumericField", "int_strength", (91, 97, 48, 13), add_now=False
+        )
+        self.int_strength.ValueMin = 0
+        self.int_strength.ValueMax = 20
+        self.int_strength.ValueStep = 0.5
+        self.int_strength.DecimalAccuracy = 2
+        self.int_strength.Spin = True
+        self.int_strength.Value = 15
+        self.int_strength.TabIndex = 7
+        self.int_strength.HelpText = _("""        How strongly the AI follows the prompt vs how much creativity to allow it.
         Set to 1 for Flux, use 2-4 for LCM and lightning, 5-7 is common for SDXL
         models, 6-9 is common for sd15.""")
 
-        ctrl = create_widget(
-            dm,
+        self.int_height = create_widget(
+            page_ad,
             "NumericField",
             "int_height",
-            200,
-            63,
-            48,
-            13,
+            (
+                200,
+                63,
+                48,
+                13,
+            ),
+            add_now=False,
         )
-        ctrl.DecimalAccuracy = 0
-        ctrl.ValueMin = MIN_HEIGHT
-        ctrl.ValueMax = MAX_HEIGHT
-        ctrl.ValueStep = 64
-        ctrl.Spin = True
-        ctrl.Value = DEFAULT_HEIGHT
-        ctrl.TabIndex = 6
-        ctrl.HelpText = _(
+        self.int_height.DecimalAccuracy = 0
+        self.int_height.ValueMin = MIN_HEIGHT
+        self.int_height.ValueMax = MAX_HEIGHT
+        self.int_height.ValueStep = 64
+        self.int_height.Spin = True
+        self.int_height.Value = DEFAULT_HEIGHT
+        self.int_height.TabIndex = 6
+        self.int_height.HelpText = _(
             "Height and Width together at most can be 2048x2048=4194304 pixels"
         )
-        dc.getControl("int_height").addTextListener(self)
-        dc.getControl("int_height").addSpinListener(self)
-        dc.getControl("int_height").addFocusListener(self)
 
-        ctrl = create_widget(
-            dm,
+        self.int_waiting = create_widget(
+            page_ux,
             "NumericField",
             "int_waiting",
-            200,
-            80,
-            48,
-            13,
+            (
+                200,
+                80,
+                48,
+                13,
+            ),
+            add_now=False,
         )
-        ctrl.ValueMin = 1
-        ctrl.ValueMax = 15
-        ctrl.Spin = True
-        ctrl.DecimalAccuracy = 0
-        ctrl.Value = 5
-        ctrl.TabIndex = 8
-        ctrl.HelpText = _("""        How long to wait(minutes) for your generation to complete.
+        self.int_waiting.ValueMin = 1
+        self.int_waiting.ValueMax = 15
+        self.int_waiting.Spin = True
+        self.int_waiting.DecimalAccuracy = 0
+        self.int_waiting.Value = 5
+        self.int_waiting.TabIndex = 8
+        self.int_waiting.HelpText = _("""        How long to wait(minutes) for your generation to complete.
         Depends on number of workers and user priority (more
         kudos = more priority. Anonymous users are last)""")
 
-        ctrl = create_widget(
-            dm,
+        self.int_steps = create_widget(
+            page_ad,
             "NumericField",
             "int_steps",
-            200,
-            97,
-            48,
-            13,
+            (
+                200,
+                97,
+                48,
+                13,
+            ),
+            add_now=False,
         )
-        ctrl.ValueMin = 1
-        ctrl.ValueMax = 150
-        ctrl.Spin = True
-        ctrl.ValueStep = 10
-        ctrl.DecimalAccuracy = 0
-        ctrl.Value = 25
-        ctrl.TabIndex = 7
-        ctrl.HelpText = _("""        How many sampling steps to perform for generation. Should
+        self.int_steps.ValueMin = 1
+        self.int_steps.ValueMax = 150
+        self.int_steps.Spin = True
+        self.int_steps.ValueStep = 10
+        self.int_steps.DecimalAccuracy = 0
+        self.int_steps.Value = 25
+        self.int_steps.TabIndex = 7
+        self.int_steps.HelpText = _("""        How many sampling steps to perform for generation. Should
         generally be at least double the CFG unless using a second-order
         or higher sampler (anything with dpmpp is second order)""")
 
         ctrl: UnoControlCheckBoxModel = create_widget(
-            dm, "CheckBox", "bool_trans", 29, 45, 30, 10
+            dm, "CheckBox", "bool_trans", (29, 45, 30, 10)
         )
         ctrl.Label = "🌏"
         ctrl.HelpText = _("""           Translate the prompt to English, wishing for the best.  If the result is not
@@ -597,30 +631,32 @@ class LibreOfficeInteraction(
         if self.show_language:
             ctrl.TabIndex = 2
 
-        ctrl = create_widget(dm, "CheckBox", "bool_nsfw", 29, 130, 55, 10)
+        ctrl = create_widget(dm, "CheckBox", "bool_nsfw", (29, 130, 55, 10))
         ctrl.Label = _("NSFW")
         ctrl.TabIndex = 9
         ctrl.HelpText = _("""        Whether or not your image is intended to be NSFW. May
         reduce generation speed (workers can choose if they wish
         to take nsfw requests)""")
 
-        ctrl = create_widget(dm, "CheckBox", "bool_censure", 29, 145, 55, 10)
+        ctrl = create_widget(dm, "CheckBox", "bool_censure", (29, 145, 55, 10))
         ctrl.Label = _("Censor NSFW")
         ctrl.TabIndex = 10
         ctrl.HelpText = _("""        Separate from the NSFW flag, should workers
         return nsfw images. Censorship is implemented to be safe
         and overcensor rather than risk returning unwanted NSFW.""")
 
-        lbl = create_widget(dm, "FixedText", "label_progress", 20, 205, 150, 10)
+        lbl = create_widget(dm, "FixedText", "label_progress", (20, 205, 150, 10))
         lbl.Label = ""
         ctrl = create_widget(
             dm,
             "ProgressBar",
             "prog_status",
-            14,
-            203,
-            235,
-            13,
+            (
+                14,
+                203,
+                235,
+                13,
+            ),
         )
         self.progress_label = lbl
         self.progress_meter = ctrl
@@ -629,9 +665,25 @@ class LibreOfficeInteraction(
 
     def show_ui(self):
         self.dlg.setVisible(True)
-        self.dlg.createPeer(self.extoolkit, None)
+        for pair in self.insert_in:
+            pair[0].insertByName(pair[1].Name, pair[1])
+        self.book.getTabPageByID(1).getControl("int_width").addTextListener(self)
+        self.book.getTabPageByID(1).getControl("int_width").addSpinListener(self)
+        self.book.getTabPageByID(1).getControl("int_width").addFocusListener(self)
+        self.book.getTabPageByID(1).getControl("int_height").addTextListener(self)
+        self.book.getTabPageByID(1).getControl("int_height").addSpinListener(self)
+        self.book.getTabPageByID(1).getControl("int_height").addFocusListener(self)
+        self.txt_prompt = self.dlg.getControl("txt_prompt")
+        self.txt_prompt.addTextListener(self)
+        self.txt_prompt.addKeyListener(self)
         self.dlg.getControl("btn_toggle").setVisible(False)
         self.dlg.getControl("bool_trans").setVisible(self.show_language)
+        self.lst_model = self.book.getTabPageByID(1).getControl("lst_model")
+        lst_rep_model = self.lst_model.getModel()
+        for i in range(len(self.model_choices)):
+            lst_rep_model.insertItemText(i, self.model_choices[i])
+        self.lst_model.Text = self.default_model
+
         size = self.dlg.getPosSize()
         self.DEFAULT_DLG_HEIGHT = size.Height
         self.displacement = self.dlg.getControl("label_progress").getPosSize().Y - 5
@@ -688,10 +740,8 @@ class LibreOfficeInteraction(
         if self.in_progress:
             return
         enable_ok = (
-            len(self.dlg.getControl("txt_prompt").Text) > MIN_PROMPT_LENGTH
-            and self.dlg.getControl("int_width").Value
-            * self.dlg.getControl("int_height").Value
-            <= MAX_MP
+            len(self.txt_prompt.Text) > MIN_PROMPT_LENGTH
+            and self.int_width.Value * self.int_height.Value <= MAX_MP
         )
         self.ok_btn.Enabled = enable_ok
         self.dlg.getControl("btn_trans").Enable = enable_ok
@@ -699,7 +749,7 @@ class LibreOfficeInteraction(
     def translate(self) -> None:
         if not self.show_language:
             return
-        prompt_control = self.dlg.getControl("txt_prompt")
+        prompt_control = self.txt_prompt
         text = prompt_control.Text
         self.initial_prompt = text
         try:
@@ -716,10 +766,7 @@ class LibreOfficeInteraction(
         if element.Name not in ["int_width", "int_height"]:
             return
 
-        pixels = (
-            self.dlg.getControl("int_width").Value
-            * self.dlg.getControl("int_height").Value
-        )
+        pixels = self.int_width.Value * self.int_height.Value
         if pixels >= MAX_MP:
             element.Value = 64 * int(sqrt((pixels - MAX_MP)) / 64)
         self.validate_fields()
@@ -767,17 +814,17 @@ class LibreOfficeInteraction(
         """
         self.options.update(
             {
-                "prompt": self.dlg.getControl("txt_prompt").Text,
-                "image_width": self.dlg.getControl("int_width").Value,
-                "image_height": self.dlg.getControl("int_height").Value,
-                "model": self.dlg.getControl("lst_model").Text,
-                "prompt_strength": self.dlg.getControl("int_strength").Value,
-                "steps": self.dlg.getControl("int_steps").Value,
+                "prompt": self.txt_prompt.Text,
+                "image_width": self.int_width.Value,
+                "image_height": self.int_height.Value,
+                "model": self.lst_model.Text,
+                "prompt_strength": self.int_strength.Value,
+                "steps": self.int_steps.Value,
                 "nsfw": self.dlg.getControl("bool_nsfw").State == 1,
                 "censor_nsfw": self.dlg.getControl("bool_censure").State == 1,
-                "api_key": self.dlg.getControl("txt_token").Text or ANONYMOUS_KEY,
-                "max_wait_minutes": self.dlg.getControl("int_waiting").Value,
-                "seed": self.dlg.getControl("txt_seed").Text,
+                "api_key": self.ctrl_token.Text or ANONYMOUS_KEY,
+                "max_wait_minutes": self.int_waiting.Value,
+                "seed": self.txt_seed.Text,
             }
         )
 
@@ -845,36 +892,24 @@ class LibreOfficeInteraction(
         self.st_manager = st_manager
         dlg = self.dlg
         api_key = options.get("api_key", ANONYMOUS_KEY)
-        ctrl_token = dlg.getControl("txt_token")
-        ctrl_token.setText(api_key)
+        self.ctrl_token.Text = api_key
         if api_key == ANONYMOUS_KEY:
-            ctrl_token.setText("")
-            ctrl_token.getModel().TabIndex = 1
+            self.ctrl_token.Text = ""
+            self.ctrl_token.TabIndex = 1
 
-        choices = options.get("local_settings", {"models": MODELS}).get(
+        self.model_choices = options.get("local_settings", {"models": MODELS}).get(
             "models", MODELS
         )
-        choices = choices or MODELS
-        lst_rep_model = dlg.getControl("lst_model").getModel()
-        for i in range(len(choices)):
-            lst_rep_model.insertItemText(i, choices[i])
-        dlg.getControl("lst_model").Text = options.get("model", DEFAULT_MODEL)
+        self.model_choices = self.model_choices or MODELS
+        self.default_model = options.get("model", DEFAULT_MODEL)
 
-        dlg.getControl("txt_prompt").setText(self.selected or options.get("prompt", ""))
-        dlg.getControl("txt_seed").setText(options.get("seed", ""))
-        dlg.getControl("int_width").getModel().Value = options.get(
-            "image_width", DEFAULT_WIDTH
-        )
-        dlg.getControl("int_height").getModel().Value = options.get(
-            "image_height", DEFAULT_HEIGHT
-        )
-        dlg.getControl("int_strength").getModel().Value = options.get(
-            "prompt_strength", 6.3
-        )
-        dlg.getControl("int_steps").getModel().Value = options.get("steps", 25)
-        dlg.getControl("int_waiting").getModel().Value = options.get(
-            "max_wait_minutes", 15
-        )
+        self.txt_prompt.Text = self.selected or options.get("prompt", "")
+        self.txt_seed.Text = options.get("seed", "")
+        self.int_width.Value = options.get("image_width", DEFAULT_WIDTH)
+        self.int_height.Value = options.get("image_height", DEFAULT_HEIGHT)
+        self.int_strength.Value = options.get("prompt_strength", 6.3)
+        self.int_steps.Value = options.get("steps", 25)
+        self.int_waiting.Value = options.get("max_wait_minutes", 15)
         dlg.getControl("bool_nsfw").State = options.get("nsfw", 0)
         dlg.getControl("bool_censure").State = options.get("censor_nsfw", 1)
         dlg.getControl("bool_trans").State = 1
