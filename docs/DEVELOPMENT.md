@@ -12,10 +12,31 @@ good for everyone.
 As submodule is aihordeclient to avoid installing packages. It handles
 all the communication with aihorde.
 
+## Getting the sources for the first time
+
+```
+git clone --recurse-submodules https://github.com/ikks/libreoffice-stable-diffusion.git
+```
+
+[uv](https://docs.astral.sh/uv/) is used to prepare urllib3, which is
+vendored in the .oxt file.
 
 ## Help and resources
 
 ## Testing distribution, LibreOffice and flatpak
+
+It should be possible to run the script to show the dialog, this
+allows iterating a lot faster when building the interface.
+
+```
+python src/StableHordeForLibreOffice.py 
+``` 
+
+To create the oxt, type `make`, to prepare the languages,
+`make langs` is needed.  It's not included in make, because
+it tends to change due to line numbers changes.
+
+To build, install and launch libreoffice issue `make run`
 
 ### Linux
 
@@ -29,7 +50,7 @@ packages. Are installed in /opt/libreofficeYY.M/program/
 
 Linux distribution binaries are usually in /usr/bin
 
-Envvars can be changed with
+Envvars when running make can be changed with
 
 PREFIX : By default point to /usr/bin , can be changed to /opt/libre...
 UNOPKG : The name of the extension installer
@@ -55,6 +76,8 @@ Install apso and use the python console that comes with it, easier
 to get help from there.
 
 ### Some recipes
+
+* [WIP wiki](https://wiki.documentfoundation.org/User:Ikks/RawPython)
 
 #### Ways to get context
 
