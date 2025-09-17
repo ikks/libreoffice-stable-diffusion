@@ -1,4 +1,13 @@
 #!/bin/bash
+# MIT License 2025
+# Igor Támara <igor.tamara@gmail.com>
+
+if grep -E '^DEBUG = True$' src/StableHordeForLibreOffice.py >/dev/null; then
+  echo "\n   Watch out!!!! We do not want to release with DEBUG=True\n\n"
+  echo sed -e \'s/^DEBUG = True$/DEBUG = False/g\' src/StableHordeForLibreOffice.py 
+  exit 1
+fi
+
 VERSION=$(grep "VERSION = " src/StableHordeForLibreOffice.py | sed -E 's/VERSION = "(.+)"/\1/')
 
 XMLVER=$(grep "version value" oxt/description.xml | sed -E 's/.*"(.*)".*/\1/')
@@ -15,7 +24,7 @@ if [ "$VERSION" != "$XMLVER" ]; then
 fi
 
 CHANGE=$(grep "## \[$VERSION\] - " CHANGELOG.md | sed -E 's/.*\[(.*)].*/\1/')
-echo $CHANGE
+echo Currently $CHANGE
 if [ "$VERSION" != "$CHANGE" ]; then
   echo "hx CHANGELOG.md;git add CHANGELOG.md"
   echo "To update the Changelog"
@@ -31,9 +40,14 @@ fi
 
 ADVERTISING=$(grep '"version":' version.json | sed -E 's/.* "(.*)",/\1/')
 if [ "$VERSION" != "$ADVERTISING" ]; then
+  echo sed -i -E 's/version": ".*"/version": "'$VERSION'"/g' version.json "&& git add version.json && git commit -m \"Rollout version $VERSION\""
   echo "hx version.json"
-  echo "to update the advertised version.  It's ok to release, and later advertise, do:"
-  echo gh release create "$VERSION" && echo gh release upload "$VERSION" loshd.oxt 
+  echo "to update the advertised version.  It's ok to release, and later advertise"
+  RELEASED=$(gh release list -L 1 --json tagName | jq '.[0].tagName' | sed 's/"//g')
+  if [ "$VERSION" != "$RELEASED" ]; then
+    echo "    Time to:\n"
+    echo gh release create "$VERSION" && echo gh release upload "$VERSION" loshd.oxt
+  fi
   exit 1
 fi
 

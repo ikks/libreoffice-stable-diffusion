@@ -77,7 +77,7 @@ if TYPE_CHECKING:
     from com.sun.star.gallery import GalleryThemeProvider
 
 # Change the next line replacing False to True if you need to debug. Case matters
-DEBUG = True
+DEBUG = False
 
 VERSION = "0.8"
 
