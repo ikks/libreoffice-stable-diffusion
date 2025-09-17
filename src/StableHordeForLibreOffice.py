@@ -80,9 +80,9 @@ if TYPE_CHECKING:
     from com.sun.star.gallery import GalleryThemeProvider
 
 # Change the next line replacing False to True if you need to debug. Case matters
-DEBUG = False
+DEBUG = True
 
-VERSION = "0.8"
+VERSION = "0.9"
 
 import_message_error = None
 
@@ -268,7 +268,7 @@ class LibreOfficeInteraction(
             # If the selection is not text, let's wait for the user to write down
             self.selected = ""
 
-        self.DEFAULT_DLG_HEIGHT: int = 316
+        self.DEFAULT_DLG_HEIGHT: int = 218
         self.displacement: int = 180
         self.ok_btn: UnoControlButtonModel = None
         self.local_language: str = ""
@@ -393,16 +393,16 @@ class LibreOfficeInteraction(
         dc.addKeyListener(self)
 
         book: UnoControlTabPageContainerModel = create_widget(
-            dm, "TabPageContainer", "tab_book", (18, 115, 230, 130)
+            dm, "TabPageContainer", "tab_book", (18, 63, 233, 100)
         )
         page_ad: UnoControlTabPageModel = book.createTabPage(1)
         page_ad.Title = "✨ Generate"
         book.insertByIndex(0, page_ad)
         page_ux: UnoControlTabPageModel = book.createTabPage(2)
-        page_ux.Title = "🛠️ Configuration"
+        page_ux.Title = "🛠️ Configure"
         book.insertByIndex(1, page_ux)
         page_in: UnoControlTabPageModel = book.createTabPage(3)
-        page_in.Title = "👀 Information"
+        page_in.Title = "👀 About"
         book.insertByIndex(1, page_in)
         self.book: UnoControlTabPageContainerModel = dc.getControl("tab_book")
         dm.Name = "stablehordeoptions"
@@ -414,27 +414,44 @@ class LibreOfficeInteraction(
         dm.Moveable = True
         dm.Title = _("AI Horde for LibreOffice - ") + VERSION
 
-        create_widget(dm, "GroupBox", "framebox", (16, 9, 236, 165))
-        lbl = create_widget(dm, "FixedText", "label_prompt", (29, 31, 45, 13))
+        lbl = create_widget(dm, "FixedText", "label_prompt", (23, 21, 45, 13))
         lbl.Label = _("Prompt")
-        lbl = create_widget(page_ad, "FixedText", "label_height", (65, 25, 45, 13))
+        lbl = create_widget(
+            page_ad, "FixedText", "label_height", (125, 8, 48, 13), add_now=False
+        )
         lbl.Label = _("Height")
-        lbl = create_widget(page_ad, "FixedText", "label_width", (5, 25, 45, 13))
+        lbl = create_widget(
+            page_ad, "FixedText", "label_width", (5, 8, 48, 13), add_now=False
+        )
         lbl.Label = _("Width")
-        lbl = create_widget(page_ad, "FixedText", "label_model", (30, 45, 45, 13))
+        lbl = create_widget(
+            page_ad, "FixedText", "label_model", (5, 27, 48, 13), add_now=False
+        )
         lbl.Label = _("Model")
-        lbl = create_widget(page_ux, "FixedText", "label_max_wait", (65, 5, 45, 13))
+        lbl = create_widget(
+            page_ux, "FixedText", "label_max_wait", (5, 27, 48, 13), add_now=False
+        )
         lbl.Label = _("Max Wait")
-        lbl = create_widget(page_ad, "FixedText", "label_strength", (65, 65, 45, 13))
+        lbl = create_widget(
+            page_ad, "FixedText", "label_strength", (125, 46, 49, 13), add_now=False
+        )
         lbl.Label = _("Strength")
-        lbl = create_widget(page_ad, "FixedText", "label_steps", (65, 85, 45, 13))
+        lbl = create_widget(
+            page_ad, "FixedText", "label_steps", (5, 46, 49, 13), add_now=False
+        )
         lbl.Label = _("Steps")
-        lbl = create_widget(page_ad, "FixedText", "label_seed", (35, 85, 49, 13))
+        lbl = create_widget(
+            page_ad, "FixedText", "label_seed", (125, 27, 49, 13), add_now=False
+        )
         lbl.Label = _("Seed (Optional)")
-        lbl = create_widget(page_ux, "FixedText", "label_token", (65, 35, 49, 13))
+        lbl = create_widget(
+            page_ux, "FixedText", "label_token", (5, 7, 48, 10), add_now=False
+        )
         lbl.Label = _("ApiKey (Optional)")
         if DEBUG:
-            ctrl = create_widget(page_ux, "FixedText", "lbl_debug", (5, 45, 50, 10))
+            ctrl = create_widget(
+                page_ux, "FixedText", "lbl_debug", (155, 65, 50, 10), add_now=False
+            )
             ctrl.Label = f"📜 {log_file}"
             ctrl.HelpText = (
                 _(
@@ -482,9 +499,9 @@ class LibreOfficeInteraction(
             "ComboBox",
             "lst_model",
             (
-                60,
-                80,
-                79,
+                40,
+                23,
+                69,
                 15,
             ),
             add_now=False,
@@ -513,20 +530,22 @@ class LibreOfficeInteraction(
         Write at least 5 words or 10 characters.""")
 
         self.ctrl_token = create_widget(
-            page_ux, "Edit", "txt_token", (155, 147, 92, 13)
+            page_ux, "Edit", "txt_token", (70, 5, 52, 10), add_now=False
         )
         self.ctrl_token.TabIndex = 11
         self.ctrl_token.HelpText = _("""        Get yours at https://aihorde.net/ for free. Recommended:
         Anonymous users are last in the queue.""")
 
-        self.txt_seed = create_widget(page_ad, "Edit", "txt_seed", (155, 128, 92, 13))
+        self.txt_seed = create_widget(
+            page_ad, "Edit", "txt_seed", (175, 25, 48, 10), add_now=False
+        )
         self.txt_seed.TabIndex = 2
         self.txt_seed.HelpText = _(
             "Set a seed to regenerate (reproducible), or it'll be chosen at random by the worker."
         )
 
         self.int_width = create_widget(
-            page_ad, "NumericField", "int_width", (91, 63, 48, 13), add_now=False
+            page_ad, "NumericField", "int_width", (60, 5, 48, 13), add_now=False
         )
         self.int_width.DecimalAccuracy = 0
         self.int_width.ValueMin = MIN_WIDTH
@@ -540,7 +559,7 @@ class LibreOfficeInteraction(
         )
 
         self.int_strength = create_widget(
-            page_ad, "NumericField", "int_strength", (91, 97, 48, 13), add_now=False
+            page_ad, "NumericField", "int_strength", (175, 43, 48, 13), add_now=False
         )
         self.int_strength.ValueMin = 0
         self.int_strength.ValueMax = 20
@@ -558,10 +577,10 @@ class LibreOfficeInteraction(
             "NumericField",
             "int_height",
             (
-                200,
-                63,
+                175,
+                7,
                 48,
-                13,
+                10,
             ),
             add_now=False,
         )
@@ -581,9 +600,9 @@ class LibreOfficeInteraction(
             "NumericField",
             "int_waiting",
             (
-                200,
-                80,
-                48,
+                70,
+                25,
+                52,
                 13,
             ),
             add_now=False,
@@ -603,8 +622,8 @@ class LibreOfficeInteraction(
             "NumericField",
             "int_steps",
             (
-                200,
-                97,
+                60,
+                43,
                 48,
                 13,
             ),
@@ -622,7 +641,7 @@ class LibreOfficeInteraction(
         or higher sampler (anything with dpmpp is second order)""")
 
         ctrl: UnoControlCheckBoxModel = create_widget(
-            dm, "CheckBox", "bool_trans", (29, 45, 30, 10)
+            dm, "CheckBox", "bool_trans", (29, 40, 30, 10)
         )
         ctrl.Label = "🌏"
         ctrl.HelpText = _("""           Translate the prompt to English, wishing for the best.  If the result is not
@@ -631,17 +650,21 @@ class LibreOfficeInteraction(
         if self.show_language:
             ctrl.TabIndex = 2
 
-        ctrl = create_widget(dm, "CheckBox", "bool_nsfw", (29, 130, 55, 10))
-        ctrl.Label = _("NSFW")
-        ctrl.TabIndex = 9
-        ctrl.HelpText = _("""        Whether or not your image is intended to be NSFW. May
+        self.bool_nsfw = create_widget(
+            page_ad, "CheckBox", "bool_nsfw", (110, 63, 55, 10), add_now=False
+        )
+        self.bool_nsfw.Label = _("NSFW")
+        self.bool_nsfw.TabIndex = 9
+        self.bool_nsfw.HelpText = _("""        Whether or not your image is intended to be NSFW. May
         reduce generation speed (workers can choose if they wish
         to take nsfw requests)""")
 
-        ctrl = create_widget(dm, "CheckBox", "bool_censure", (29, 145, 55, 10))
-        ctrl.Label = _("Censor NSFW")
-        ctrl.TabIndex = 10
-        ctrl.HelpText = _("""        Separate from the NSFW flag, should workers
+        self.bool_censure = create_widget(
+            page_ad, "CheckBox", "bool_censure", (160, 63, 55, 10), add_now=False
+        )
+        self.bool_censure.Label = _("Censor NSFW")
+        self.bool_censure.TabIndex = 10
+        self.bool_censure.HelpText = _("""        Separate from the NSFW flag, should workers
         return nsfw images. Censorship is implemented to be safe
         and overcensor rather than risk returning unwanted NSFW.""")
 
@@ -665,6 +688,7 @@ class LibreOfficeInteraction(
 
     def show_ui(self):
         self.dlg.setVisible(True)
+        self.book.ActiveTabPageID = 1
         for pair in self.insert_in:
             pair[0].insertByName(pair[1].Name, pair[1])
         self.book.getTabPageByID(1).getControl("int_width").addTextListener(self)
@@ -694,9 +718,7 @@ class LibreOfficeInteraction(
         btn = self.dlg.getControl("btn_toggle")
         hlp = self.dlg.getControl("btn_help")
         prg = self.dlg.getControl("prog_status")
-        frame = self.dlg.getControl("framebox")
         if size.Height == self.DEFAULT_DLG_HEIGHT:
-            frame.setVisible(False)
             self.dlg.setPosSize(size.X, size.Y, size.Height, 30, PosSize.HEIGHT)
             size = lbl.getPosSize()
             lbl.setPosSize(
@@ -734,7 +756,6 @@ class LibreOfficeInteraction(
             prg.setPosSize(
                 size.X, size.Y + self.displacement, size.Height, size.Width, PosSize.Y
             )
-            frame.setVisible(True)
 
     def validate_fields(self) -> None:
         if self.in_progress:
@@ -820,8 +841,8 @@ class LibreOfficeInteraction(
                 "model": self.lst_model.Text,
                 "prompt_strength": self.int_strength.Value,
                 "steps": self.int_steps.Value,
-                "nsfw": self.dlg.getControl("bool_nsfw").State == 1,
-                "censor_nsfw": self.dlg.getControl("bool_censure").State == 1,
+                "nsfw": self.bool_nsfw.State == 1,
+                "censor_nsfw": self.bool_censure.State == 1,
                 "api_key": self.ctrl_token.Text or ANONYMOUS_KEY,
                 "max_wait_minutes": self.int_waiting.Value,
                 "seed": self.txt_seed.Text,
@@ -831,7 +852,7 @@ class LibreOfficeInteraction(
         return self
 
     def start_processing(self) -> None:
-        self.dlg.getControl("btn_ok").getModel().Enabled = False
+        self.ok_btn.Enabled = False
         self.dlg.getControl("btn_toggle").setVisible(True)
         cancel_button = self.dlg.getControl("btn_cancel")
         cancel_button.setLabel(_("Close"))
@@ -904,14 +925,13 @@ class LibreOfficeInteraction(
         self.default_model = options.get("model", DEFAULT_MODEL)
 
         self.txt_prompt.Text = self.selected or options.get("prompt", "")
-        self.txt_seed.Text = options.get("seed", "")
         self.int_width.Value = options.get("image_width", DEFAULT_WIDTH)
         self.int_height.Value = options.get("image_height", DEFAULT_HEIGHT)
         self.int_strength.Value = options.get("prompt_strength", 6.3)
         self.int_steps.Value = options.get("steps", 25)
         self.int_waiting.Value = options.get("max_wait_minutes", 15)
-        dlg.getControl("bool_nsfw").State = options.get("nsfw", 0)
-        dlg.getControl("bool_censure").State = options.get("censor_nsfw", 1)
+        self.bool_nsfw.State = options.get("nsfw", 0)
+        self.bool_censure.State = options.get("censor_nsfw", 1)
         dlg.getControl("bool_trans").State = 1
 
     def free(self):
