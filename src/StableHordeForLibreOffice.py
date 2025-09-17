@@ -1285,9 +1285,8 @@ if __name__ == "__main__":
 
 
 # TODO:
-# Great you are here looking at this, take a look at docs/CONTRIBUTING.md
+# Great!!! you are here looking at this, take a look at docs/CONTRIBUTING.md
 # * [X] Store retrieved images in the gallery
-# * [ ] Make the extension appear in the Extension tabs
 # --- 0.8
 # * [ ] When something fails in the middle, it's possible to show an URL to allow to recover the generated image by hand
 # * [ ] Use TabPage for generate images, UX and information

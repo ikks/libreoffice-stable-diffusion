@@ -10,6 +10,12 @@ This project is [semver](https://semver.org/) based
 
 * From this version the generated images are stored under the
   storage directory. The images can be reused through the gallery.
+* Seed is recovered from horde in case not stated when generation
+  happened
+
+### Changed
+
+* Removed scriptforge dependency
 
 ## [0.7.1] - Automatic pretranslation
 

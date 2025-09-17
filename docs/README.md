@@ -17,12 +17,11 @@ changes.
 
 ### If you are on Linux Debian based Distribution
 
-Please first install libreoffice-script-provider-python and
-python3-scriptforge with your preferred package manager, alternatively
-you can issue:
+Please first install `libreoffice-script-provider-python`
+with your preferred package manager, alternatively you can issue:
 
 ```
-sudo apt install -y libreoffice-script-provider-python python3-scriptforge
+sudo apt install -y libreoffice-script-provider-python
 ```
 
 ### Download the extension 
@@ -145,6 +144,7 @@ Errors look usually like
 
 <img width="656" height="512" alt="da" src="https://github.com/user-attachments/assets/9092e297-2516-42a7-a4ec-65d127b94600" />
 
+The dependency was removed starting from 0.8.0
 
 ##### macOS
 
