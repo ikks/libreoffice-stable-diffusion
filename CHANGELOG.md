@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 This project is [semver](https://semver.org/) based
 
+## [0.9] - Frame and information
+
+### Added
+
+* Using tabs to simplify configuration
+* Added tab for information
+* Added toggle to store in the gallery
+* Is possible to see the runnning system config
+* Is possible to go to the path where te images are stored
+
+### Changed
+
+* The waiting time configuration was moved to an additional panel
+* Api key is masked once it has been used
+
 ## [0.8] - Gallery support
 
 ### Added
