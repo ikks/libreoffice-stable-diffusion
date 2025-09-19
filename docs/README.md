@@ -154,7 +154,7 @@ The dependency was removed starting from 0.8.0
 
 **How do I report an error or request a new feature?** Please open
 a new issue [here](https://github.com/ikks/libreoffice-stable-diffusion/issues).
-If you have questions, head to [Discord](https://discord.com/channels/781145214752129095/1401005281332433057).
+If you have questions, head to [Discord](https://discord.gg/PmxqTjUB).
 
 **How do I get the latest extension?** Sometimes we are ahead of the
 [stable extension](https://extensions.libreoffice.org/en/extensions/show/99431)
