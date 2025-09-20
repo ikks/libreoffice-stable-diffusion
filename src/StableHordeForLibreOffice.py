@@ -24,29 +24,29 @@ import platform
 import shutil
 import sys
 import tempfile
+import time
 import uno
 import unohelper
 import webbrowser
 
-from collections import OrderedDict
-from com.sun.star.awt import Point
-from com.sun.star.awt import PosSize
-from com.sun.star.awt import Size
-from com.sun.star.awt import XActionListener
-from com.sun.star.awt import XFocusListener
 from com.sun.star.awt import ActionEvent
 from com.sun.star.awt import FocusEvent
 from com.sun.star.awt import KeyEvent
 from com.sun.star.awt import MessageBoxButtons as mbb
 from com.sun.star.awt import MessageBoxResults as mbr
-from com.sun.star.awt.MessageBoxType import MESSAGEBOX
-from com.sun.star.awt.MessageBoxType import WARNINGBOX
+from com.sun.star.awt import Point
+from com.sun.star.awt import PosSize
+from com.sun.star.awt import Size
 from com.sun.star.awt import SpinEvent
 from com.sun.star.awt import TextEvent
+from com.sun.star.awt import XActionListener
+from com.sun.star.awt import XFocusListener
 from com.sun.star.awt import XKeyListener
 from com.sun.star.awt import XSpinListener
 from com.sun.star.awt import XTextListener
 from com.sun.star.awt.Key import ESCAPE
+from com.sun.star.awt.MessageBoxType import MESSAGEBOX
+from com.sun.star.awt.MessageBoxType import WARNINGBOX
 from com.sun.star.beans import PropertyExistException
 from com.sun.star.beans import PropertyValue
 from com.sun.star.beans import UnknownPropertyException
@@ -54,32 +54,43 @@ from com.sun.star.beans.PropertyAttribute import TRANSIENT
 from com.sun.star.datatransfer import DataFlavor
 from com.sun.star.datatransfer import XTransferable
 from com.sun.star.document import XEventListener
-from com.sun.star.uno import XComponentContext
 from com.sun.star.task import XJobExecutor
 from com.sun.star.text.TextContentAnchorType import AS_CHARACTER
+from com.sun.star.text.TextContentAnchorType import AT_FRAME
+from com.sun.star.uno import XComponentContext
 
+from collections import OrderedDict
 from collections.abc import Iterable
 from math import sqrt
 from pathlib import Path
-from typing import Any, Dict, List, TYPE_CHECKING, Union
+from typing import Any, Dict, List, TYPE_CHECKING, Tuple, Union
+from threading import Thread
 
 if TYPE_CHECKING:
-    from com.sun.star.awt import UnoControlDialog
+    from com.sun.star.awt import ExtToolkit
+    from com.sun.star.awt import Toolkit
     from com.sun.star.awt import UnoControlButtonModel
+    from com.sun.star.awt import UnoControlCheckBoxModel
+    from com.sun.star.awt import UnoControlComboBoxModel
+    from com.sun.star.awt import UnoControlDialog
+    from com.sun.star.awt import UnoControlDialogModel
     from com.sun.star.awt import UnoControlEditModel
+    from com.sun.star.awt import UnoControlFixedHyperlinkModel
+    from com.sun.star.awt import UnoControlFixedTextModel
+    from com.sun.star.awt import UnoControlModel
+    from com.sun.star.awt import UnoControlNumericFieldModel
+    from com.sun.star.awt.tab import UnoControlTabPageContainerModel
+    from com.sun.star.awt.tab import UnoControlTabPageModel
     from com.sun.star.frame import Desktop
     from com.sun.star.frame import DispatchHelper
-    from com.sun.star.awt import Toolkit
-    from com.sun.star.awt import ExtToolkit
-    from com.sun.star.awt import UnoControlDialogModel
-    from com.sun.star.awt import UnoControlCheckBoxModel
     from com.sun.star.gallery import GalleryTheme
     from com.sun.star.gallery import GalleryThemeProvider
+    from com.sun.star.datatransfer.clipboard import SystemClipboard
 
 # Change the next line replacing False to True if you need to debug. Case matters
 DEBUG = False
 
-VERSION = "0.8"
+VERSION = "0.9"
 
 import_message_error = None
 
@@ -117,7 +128,9 @@ from aihordeclient import (  # noqa: E402
     MAX_HEIGHT,
     MODELS,
     OPUSTM_SOURCE_LANGUAGES,
+    REGISTER_AI_HORDE_URL,
 )
+
 from aihordeclient import (  # noqa: E402
     AiHordeClient,
     InformerFrontend,
@@ -142,6 +155,8 @@ URL_DOWNLOAD = "https://extensions.libreoffice.org/en/extensions/show/99431"
 Download URL for libreoffice-stable-diffusion
 """
 
+URL_MODEL_SHOWCASE = "https://artbot.site/info/models"
+
 HORDE_CLIENT_NAME = "AiHordeForLibreOffice"
 """
 Name of the client sent to API
@@ -155,20 +170,6 @@ CLIPBOARD_TEXT_FORMAT = "text/plain;charset=utf-16"
 # gettext usual alias for i18n
 _ = gettext.gettext
 gettext.textdomain(GETTEXT_DOMAIN)
-
-
-# def popup_click(poEvent: uno = None) -> None:
-#     """
-#     Intended for popup
-#     """
-#     if poEvent is None:
-#         return
-#     my_popup = CreateScriptService("SFWidgets.PopupMenu", poEvent)
-#     my_popup.AddItem(_("Generate Image"))
-#     # Populate popupmenu with items
-#     response = my_popup.Execute()
-#     logger.debug(response)
-#     my_popup.Dispose()
 
 
 class DataTransferable(unohelper.Base, XTransferable):
@@ -198,6 +199,53 @@ class DataTransferable(unohelper.Base, XTransferable):
         return flavor.MimeType in self.data.keys()
 
 
+def create_widget(
+    container,
+    typename: str,
+    identifier: str,
+    rect: Tuple[int, int, int, int],
+    add_now: bool = True,
+    additional_properties: List[Tuple[str, Any]] = None,
+    insert_later: List[Tuple[Any, Any]] = None,
+):
+    """
+    Adds to the dlg a control Model, with the identifier, positioned with
+    widthxheight, and put it inside container For typename see UnoControl* at
+    https://api.libreoffice.org/docs/idl/ref/namespacecom_1_1sun_1_1star_1_1awt.html
+    """
+
+    if typename.startswith("TabPage"):
+        cmpt_type = f"com.sun.star.awt.tab.UnoControl{typename}Model"
+    else:
+        cmpt_type = f"com.sun.star.awt.UnoControl{typename}Model"
+
+    cmpt: UnoControlModel = container.createInstance(cmpt_type)
+    cmpt.setPropertyValues(
+        [
+            "Name",
+            "PositionX",
+            "PositionY",
+            "Width",
+            "Height",
+        ],
+        [
+            identifier,
+            rect[0],
+            rect[1],
+            rect[2],
+            rect[3],
+        ],
+    )
+    if add_now:
+        container.insertByName(identifier, cmpt)
+    else:
+        insert_later.append((container, cmpt))
+
+    if additional_properties:
+        cmpt.setPropertyValues(*zip(*additional_properties))
+    return cmpt
+
+
 class LibreOfficeInteraction(
     unohelper.Base,
     InformerFrontend,
@@ -225,6 +273,11 @@ class LibreOfficeInteraction(
         self.context = context
         self.cp = self.context.getServiceManager().createInstanceWithContext(
             "com.sun.star.configuration.ConfigurationProvider", self.context
+        )
+        self.clipboard: SystemClipboard = (
+            self.context.getServiceManager().createInstanceWithContext(
+                "com.sun.star.datatransfer.clipboard.SystemClipboard", self.context
+            )
         )
 
         # Allows to store the URL of the image in case of an error
@@ -279,13 +332,14 @@ class LibreOfficeInteraction(
             # If the selection is not text, let's wait for the user to write down
             self.selected = ""
 
-        self.DEFAULT_DLG_HEIGHT: int = 216
+        self.DEFAULT_DLG_HEIGHT: int = 220
+        self.PASSWORD_MASK = 42
         self.displacement: int = 180
         self.ok_btn: UnoControlButtonModel = None
         self.local_language: str = ""
         self.initial_prompt: str = ""
         self.dlg: UnoControlDialog = self.__create_dialog__()
-        self.options: Dict[str, Any] = {}
+        self.options: Dict[str, Any] = {"api_key": ANONYMOUS_KEY}
         self.progress: float = 0.0
 
     def get_configuration_value(
@@ -339,34 +393,30 @@ class LibreOfficeInteraction(
         return self.get_configuration_value("ooLocale", "L10N")
 
     def __create_dialog__(self):
-        def create_widget(
-            dlg,
+        def add_widget(
+            container,
             typename: str,
             identifier: str,
-            x: int,
-            y: int,
-            width: int,
-            height: int,
-            container=None,
+            rect: Tuple[int, int, int, int],
+            add_now: bool = True,
+            additional_properties: List[Tuple[str, Any]] = None,
         ):
             """
-            Adds to the dlg a control Model, with the identifier, positioned with
-            widthxheight, and put it inside container For typename see UnoControl* at
+            Adds to the container a control Model, with the identifier, positioned with
+            widthxheight, and put it inside container if add_nos is True, the properties are added. For typename see UnoControl* at
             https://api.libreoffice.org/docs/idl/ref/namespacecom_1_1sun_1_1star_1_1awt.html
             """
-            if not container:
-                container = dlg
+            return create_widget(
+                container,
+                typename,
+                identifier,
+                rect,
+                add_now,
+                additional_properties,
+                self.insert_in,
+            )
 
-            cmpt_type = f"com.sun.star.awt.UnoControl{typename}Model"
-            cmpt = dlg.createInstance(cmpt_type)
-            cmpt.Name = identifier
-            cmpt.PositionX = str(x)
-            cmpt.PositionY = str(y)
-            cmpt.Width = width
-            cmpt.Height = height
-            container.insertByName(identifier, cmpt)
-            return cmpt
-
+        self.insert_in = []
         current_language = self.get_language()
         self.show_language = current_language in OPUSTM_SOURCE_LANGUAGES
         if self.show_language:
@@ -382,8 +432,24 @@ class LibreOfficeInteraction(
             "com.sun.star.awt.UnoControlDialogModel"
         )
         dc.setModel(dm)
+        dc.createPeer(self.extoolkit, None)
         dc.addKeyListener(self)
 
+        book: UnoControlTabPageContainerModel = add_widget(
+            dm, "TabPageContainer", "tab_book", (18, 63, 233, 100)
+        )
+        page_ad: UnoControlTabPageModel = book.createTabPage(1)
+        page_ad.Title = "✨ " + _("Generate")
+        book.insertByIndex(0, page_ad)
+        page_ux: UnoControlTabPageModel = book.createTabPage(2)
+        page_ux.Title = "🛠️ " + _("Configure")
+        book.insertByIndex(1, page_ux)
+        page_in: UnoControlTabPageModel = book.createTabPage(3)
+        page_in.Title = "💬 " + _("About")
+        book.insertByIndex(1, page_in)
+        self.book: UnoControlTabPageContainerModel = dc.getControl("tab_book")
+
+        # Dialog placement
         dm.Name = "stablehordeoptions"
         dm.PositionX = "47"
         dm.PositionY = "10"
@@ -393,38 +459,43 @@ class LibreOfficeInteraction(
         dm.Moveable = True
         dm.Title = _("AI Horde for LibreOffice - ") + VERSION
 
-        create_widget(dm, "GroupBox", "framebox", 16, 9, 236, 165)
-        lbl = create_widget(dm, "FixedText", "label_prompt", 29, 31, 45, 13)
+        lbl = add_widget(dm, "FixedText", "label_prompt", (28, 18, 48, 10))
         lbl.Label = _("Prompt")
-        lbl = create_widget(dm, "FixedText", "label_height", 155, 65, 45, 13)
-        lbl.Label = _("Height")
-        lbl = create_widget(dm, "FixedText", "label_width", 29, 65, 45, 13)
-        lbl.Label = _("Width")
-        lbl = create_widget(dm, "FixedText", "label_model", 29, 82, 45, 13)
-        lbl.Label = _("Model")
-        lbl = create_widget(dm, "FixedText", "label_max_wait", 155, 82, 45, 13)
-        lbl.Label = _("Max Wait")
-        lbl = create_widget(dm, "FixedText", "label_strength", 29, 99, 45, 13)
-        lbl.Label = _("Strength")
-        lbl = create_widget(dm, "FixedText", "label_steps", 155, 99, 45, 13)
-        lbl.Label = _("Steps")
-        lbl = create_widget(dm, "FixedText", "label_seed", 96, 130, 49, 13)
-        lbl.Label = _("Seed (Optional)")
-        lbl = create_widget(dm, "FixedText", "label_token", 96, 149, 49, 13)
-        lbl.Label = _("ApiKey (Optional)")
-        if DEBUG:
-            ctrl = create_widget(dm, "FixedText", "lbl_debug", 19, 162, 50, 10)
-            ctrl.Label = f"📜 {log_file}"
-            ctrl.HelpText = (
-                _(
-                    "You are debugging, make sure opening LibreOffice from the command line. Consider using"
-                )
-                + f"\n\n   tailf { log_file }"
-            )
+        self.bool_trans: UnoControlCheckBoxModel = add_widget(
+            dm, "CheckBox", "bool_trans", (29, 33, 30, 10)
+        )
+        self.bool_trans.Label = "🌏"
+        self.bool_trans.HelpText = _("""           Translate the prompt to English, wishing for the best.  If the result is not
+        the expected, try toggling or changing the model""")
 
-        # Buttons
-        button_ok: UnoControlButtonModel = create_widget(
-            dm, "Button", "btn_ok", 73, 182, 49, 13
+        if self.show_language:
+            self.bool_trans.TabIndex = 2
+        else:
+            self.bool_trans.Tabstop = False
+        self.bool_trans = dc.getControl(self.bool_trans.Name)
+        self.bool_trans.setVisible(self.show_language)
+
+        self.txt_prompt: UnoControlEditModel = add_widget(
+            dm,
+            "Edit",
+            "txt_prompt",
+            (
+                60,
+                16,
+                188,
+                42,
+            ),
+            add_now=False,
+        )
+        self.txt_prompt.MultiLine = True
+        self.txt_prompt.TabIndex = 1
+        self.txt_prompt.HelpText = _("""        Let your imagination run wild or put a proper description of your
+        desired output. Use full grammar for Flux, use tag-like language
+        for sd15, use short phrases for sdxl.
+        Write at least 5 words or 10 characters.""")
+
+        button_ok: UnoControlButtonModel = add_widget(
+            dm, "Button", "btn_ok", (73, 186, 49, 13)
         )
         button_ok.Label = _("Process")
         button_ok.TabIndex = 4
@@ -433,218 +504,344 @@ class LibreOfficeInteraction(
         btn_ok.setActionCommand("btn_ok_OnClick")
         self.ok_btn: UnoControlButtonModel = button_ok
 
-        button_cancel = create_widget(dm, "Button", "btn_cancel", 145, 182, 49, 13)
+        button_cancel = add_widget(dm, "Button", "btn_cancel", (145, 186, 49, 13))
         button_cancel.Label = _("Cancel")
         button_cancel.TabIndex = 13
         btn_cancel = dc.getControl("btn_cancel")
         btn_cancel.addActionListener(self)
         btn_cancel.setActionCommand("btn_cancel_OnClick")
 
-        button_help = create_widget(dm, "Button", "btn_help", 250, 204, 13, 10)
-        button_help.Label = "?"
-        button_help.HelpText = _("About Horde")
-        button_help.TabIndex = 14
-        btn_help = dc.getControl("btn_help")
-        btn_help.addActionListener(self)
-        btn_help.setActionCommand("btn_help_OnClick")
-
-        button_toggle = create_widget(dm, "Button", "btn_toggle", 2, 204, 12, 10)
-        button_toggle.Label = "_"
-        button_toggle.HelpText = _("Toggle")
-        button_toggle.TabIndex = 15
-        dc.getControl("btn_toggle").addActionListener(self)
-        dc.getControl("btn_toggle").setActionCommand("btn_toggle_OnClick")
-
-        # Controls
-        ctrl = create_widget(
-            dm,
-            "ComboBox",
-            "lst_model",
-            60,
-            80,
-            79,
-            15,
+        self.ctrl_token: UnoControlEditModel = add_widget(
+            dm, "Edit", "txt_token", (170, 168, 80, 10), add_now=False
         )
-        ctrl.TabIndex = 3
-        ctrl.Dropdown = True
-        ctrl.LineCount = 10
-
-        ctrl: UnoControlEditModel = create_widget(
-            dm,
-            "Edit",
-            "txt_prompt",
-            60,
-            16,
-            188,
-            42,
-        )
-        ctrl.MultiLine = True
-        ctrl.TabIndex = 1
-        ctrl.HelpText = _("""        Let your imagination run wild or put a proper description of your
-        desired output. Use full grammar for Flux, use tag-like language
-        for sd15, use short phrases for sdxl.
-        Write at least 5 words or 10 characters.""")
-        dc.getControl("txt_prompt").addTextListener(self)
-        dc.getControl("txt_prompt").addKeyListener(self)
-
-        ctrl = create_widget(dm, "Edit", "txt_token", 155, 147, 92, 13)
-        ctrl.TabIndex = 11
-        ctrl.HelpText = _("""        Get yours at https://aihorde.net/ for free. Recommended:
+        self.ctrl_token.TabIndex = 11
+        self.ctrl_token.HelpText = _("""        Get yours at https://aihorde.net/ for free. Recommended:
         Anonymous users are last in the queue.""")
+        self.ctrl_token.EchoChar = self.PASSWORD_MASK
 
-        ctrl = create_widget(dm, "Edit", "txt_seed", 155, 128, 92, 13)
-        ctrl.TabIndex = 2
-        ctrl.HelpText = _(
-            "Set a seed to regenerate (reproducible), or it'll be chosen at random by the worker."
+        self.lbl_view_pass: UnoControlFixedHyperlinkModel = add_widget(
+            dm, "FixedHyperlink", "lbl_view_pass", (241, 168, 10, 10)
         )
+        self.lbl_view_pass.Label = "👀"
+        self.lbl_view_pass.HelpText = _("""Click to view your AiHorde API Key""")
+        dc.getControl("lbl_view_pass").addActionListener(self)
 
-        ctrl = create_widget(dm, "NumericField", "int_width", 91, 63, 48, 13)
-        ctrl.DecimalAccuracy = 0
-        ctrl.ValueMin = MIN_WIDTH
-        ctrl.ValueMax = MAX_WIDTH
-        ctrl.ValueStep = 64
-        ctrl.Spin = True
-        ctrl.Value = DEFAULT_WIDTH
-        ctrl.TabIndex = 5
-        ctrl.HelpText = _(
-            "Height and Width together at most can be 2048x2048=4194304 pixels"
+        self.btn_toggle: UnoControlButtonModel = add_widget(
+            dm, "Button", "btn_toggle", (2, 208, 12, 10)
         )
-        dc.getControl("int_width").addTextListener(self)
-        dc.getControl("int_width").addSpinListener(self)
-        dc.getControl("int_width").addFocusListener(self)
+        self.btn_toggle.Label = "_"
+        self.btn_toggle.HelpText = _("Toggle")
+        self.btn_toggle.TabIndex = 15
 
-        ctrl = create_widget(dm, "NumericField", "int_strength", 91, 97, 48, 13)
-        ctrl.ValueMin = 0
-        ctrl.ValueMax = 20
-        ctrl.ValueStep = 0.5
-        ctrl.DecimalAccuracy = 2
-        ctrl.Spin = True
-        ctrl.Value = 15
-        ctrl.TabIndex = 7
-        ctrl.HelpText = _("""        How strongly the AI follows the prompt vs how much creativity to allow it.
-        Set to 1 for Flux, use 2-4 for LCM and lightning, 5-7 is common for SDXL
-        models, 6-9 is common for sd15.""")
+        self.btn_toggle = dc.getControl("btn_toggle")
+        self.btn_toggle.addActionListener(self)
+        self.btn_toggle.setActionCommand("btn_toggle_OnClick")
 
-        ctrl = create_widget(
-            dm,
-            "NumericField",
-            "int_height",
-            200,
-            63,
-            48,
-            13,
-        )
-        ctrl.DecimalAccuracy = 0
-        ctrl.ValueMin = MIN_HEIGHT
-        ctrl.ValueMax = MAX_HEIGHT
-        ctrl.ValueStep = 64
-        ctrl.Spin = True
-        ctrl.Value = DEFAULT_HEIGHT
-        ctrl.TabIndex = 6
-        ctrl.HelpText = _(
-            "Height and Width together at most can be 2048x2048=4194304 pixels"
-        )
-        dc.getControl("int_height").addTextListener(self)
-        dc.getControl("int_height").addSpinListener(self)
-        dc.getControl("int_height").addFocusListener(self)
-
-        ctrl = create_widget(
-            dm,
-            "NumericField",
-            "int_waiting",
-            200,
-            80,
-            48,
-            13,
-        )
-        ctrl.ValueMin = 1
-        ctrl.ValueMax = 15
-        ctrl.Spin = True
-        ctrl.DecimalAccuracy = 0
-        ctrl.Value = 5
-        ctrl.TabIndex = 8
-        ctrl.HelpText = _("""        How long to wait(minutes) for your generation to complete.
-        Depends on number of workers and user priority (more
-        kudos = more priority. Anonymous users are last)""")
-
-        ctrl = create_widget(
-            dm,
-            "NumericField",
-            "int_steps",
-            200,
-            97,
-            48,
-            13,
-        )
-        ctrl.ValueMin = 1
-        ctrl.ValueMax = 150
-        ctrl.Spin = True
-        ctrl.ValueStep = 10
-        ctrl.DecimalAccuracy = 0
-        ctrl.Value = 25
-        ctrl.TabIndex = 7
-        ctrl.HelpText = _("""        How many sampling steps to perform for generation. Should
-        generally be at least double the CFG unless using a second-order
-        or higher sampler (anything with dpmpp is second order)""")
-
-        ctrl: UnoControlCheckBoxModel = create_widget(
-            dm, "CheckBox", "bool_trans", 29, 45, 30, 10
-        )
-        ctrl.Label = "🌏"
-        ctrl.HelpText = _("""           Translate the prompt to English, wishing for the best.  If the result is not
-        the expected, try toggling or changing the model""")
-
-        if self.show_language:
-            ctrl.TabIndex = 2
-
-        ctrl = create_widget(dm, "CheckBox", "bool_nsfw", 29, 130, 55, 10)
-        ctrl.Label = _("NSFW")
-        ctrl.TabIndex = 9
-        ctrl.HelpText = _("""        Whether or not your image is intended to be NSFW. May
-        reduce generation speed (workers can choose if they wish
-        to take nsfw requests)""")
-
-        ctrl = create_widget(dm, "CheckBox", "bool_censure", 29, 145, 55, 10)
-        ctrl.Label = _("Censor NSFW")
-        ctrl.TabIndex = 10
-        ctrl.HelpText = _("""        Separate from the NSFW flag, should workers
-        return nsfw images. Censorship is implemented to be safe
-        and overcensor rather than risk returning unwanted NSFW.""")
-
-        lbl = create_widget(dm, "FixedText", "label_progress", 20, 205, 150, 10)
+        lbl = add_widget(dm, "FixedText", "label_progress", (20, 208, 150, 10))
         lbl.Label = ""
-        ctrl = create_widget(
+        self.progress_label = lbl
+
+        self.progress_meter = add_widget(
             dm,
             "ProgressBar",
             "prog_status",
-            14,
-            203,
-            235,
-            13,
+            (
+                14,
+                206,
+                250,
+                13,
+            ),
         )
-        self.progress_label = lbl
-        self.progress_meter = ctrl
+
+        # Main page placement
+        lbl = add_widget(
+            page_ad, "FixedText", "label_height", (125, 8, 48, 13), add_now=False
+        )
+        lbl.Label = _("Height")
+        lbl = add_widget(
+            page_ad, "FixedText", "label_width", (5, 8, 48, 13), add_now=False
+        )
+        lbl.Label = _("Width")
+        lbl = add_widget(
+            page_ad, "FixedHyperlink", "label_model", (5, 27, 48, 13), add_now=False
+        )
+        lbl.Label = _("Model")
+        lbl.URL = URL_MODEL_SHOWCASE
+        lbl = add_widget(
+            page_ad,
+            "FixedText",
+            "label_strength",
+            (125, 46, 49, 13),
+            add_now=False,
+        )
+        lbl.Label = _("Strength")
+        lbl = add_widget(
+            page_ad, "FixedText", "label_steps", (5, 46, 49, 13), add_now=False
+        )
+        lbl.Label = _("Steps")
+        lbl = add_widget(
+            page_ad, "FixedText", "label_seed", (125, 27, 49, 13), add_now=False
+        )
+        lbl.Label = _("Seed (Optional)")
+
+        self.txt_seed: UnoControlEditModel = add_widget(
+            page_ad, "Edit", "txt_seed", (175, 26, 48, 10), add_now=False
+        )
+        self.txt_seed.TabIndex = 2
+        self.txt_seed.HelpText = _(
+            "Set a seed to regenerate (reproducible), or it'll be chosen at random by the worker."
+        )
+
+        self.int_width: UnoControlNumericFieldModel = add_widget(
+            page_ad, "NumericField", "int_width", (60, 5, 48, 13), add_now=False
+        )
+        self.int_width.DecimalAccuracy = 0
+        self.int_width.ValueMin = MIN_WIDTH
+        self.int_width.ValueMax = MAX_WIDTH
+        self.int_width.ValueStep = 64
+        self.int_width.Spin = True
+        self.int_width.Value = DEFAULT_WIDTH
+        self.int_width.TabIndex = 5
+        self.int_width.HelpText = _(
+            "Height and Width together at most can be 2048x2048=4194304 pixels"
+        )
+
+        self.int_strength: UnoControlNumericFieldModel = add_widget(
+            page_ad, "NumericField", "int_strength", (175, 43, 48, 13), add_now=False
+        )
+        self.int_strength.ValueMin = 0
+        self.int_strength.ValueMax = 20
+        self.int_strength.ValueStep = 0.5
+        self.int_strength.DecimalAccuracy = 2
+        self.int_strength.Spin = True
+        self.int_strength.Value = 15
+        self.int_strength.TabIndex = 7
+        self.int_strength.HelpText = _("""        How strongly the AI follows the prompt vs how much creativity to allow it.
+        Set to 1 for Flux, use 2-4 for LCM and lightning, 5-7 is common for SDXL
+        models, 6-9 is common for sd15.""")
+
+        self.int_height: UnoControlNumericFieldModel = add_widget(
+            page_ad,
+            "NumericField",
+            "int_height",
+            (
+                175,
+                7,
+                48,
+                10,
+            ),
+            add_now=False,
+        )
+        self.int_height.DecimalAccuracy = 0
+        self.int_height.ValueMin = MIN_HEIGHT
+        self.int_height.ValueMax = MAX_HEIGHT
+        self.int_height.ValueStep = 64
+        self.int_height.Spin = True
+        self.int_height.Value = DEFAULT_HEIGHT
+        self.int_height.TabIndex = 6
+        self.int_height.HelpText = _(
+            "Height and Width together at most can be 2048x2048=4194304 pixels"
+        )
+
+        self.lst_model: UnoControlComboBoxModel = add_widget(
+            page_ad,
+            "ComboBox",
+            "lst_model",
+            (
+                40,
+                23,
+                69,
+                15,
+            ),
+            add_now=False,
+        )
+        self.lst_model.TabIndex = 3
+        self.lst_model.Dropdown = True
+        self.lst_model.LineCount = 10
+
+        self.int_steps: UnoControlNumericFieldModel = add_widget(
+            page_ad,
+            "NumericField",
+            "int_steps",
+            (
+                60,
+                43,
+                48,
+                13,
+            ),
+            add_now=False,
+        )
+        self.int_steps.ValueMin = 1
+        self.int_steps.ValueMax = 150
+        self.int_steps.Spin = True
+        self.int_steps.ValueStep = 10
+        self.int_steps.DecimalAccuracy = 0
+        self.int_steps.Value = 25
+        self.int_steps.TabIndex = 7
+        self.int_steps.HelpText = _("""        How many sampling steps to perform for generation. Should
+        generally be at least double the CFG unless using a second-order
+        or higher sampler (anything with dpmpp is second order)""")
+
+        self.bool_nsfw: UnoControlCheckBoxModel = add_widget(
+            page_ad, "CheckBox", "bool_nsfw", (110, 63, 55, 10), add_now=False
+        )
+        self.bool_nsfw.Label = _("NSFW")
+        self.bool_nsfw.TabIndex = 9
+        self.bool_nsfw.HelpText = _("""        Whether or not your image is intended to be NSFW. May
+        reduce generation speed (workers can choose if they wish
+        to take nsfw requests)""")
+
+        self.bool_censure: UnoControlCheckBoxModel = add_widget(
+            page_ad, "CheckBox", "bool_censure", (160, 63, 55, 10), add_now=False
+        )
+        self.bool_censure.Label = _("Censor NSFW")
+        self.bool_censure.TabIndex = 10
+        self.bool_censure.HelpText = _("""        Separate from the NSFW flag, should workers
+        return nsfw images. Censorship is implemented to be safe
+        and overcensor rather than risk returning unwanted NSFW.""")
+
+        # Page UX placement
+        lbl = add_widget(
+            page_ux, "FixedText", "label_max_wait", (5, 7, 48, 13), add_now=False
+        )
+        lbl.Label = _("Max Wait")
+        self.int_waiting: UnoControlNumericFieldModel = add_widget(
+            page_ux,
+            "NumericField",
+            "int_waiting",
+            (
+                70,
+                5,
+                52,
+                13,
+            ),
+            add_now=False,
+        )
+        self.int_waiting.ValueMin = 1
+        self.int_waiting.ValueMax = 15
+        self.int_waiting.Spin = True
+        self.int_waiting.DecimalAccuracy = 0
+        self.int_waiting.Value = 5
+        self.int_waiting.TabIndex = 8
+        self.int_waiting.HelpText = _("""        How long to wait(minutes) for your generation to complete.
+        Depends on number of workers and user priority (more
+        kudos = more priority. Anonymous users are last)""")
+        self.bool_add_to_gallery: UnoControlCheckBoxModel = add_widget(
+            page_ux, "CheckBox", "bool_add_to_gallery", (160, 10, 75, 10), add_now=False
+        )
+        self.bool_add_to_gallery.State = 1
+        self.bool_add_to_gallery.Label = _("Add to Gallery")
+        self.bool_add_to_gallery.TabIndex = 9
+        self.bool_add_to_gallery.HelpText = _(
+            """        Adds the generated image to the gallery        """
+        )
+        self.bool_add_frame: UnoControlCheckBoxModel = add_widget(
+            page_ux, "CheckBox", "bool_add_frame", (160, 25, 75, 10), add_now=False
+        )
+        self.bool_add_frame.Label = _("Insert frame")
+        self.bool_add_frame.TabIndex = 9
+        self.bool_add_frame.HelpText = _(
+            """        Adds a frame for the image and the text with the original prompt        """
+        )
+
+        if DEBUG:
+            ctrl: UnoControlFixedHyperlinkModel = add_widget(
+                page_ux, "FixedHyperlink", "lbl_debug", (175, 65, 50, 10), add_now=False
+            )
+            ctrl.Label = f"📜 {log_file}"
+            ctrl.URL = uno.systemPathToFileUrl(log_file)
+            ctrl.HelpText = (
+                _(
+                    "You are debugging, make sure opening LibreOffice from the command line. Consider using"
+                )
+                + f"\n\n   tailf { log_file }"
+            )
+
+        lbl: UnoControlFixedTextModel = add_widget(
+            page_in, "FixedText", "label_prompt", (6, 8, 190, 50), add_now=False
+        )
+        lbl.Label = _("This is a horde client crafted with ") + "💗 @2025 - "
+
+        lbl: UnoControlFixedHyperlinkModel = add_widget(
+            page_in, "FixedHyperlink", "lbl_faq", (186, 6, 40, 10)
+        )
+        lbl.Label = "🤔 " + _("FAQ")
+        lbl.URL = HELP_URL
+
+        ctrl: UnoControlFixedHyperlinkModel = add_widget(
+            page_in, "FixedHyperlink", "lbl_gallery", (183, 65, 50, 10), add_now=False
+        )
+        ctrl.Label = "🎨 " + _("Go to images")
+        logger.info(
+            "Download Image directory " + str(self.path_store_images_directory())
+        )
+        ctrl.URL = uno.systemPathToFileUrl(str(self.path_store_images_directory()))
+        ctrl.HelpText = _("""       Click to browse your generated images        """)
+
+        self.lbl_sysinfo: UnoControlFixedHyperlinkModel = add_widget(
+            page_in, "FixedHyperlink", "lbl_sysinfo", (5, 65, 90, 10), add_now=False
+        )
+        self.lbl_sysinfo.Label = "🤖 " + _("System Information")
+        self.lbl_sysinfo.HelpText = _(
+            """Click to copy on your clipboard your system information to share when reporting something, you can paste it"""
+        )
 
         return dc
 
     def show_ui(self):
         self.dlg.setVisible(True)
-        self.dlg.createPeer(self.extoolkit, None)
-        self.dlg.getControl("btn_toggle").setVisible(False)
-        self.dlg.getControl("bool_trans").setVisible(self.show_language)
+
+        # Post visibility setup
+        self.book.ActiveTabPageID = 1
+        for pair in self.insert_in:
+            pair[0].insertByName(pair[1].Name, pair[1])
+
+        self.lst_model = self.book.getTabPageByID(1).getControl(self.lst_model.Name)
+        lst_rep_model = self.lst_model.getModel()
+        for i in range(len(self.model_choices)):
+            lst_rep_model.insertItemText(i, self.model_choices[i])
+        self.lst_model.Text = self.default_model
+
+        self.int_width = self.book.getTabPageByID(1).getControl(self.int_width.Name)
+        self.int_width.addTextListener(self)
+        self.int_width.addSpinListener(self)
+        self.int_width.addFocusListener(self)
+        self.int_height = self.book.getTabPageByID(1).getControl(self.int_height.Name)
+        self.int_height.addTextListener(self)
+        self.int_height.addSpinListener(self)
+        self.int_height.addFocusListener(self)
+        self.lbl_sysinfo = self.book.getTabPageByID(3).getControl(self.lbl_sysinfo.Name)
+        self.lbl_sysinfo.addActionListener(self)
+        self.txt_prompt = self.dlg.getControl("txt_prompt")
+        self.txt_prompt.addTextListener(self)
+        self.txt_prompt.addKeyListener(self)
+        self.ctrl_token = self.dlg.getControl(self.ctrl_token.Name)
+
+        # UI tweaks
+        self.ctrl_token.getModel().EchoChar
+        self.lbl_view_pass = self.dlg.getControl(self.lbl_view_pass.Name)
+        if self.options.get("api_key", ANONYMOUS_KEY) == ANONYMOUS_KEY:
+            self.ctrl_token.getModel().EchoChar = 0
+            self.lbl_view_pass.setVisible(False)
+        else:
+            self.ctrl_token.getModel().EchoChar = self.PASSWORD_MASK
+            self.lbl_view_pass.setVisible(True)
+
+        self.btn_toggle.setVisible(False)
+
         size = self.dlg.getPosSize()
         self.DEFAULT_DLG_HEIGHT = size.Height
         self.displacement = self.dlg.getControl("label_progress").getPosSize().Y - 5
 
     def toggle_dialog(self):
+        """
+        Un/shrink the dialog to have the progressbar visible
+        """
         size = self.dlg.getPosSize()
         lbl = self.dlg.getControl("label_progress")
         btn = self.dlg.getControl("btn_toggle")
-        hlp = self.dlg.getControl("btn_help")
         prg = self.dlg.getControl("prog_status")
-        frame = self.dlg.getControl("framebox")
         if size.Height == self.DEFAULT_DLG_HEIGHT:
-            frame.setVisible(False)
             self.dlg.setPosSize(size.X, size.Y, size.Height, 30, PosSize.HEIGHT)
             size = lbl.getPosSize()
             lbl.setPosSize(
@@ -652,10 +849,6 @@ class LibreOfficeInteraction(
             )
             size = btn.getPosSize()
             btn.setPosSize(
-                size.X, size.Y - self.displacement, size.Height, size.Width, PosSize.Y
-            )
-            size = hlp.getPosSize()
-            hlp.setPosSize(
                 size.X, size.Y - self.displacement, size.Height, size.Width, PosSize.Y
             )
             size = prg.getPosSize()
@@ -674,38 +867,49 @@ class LibreOfficeInteraction(
             btn.setPosSize(
                 size.X, size.Y + self.displacement, size.Height, size.Width, PosSize.Y
             )
-            size = hlp.getPosSize()
-            hlp.setPosSize(
-                size.X, size.Y + self.displacement, size.Height, size.Width, PosSize.Y
-            )
             size = prg.getPosSize()
             prg.setPosSize(
                 size.X, size.Y + self.displacement, size.Height, size.Width, PosSize.Y
             )
-            frame.setVisible(True)
 
     def validate_fields(self) -> None:
         if self.in_progress:
             return
         enable_ok = (
-            len(self.dlg.getControl("txt_prompt").Text) > MIN_PROMPT_LENGTH
-            and self.dlg.getControl("int_width").Value
-            * self.dlg.getControl("int_height").Value
-            <= MAX_MP
+            len(self.txt_prompt.Text) > MIN_PROMPT_LENGTH
+            and self.int_width.Value * self.int_height.Value <= MAX_MP
         )
         self.ok_btn.Enabled = enable_ok
         self.dlg.getControl("btn_trans").Enable = enable_ok
 
     def translate(self) -> None:
+        self.continue_ticking = True
+
+        def __emit_ticks__():
+            i = 1.1
+            logging.debug(1)
+            while i < 15:
+                time.sleep(0.5)
+                if not self.continue_ticking:
+                    return
+                self.update_status(_("Translating"), i)
+                logging.debug(i)
+                i = i + 0.5
+
         if not self.show_language:
             return
-        prompt_control = self.dlg.getControl("txt_prompt")
+        prompt_control = self.txt_prompt
         text = prompt_control.Text
         self.initial_prompt = text
         try:
             self.update_status(_("Translating"), 1.0)
             logger.info(f"Translating {text} from {self.local_language}")
+            ticker = Thread(target=__emit_ticks__)
+            ticker.start()
+            logging.debug("starting")
             translated_text = opustm_hf_translate(text, self.local_language)
+            logging.debug("Finished translating")
+            self.continue_ticking = False
         except Exception as ex:
             logger.info(ex, stack_info=True)
         finally:
@@ -716,10 +920,7 @@ class LibreOfficeInteraction(
         if element.Name not in ["int_width", "int_height"]:
             return
 
-        pixels = (
-            self.dlg.getControl("int_width").Value
-            * self.dlg.getControl("int_height").Value
-        )
+        pixels = self.int_width.Value * self.int_height.Value
         if pixels >= MAX_MP:
             element.Value = 64 * int(sqrt((pixels - MAX_MP)) / 64)
         self.validate_fields()
@@ -758,8 +959,26 @@ class LibreOfficeInteraction(
             self.toggle_dialog()
         elif oActionEvent.ActionCommand == "btn_cancel_OnClick":
             self.dlg.dispose()
-        elif oActionEvent.ActionCommand == "btn_help_OnClick":
-            webbrowser.open(HELP_URL, new=2)
+        else:
+            ctrl = oActionEvent.value.Source.getModel()
+            if ctrl.Name == "lbl_view_pass":
+                self.show_message(self.ctrl_token.Text, title=_("AIHorde API Key"))
+            elif ctrl.Name == "lbl_sysinfo":
+                self.export_system_information()
+
+    def export_system_information(self):
+        """
+        Stores in the clipboard system information for issue reporting and showcase
+        """
+        system_info = "\n".join(
+            [f"{key.capitalize()}: {val}" for key, val in self.key_debug_info.items()]
+        )
+        data = DataTransferable(system_info)
+        self.clipboard.setContents(data, None)
+        suffix = _("Above information is copied in your clipboard, paste it if needed")
+        self.__msg_usr__(
+            "\n\n" + system_info + "\n\n  " + suffix, title=_("System information")
+        )
 
     def get_options_from_dialog(self) -> List[Dict[str, Any]]:
         """
@@ -767,25 +986,27 @@ class LibreOfficeInteraction(
         """
         self.options.update(
             {
-                "prompt": self.dlg.getControl("txt_prompt").Text,
-                "image_width": self.dlg.getControl("int_width").Value,
-                "image_height": self.dlg.getControl("int_height").Value,
-                "model": self.dlg.getControl("lst_model").Text,
-                "prompt_strength": self.dlg.getControl("int_strength").Value,
-                "steps": self.dlg.getControl("int_steps").Value,
-                "nsfw": self.dlg.getControl("bool_nsfw").State == 1,
-                "censor_nsfw": self.dlg.getControl("bool_censure").State == 1,
-                "api_key": self.dlg.getControl("txt_token").Text or ANONYMOUS_KEY,
-                "max_wait_minutes": self.dlg.getControl("int_waiting").Value,
-                "seed": self.dlg.getControl("txt_seed").Text,
+                "prompt": self.txt_prompt.Text,
+                "image_width": self.int_width.Value,
+                "image_height": self.int_height.Value,
+                "model": self.lst_model.Text,
+                "prompt_strength": self.int_strength.Value,
+                "steps": self.int_steps.Value,
+                "nsfw": self.bool_nsfw.State == 1,
+                "censor_nsfw": self.bool_censure.State == 1,
+                "api_key": self.ctrl_token.Text or ANONYMOUS_KEY,
+                "max_wait_minutes": self.int_waiting.Value,
+                "seed": self.txt_seed.Text,
             }
         )
 
         return self
 
     def start_processing(self) -> None:
-        self.dlg.getControl("btn_ok").getModel().Enabled = False
-        self.dlg.getControl("btn_toggle").setVisible(True)
+        self.toggle_dialog()
+        self.curview = self.model.CurrentController.ViewCursor
+        self.ok_btn.Enabled = False
+        self.btn_toggle.setVisible(True)
         cancel_button = self.dlg.getControl("btn_cancel")
         cancel_button.setLabel(_("Close"))
         cancel_button.getModel().HelpText = _(
@@ -793,29 +1014,20 @@ class LibreOfficeInteraction(
         )
         if self.show_language and self.dlg.getControl("bool_trans").State == 1:
             self.translate()
-        self.toggle_dialog()
+
         self.get_options_from_dialog()
         logger.debug(self.options)
 
         def __real_work_with_api__():
-            """
-            Once we have collected everything, we make calls to the API and
-            maintain LibreOffice interface responsive, show a message and
-            insert the image in the cursor position.  It will need some
-            refactor to have the dialog visible and the progressbar inside
-            it.we have collected everything, we make calls to the API and
-            maintain LibreOffice interface responsive, show a message and
-            insert the image in the cursor position.  It will need some
-            refactor to have the dialog visible and the progressbar inside
-            it."""
             images_paths = self.sh_client.generate_image(self.options)
 
             logger.debug(images_paths)
             if images_paths:
                 self.update_status("", 100)
-                self.__msg_usr__(
-                    _("Your image was generated"),
-                    buttons=mbb.BUTTONS_OK,
+                self.show_message(
+                    _("Your image was generated consuming {} kudos").format(
+                        self.sh_client.kudos_cost
+                    ),
                     title=_("AIHorde has good news"),
                 )
 
@@ -824,12 +1036,16 @@ class LibreOfficeInteraction(
                     self.options["image_width"],
                     self.options["image_height"],
                     self.sh_client,
+                    self.bool_add_to_gallery.State == 1,
+                    self.bool_add_frame.State == 1,
                 )
-                self.st_manager.save(self.sh_client.get_settings())
+                settings_used = self.sh_client.get_settings()
+                settings_used["translate"] = self.bool_trans.State
+                settings_used["add_to_gallery"] = self.bool_add_to_gallery.State
+                settings_used["add_text"] = self.bool_add_frame.State
+                self.st_manager.save(settings_used)
 
             self.free()
-
-        from threading import Thread
 
         self.worker = Thread(target=__real_work_with_api__)
         self.worker.start()
@@ -843,41 +1059,39 @@ class LibreOfficeInteraction(
         self.options.update(options)
         self.sh_client = sh_client
         self.st_manager = st_manager
-        dlg = self.dlg
         api_key = options.get("api_key", ANONYMOUS_KEY)
-        ctrl_token = dlg.getControl("txt_token")
-        ctrl_token.setText(api_key)
+        self.ctrl_token.Text = api_key
         if api_key == ANONYMOUS_KEY:
-            ctrl_token.setText("")
-            ctrl_token.getModel().TabIndex = 1
+            self.ctrl_token.Text = ""
+            self.ctrl_token.TabIndex = 1
+            lbl = create_widget(
+                self.dlg.getModel(), "FixedHyperlink", "label_token", (110, 168, 48, 10)
+            )
+            lbl.Label = _("ApiKey (Optional)")
+            lbl.URL = REGISTER_AI_HORDE_URL
+        else:
+            lbl = create_widget(
+                self.dlg.getModel(), "FixedText", "label_token", (130, 168, 48, 10)
+            )
+            lbl.Label = _("ApiKey")
 
-        choices = options.get("local_settings", {"models": MODELS}).get(
+        self.model_choices = options.get("local_settings", {"models": MODELS}).get(
             "models", MODELS
         )
-        choices = choices or MODELS
-        lst_rep_model = dlg.getControl("lst_model").getModel()
-        for i in range(len(choices)):
-            lst_rep_model.insertItemText(i, choices[i])
-        dlg.getControl("lst_model").Text = options.get("model", DEFAULT_MODEL)
+        self.model_choices = self.model_choices or MODELS
+        self.default_model = options.get("model", DEFAULT_MODEL)
 
-        dlg.getControl("txt_prompt").setText(self.selected or options.get("prompt", ""))
-        dlg.getControl("txt_seed").setText(options.get("seed", ""))
-        dlg.getControl("int_width").getModel().Value = options.get(
-            "image_width", DEFAULT_WIDTH
-        )
-        dlg.getControl("int_height").getModel().Value = options.get(
-            "image_height", DEFAULT_HEIGHT
-        )
-        dlg.getControl("int_strength").getModel().Value = options.get(
-            "prompt_strength", 6.3
-        )
-        dlg.getControl("int_steps").getModel().Value = options.get("steps", 25)
-        dlg.getControl("int_waiting").getModel().Value = options.get(
-            "max_wait_minutes", 15
-        )
-        dlg.getControl("bool_nsfw").State = options.get("nsfw", 0)
-        dlg.getControl("bool_censure").State = options.get("censor_nsfw", 1)
-        dlg.getControl("bool_trans").State = 1
+        self.txt_prompt.Text = self.selected or options.get("prompt", "")
+        self.int_width.Value = options.get("image_width", DEFAULT_WIDTH)
+        self.int_height.Value = options.get("image_height", DEFAULT_HEIGHT)
+        self.int_strength.Value = options.get("prompt_strength", 6.3)
+        self.int_steps.Value = options.get("steps", 25)
+        self.int_waiting.Value = options.get("max_wait_minutes", 15)
+        self.bool_nsfw.State = options.get("nsfw", 0)
+        self.bool_censure.State = options.get("censor_nsfw", 1)
+        self.bool_trans.State = options.get("translate", 1)
+        self.bool_add_to_gallery.State = options.get("add_to_gallery", 1)
+        self.bool_add_frame.State = options.get("add_text", 0)
 
     def free(self):
         self.dlg.dispose()
@@ -899,7 +1113,7 @@ class LibreOfficeInteraction(
         self.progress_meter.ProgressValue = 100
 
     def __msg_usr__(
-        self, message, buttons=0, title="", url="", box_type=MESSAGEBOX
+        self, message, buttons=mbb.BUTTONS_OK, title="", url="", box_type=MESSAGEBOX
     ) -> int:
         """
         Shows a message dialog, if url is given, shows
@@ -919,7 +1133,7 @@ class LibreOfficeInteraction(
             self.extoolkit, box_type, buttons, title, message
         ).execute()
 
-    def show_error(self, message, url="", title="", buttons=0):
+    def show_error(self, message, url="", title="", buttons=mbb.BUTTONS_OK):
         """
         Shows an error message dialog
         if url is given, shows OK, Cancel, when the user presses OK, opens the URL in the
@@ -934,9 +1148,11 @@ class LibreOfficeInteraction(
         self.__msg_usr__(
             message, buttons=buttons, title=title, url=url, box_type=WARNINGBOX
         )
+        if self.options.get("api_key", ANONYMOUS_KEY) == ANONYMOUS_KEY:
+            self.ctrl_token.setFocus()
         self.set_finished()
 
-    def show_message(self, message, url="", title="", buttons=0):
+    def show_message(self, message, url="", title="", buttons=mbb.BUTTONS_OK):
         """
         Shows an informative message dialog
         if url is given, shows OK, Cancel, when the user presses OK, opens the URL in the
@@ -949,11 +1165,17 @@ class LibreOfficeInteraction(
         self.__msg_usr__(message, buttons=buttons, title=title, url=url)
 
     def insert_image(
-        self, img_path: str, width: int, height: int, sh_client: AiHordeClient
+        self,
+        img_path: str,
+        width: int,
+        height: int,
+        sh_client: AiHordeClient,
+        add_to_gallery=True,
+        add_frame=False,
     ):
         """
         Inserts the image with width*height from img_path in the current document adding
-        accessibility data from sh_client.
+        accessibility data from sh_client, adding to the gallery.
 
         Inserts directly in drawing, spreadsheet, presentation, web, xml form
         and text document, when in other type of document, creates a new text
@@ -1015,12 +1237,41 @@ class LibreOfficeInteraction(
             )
             added_image.setPosition(position)
 
-        def __insert_image_in_text__():
+        def __insert_image_in_text_doc__():
             """
             Inserts the image with width*height from the path in the document adding
             the accessibility data from sh_client in the current document
             at cursor position with the same text next to it.
             """
+
+            def __insert_frame__(cursor, text, image):
+                """Inserts the image and the text in the current position inside
+                a frame, if it's not possible to place the image because it's inside
+                another element that does not allow it, jumps to a start of page and
+                inserts the frame with the image and the given text
+                """
+                text_frame = self.model.createInstance("com.sun.star.text.TextFrame")
+                frame_size = Size()
+                frame_size.Height = height + 150
+                frame_size.Width = width + 150
+                text_frame.setSize(frame_size)
+
+                text_frame.setPropertyValue("AnchorType", AT_FRAME)
+                try:
+                    self.model.getText().insertTextContent(cursor, text_frame, False)
+                except Exception:
+                    # This happens if we are inside a frame.
+                    cursor.jumpToStartOfPage()
+                    self.model.getText().insertTextContent(cursor, text_frame, False)
+                    logging.exception(
+                        "Please try to not add the image inside other objects"
+                    )
+
+                frame_text = text_frame.getText()
+                frame_cursor = frame_text.createTextCursor()
+                text_frame.insertTextContent(frame_cursor, image, False)
+                text_frame.insertString(frame_cursor, "\n" + text, False)
+
             logger.debug(f"Inserting {img_path} in writer")
             # https://api.libreoffice.org/docs/idl/ref/servicecom_1_1sun_1_1star_1_1text_1_1TextGraphicObject.html
             image = self.model.createInstance("com.sun.star.text.GraphicObject")
@@ -1033,20 +1284,36 @@ class LibreOfficeInteraction(
             image.Title = sh_client.get_title()
             image.Description = locale_description(sh_client.get_full_description())
 
-            curview = self.model.CurrentController.ViewCursor
-            self.model.Text.insertTextContent(curview, image, False)
+            if add_frame:
+                __insert_frame__(self.curview, sh_client.get_title(), image)
+            else:
+                try:
+                    self.model.Text.insertTextContent(self.curview, image, False)
+                except Exception:
+                    # This happens if we are inside a frame, or another element that
+                    # does not allow to insert an image, then we jump and insert
+                    logging.debug("Trying to insert the image without frame")
+                    self.curview.jumpToStartOfPage()
+                    self.model.getText().insertTextContent(self.curview, image, False)
+                    logging.exception(
+                        "Please try to not add the image inside other objects"
+                    )
 
         image_insert_to = {
             "calc": __insert_image_as_draw__,
             "draw": __insert_image_as_draw__,
             "impress": __insert_image_as_draw__,
-            "web": __insert_image_in_text__,
-            "writer": __insert_image_in_text__,
+            "web": __insert_image_in_text_doc__,
+            "writer": __insert_image_in_text_doc__,
         }
         image_insert_to[self.inside]()
 
         # Add image to gallery
-        self.add_image_to_gallery([img_path, sh_client.get_full_description()])
+        if add_to_gallery:
+            self.add_image_to_gallery([img_path, sh_client.get_full_description()])
+        else:
+            # The downloaded image is removed, no gallery, no track of the image
+            os.unlink.img_path
 
     def get_frontend_property(self, property_name: str) -> Union[str, bool, None]:
         """
@@ -1090,29 +1357,29 @@ class LibreOfficeInteraction(
             # It's ok, if the property existed, we update it
             userProps.setPropertyValue(property_name, str_value)
 
+    def path_store_images_directory(self) -> str:
+        """
+        Returns the basepath for the store objects directory
+        to store images. Created if did not exist
+        """
+        # https://api.libreoffice.org/docs/idl/ref/singletoncom_1_1sun_1_1star_1_1util_1_1thePathSettings.html
+
+        psettings = self.context.getByName(
+            "/singletons/com.sun.star.util.thePathSettings"
+        )
+        images_local_path = (
+            Path(uno.fileUrlToSystemPath(psettings.Storage_writable))
+            / GALLERY_IMAGE_DIR
+        )
+        os.makedirs(images_local_path, exist_ok=True)
+
+        return Path(images_local_path)
+
     def add_image_to_gallery(self, image_info: List[str]) -> None:
         """
         Adds the image in image_path to the gallery theme, the image
         is moved from image_path to the store.
         """
-
-        def path_store_images_directory() -> str:
-            """
-            Returns the basepath for the store objects directory
-            to store images. Created if did not exist
-            """
-            # https://api.libreoffice.org/docs/idl/ref/singletoncom_1_1sun_1_1star_1_1util_1_1thePathSettings.html
-
-            psettings = self.context.getByName(
-                "/singletons/com.sun.star.util.thePathSettings"
-            )
-            images_local_path = (
-                Path(uno.fileUrlToSystemPath(psettings.Storage_writable))
-                / GALLERY_IMAGE_DIR
-            )
-            os.makedirs(images_local_path, exist_ok=True)
-
-            return Path(images_local_path)
 
         def the_gallery():
             """
@@ -1132,7 +1399,7 @@ class LibreOfficeInteraction(
                 aihorde_theme: GalleryTheme = themes_list.insertNewByName(GALLERY_NAME)
             return aihorde_theme
 
-        images_dir = path_store_images_directory()
+        images_dir = self.path_store_images_directory()
         image_filename = os.path.basename(image_info[0])
         shutil.move(image_info[0], images_dir)
         target_image = str(images_dir / image_filename)
@@ -1287,30 +1554,26 @@ if __name__ == "__main__":
 # TODO:
 # Great!!! you are here looking at this, take a look at docs/CONTRIBUTING.md
 # * [X] Store retrieved images in the gallery
+# * [X] Show a message to open the directory that holds generated images with webbrowser
+# * [X] Show a message to copy the system information
+# * [X] Use TabPage for generate images, UX and information
+# * [X] Add an option to store in the gallery
+# * [X] Store consumed kudos
+# * [X] Store and retrieve the UI options: translation, put text with the image, add to gallery
+# * [X] Add an option to write the prompt with the image write_text
 # --- 0.8
 # * [ ] When something fails in the middle, it's possible to show an URL to allow to recover the generated image by hand
-# * [ ] Use TabPage for generate images, UX and information
-# * [ ] Add the Messagebox with path to gallery and copy system information
-#       to send a bug report.
-# * [ ] Show a dialog with info that will be copied to the clipboard to allow easier info sharing
-# * [ ] Add an option to write the prompt with the image write_text
-# * [ ] Add an option to use the main progressbar use_full_progress
-# * [ ] Add an option to store in the gallery
-# * [ ] Store and retrieve the UI options: translation, put text with the image, use full progress, add to gallery
-# * [ ] Cancel generation
-#    - requires to have a flag to continue running or abort
-#    - should_stop
-#    - send delete
+# * [ ] Add logo to page_in
+# * [ ] Show kudos
 # * [ ] Add tips to show. Localized messages. Inpainting, Gimp. Artbot https://artbot.site/
 #    - We need a panel to show the tip
 #    - Invite people to grow the knowledge
 #    - They can be in github and refreshed each 10 days
-#    -  url, title, description, image, visibility
+#    - url, title, description, image, visibility
 # * [ ] Wishlist to have right alignment for numeric control option
 # * [ ] Recommend to use a shared key to users
 # * [ ] Automate version propagation when publishing: Wishlist for extensions
-# * [ ] Add a popup context menu: Generate Image... [programming] https://wiki.documentfoundation.org/Macros/ScriptForge/PopupMenuExample
+# --- 1.0
 # * [ ] Use styles support from Horde
-#    -  Show Styles and Advanced View
 #    -  Download and cache Styles
 #

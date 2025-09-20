@@ -15,7 +15,7 @@ volunteers. [get the extension](https://extensions.libreoffice.org/en/extensions
 
 Head to [instructions](/docs/README.md) for installing and using it.
 
-You can join [Discord](https://discord.com/channels/781145214752129095/1401005281332433057),
+You can join [Discord](https://discord.gg/PmxqTjUB),
 to find someone to help you using AIHorde or the extension itself.
 Have fun with your prompts and the results from thousands of years
 of experiences and thoughts.

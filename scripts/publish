@@ -2,6 +2,11 @@
 # MIT License 2025
 # Igor Támara <igor.tamara@gmail.com>
 
+if grep -E 'breakpoint()' src/StableHordeForLibreOffice.py >/dev/null; then
+  gum log -l error 'Uggghhh! a breakpoint is there'
+  return 1
+fi
+
 if grep -E '^DEBUG = True$' src/StableHordeForLibreOffice.py >/dev/null; then
   echo "\n   Watch out!!!! We do not want to release with DEBUG=True\n\n"
   echo sed -e \'s/^DEBUG = True$/DEBUG = False/g\' src/StableHordeForLibreOffice.py 

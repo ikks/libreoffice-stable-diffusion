@@ -30,7 +30,7 @@ allows iterating a lot faster when building the interface.
 
 ```
 python src/StableHordeForLibreOffice.py 
-``` 
+```
 
 To create the oxt, type `make`, to prepare the languages,
 `make langs` is needed.  It's not included in make, because
@@ -85,7 +85,10 @@ to get help from there.
 doc = XSCRIPTCONTEXT.getDocument()
 doc.get_current_controller().ComponentWindow.StyleSettings.LightColor.is_dark()
 
+
+# Inside APSO
+import uno
 ctx = uno.getComponentContext()
-uno.getComponentContext().getServiceManager().createInstanceWithContext("com.sun.star.frame.Desktop", ctx)
+doc = uno.getComponentContext().getServiceManager().createInstanceWithContext("com.sun.star.frame.Desktop", ctx).getCurrentComponent()
 ```
 
