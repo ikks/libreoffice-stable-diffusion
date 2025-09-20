@@ -520,7 +520,7 @@ class LibreOfficeInteraction(
         self.ctrl_token.EchoChar = self.PASSWORD_MASK
 
         self.lbl_view_pass: UnoControlFixedHyperlinkModel = add_widget(
-            dm, "FixedHyperlink", "lbl_view_pass", (240, 168, 10, 10)
+            dm, "FixedHyperlink", "lbl_view_pass", (241, 168, 10, 10)
         )
         self.lbl_view_pass.Label = "👀"
         self.lbl_view_pass.HelpText = _("""Click to view your AiHorde API Key""")
@@ -727,7 +727,7 @@ class LibreOfficeInteraction(
         Depends on number of workers and user priority (more
         kudos = more priority. Anonymous users are last)""")
         self.bool_add_to_gallery: UnoControlCheckBoxModel = add_widget(
-            page_ux, "CheckBox", "bool_add_to_gallery", (160, 10, 55, 10), add_now=False
+            page_ux, "CheckBox", "bool_add_to_gallery", (160, 10, 75, 10), add_now=False
         )
         self.bool_add_to_gallery.State = 1
         self.bool_add_to_gallery.Label = _("Add to Gallery")
@@ -736,7 +736,7 @@ class LibreOfficeInteraction(
             """        Adds the generated image to the gallery        """
         )
         self.bool_add_frame: UnoControlCheckBoxModel = add_widget(
-            page_ux, "CheckBox", "bool_add_frame", (160, 25, 55, 10), add_now=False
+            page_ux, "CheckBox", "bool_add_frame", (160, 25, 75, 10), add_now=False
         )
         self.bool_add_frame.Label = _("Insert frame")
         self.bool_add_frame.TabIndex = 9
@@ -763,7 +763,7 @@ class LibreOfficeInteraction(
         lbl.Label = _("This is a horde client crafted with ") + "💗 @2025 - "
 
         lbl: UnoControlFixedHyperlinkModel = add_widget(
-            page_in, "FixedHyperlink", "lbl_view_pass", (206, 6, 30, 10)
+            page_in, "FixedHyperlink", "lbl_faq", (186, 6, 40, 10)
         )
         lbl.Label = "🤔 " + _("FAQ")
         lbl.URL = HELP_URL
@@ -779,7 +779,7 @@ class LibreOfficeInteraction(
         ctrl.HelpText = _("""       Click to browse your generated images        """)
 
         self.lbl_sysinfo: UnoControlFixedHyperlinkModel = add_widget(
-            page_in, "FixedHyperlink", "lbl_sysinfo", (5, 65, 70, 10), add_now=False
+            page_in, "FixedHyperlink", "lbl_sysinfo", (5, 65, 90, 10), add_now=False
         )
         self.lbl_sysinfo.Label = "🤖 " + _("System Information")
         self.lbl_sysinfo.HelpText = _(
@@ -1065,13 +1065,13 @@ class LibreOfficeInteraction(
             self.ctrl_token.Text = ""
             self.ctrl_token.TabIndex = 1
             lbl = create_widget(
-                self.dlg.getModel(), "FixedHyperlink", "label_token", (120, 168, 48, 10)
+                self.dlg.getModel(), "FixedHyperlink", "label_token", (110, 168, 48, 10)
             )
             lbl.Label = _("ApiKey (Optional)")
             lbl.URL = REGISTER_AI_HORDE_URL
         else:
             lbl = create_widget(
-                self.dlg.getModel(), "FixedText", "label_token", (140, 168, 48, 10)
+                self.dlg.getModel(), "FixedText", "label_token", (130, 168, 48, 10)
             )
             lbl.Label = _("ApiKey")
 
