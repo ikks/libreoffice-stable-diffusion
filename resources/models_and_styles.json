@@ -1,0 +1,117 @@
+{
+  "models": {
+    "App Icon Diffusion": {
+      "id": "",
+      "homepage": "",
+      "description": "",
+      "samples": []
+    },
+    "AIO Pixel Art": {
+      "id": "",
+      "homepage": "",
+      "description": "",
+      "samples": []
+    },
+    "ModernArt Diffusion": {
+      "id": "",
+      "homepage": "",
+      "description": "",
+      "samples": []
+    },
+    "Cheese Daddys Landscape Mix": {
+      "id": "",
+      "homepage": "",
+      "description": "",
+      "samples": []
+    },
+    "Unstable Ink Dream": {
+      "id": "",
+      "homepage": "",
+      "description": "",
+      "samples": []
+    },
+    "Vector Art": {
+      "id": "",
+      "homepage": "",
+      "description": "",
+      "samples": []
+    },
+    "Double Exposure Diffusion": {
+      "id": "",
+      "homepage": "",
+      "description": "",
+      "samples": []
+    },
+    "Dreamshaper": {
+      "id": "",
+      "homepage": "",
+      "description": "",
+      "samples": []
+    },
+    "iCoMix": {
+      "id": "",
+      "homepage": "",
+      "description": "",
+      "samples": []
+    },
+    "Western Animation Diffusion": {
+      "id": "",
+      "homepage": "",
+      "description": "",
+      "samples": []
+    },
+    "Dungeons and Diffusion": {
+      "id": "",
+      "homepage": "",
+      "description": "",
+      "samples": []
+    },
+    "Graphic-Art": {
+      "id": "",
+      "homepage": "",
+      "description": "",
+      "samples": []
+    }
+  },
+  "styles": {
+    "flux": {
+      "name": "",
+      "homepage": "",
+      "description": "",
+      "samples": []
+    },
+    "sdxl": {
+      "name": "",
+      "homepage": "",
+      "description": "",
+      "samples": []
+    },
+    "albedo": {
+      "name": "",
+      "homepage": "",
+      "description": "",
+      "samples": []
+    },
+    "nova anime xl": {
+      "name": "",
+      "homepage": "",
+      "description": "",
+      "samples": []
+    },
+    "flux-cinematic": {
+      "name": "",
+      "homepage": "",
+      "description": "",
+      "samples": []
+    },
+    "faetastic (flux)": {
+      "name": "",
+      "homepage": "",
+      "description": "",
+      "samples": []
+    }
+  },
+  "forbidden-models": [],
+  "forbidden-styles": [],
+  "latest-update": "2025-09-20"
+}

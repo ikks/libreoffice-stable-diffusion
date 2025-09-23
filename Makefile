@@ -38,7 +38,7 @@ src/po/$(CURRENT_LANG).po: src/po/messages.pot
 src/po/messages.pot: src/$(SCRIPTNAME).py
 	xgettext -j -o $@ --add-comments=TRANSLATORS: --keyword=_ --flag=_:1:pass-python-format --directory=. $<
 
-$(EXEC): src/$(SCRIPTNAME).py oxt/description.xml oxt/build
+$(EXEC): src/$(SCRIPTNAME).py oxt/description.xml oxt/build resources/models_and_styles.json Makefile
 	cd modules/urllib3 && uv build -q && unzip -q -o dist/*whl -d ../../oxt/python_path/
 	oxt/build
 

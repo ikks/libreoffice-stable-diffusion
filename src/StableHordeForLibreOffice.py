@@ -18,6 +18,7 @@
 #
 
 import gettext
+import json
 import logging
 import os
 import platform
@@ -27,6 +28,7 @@ import tempfile
 import time
 import uno
 import unohelper
+import urllib
 import webbrowser
 
 from com.sun.star.awt import ActionEvent
@@ -90,7 +92,7 @@ if TYPE_CHECKING:
 # Change the next line replacing False to True if you need to debug. Case matters
 DEBUG = False
 
-VERSION = "0.9"
+VERSION = "1.0"
 
 import_message_error = None
 
@@ -156,6 +158,26 @@ Download URL for libreoffice-stable-diffusion
 """
 
 URL_MODEL_SHOWCASE = "https://artbot.site/info/models"
+"""
+Model samples preview
+"""
+
+URL_STYLE_SHOWCASE = "https://artbot.site/info/models"
+"""
+Style samples preview
+"""
+
+DEFAULT_STYLE = "flux"
+
+LOCAL_MODELS_AND_STYLES = "resources/models_and_styles.json"
+"""
+File that holds the predefined models and styles
+"""
+
+URL_MODELS_AND_STYLES = ""
+"""
+Published file that holds the predefined models and styles
+"""
 
 HORDE_CLIENT_NAME = "AiHordeForLibreOffice"
 """
@@ -341,6 +363,10 @@ class LibreOfficeInteraction(
         self.dlg: UnoControlDialog = self.__create_dialog__()
         self.options: Dict[str, Any] = {"api_key": ANONYMOUS_KEY}
         self.progress: float = 0.0
+        self.default_models: List[Any] = []
+        self.default_models_names: List[str] = []
+        self.default_styles: List[Any] = []
+        self.default_styles_names: List[str] = []
 
     def get_configuration_value(
         self,
@@ -438,15 +464,22 @@ class LibreOfficeInteraction(
         book: UnoControlTabPageContainerModel = add_widget(
             dm, "TabPageContainer", "tab_book", (18, 63, 233, 100)
         )
-        page_ad: UnoControlTabPageModel = book.createTabPage(1)
-        page_ad.Title = "✨ " + _("Generate")
-        book.insertByIndex(0, page_ad)
-        page_ux: UnoControlTabPageModel = book.createTabPage(2)
+        page_st: UnoControlTabPageModel = book.createTabPage(1)
+        page_st.Title = "✨ " + _("Simple")
+        page_st.HelpText = "Generate images from predefined styles"
+        book.insertByIndex(0, page_st)
+        page_ad: UnoControlTabPageModel = book.createTabPage(2)
+        page_ad.Title = "🪄 " + _("Advanced")
+        page_ad.HelpText = "Generate images from models"
+        book.insertByIndex(1, page_ad)
+        page_ux: UnoControlTabPageModel = book.createTabPage(3)
         page_ux.Title = "🛠️ " + _("Configure")
-        book.insertByIndex(1, page_ux)
-        page_in: UnoControlTabPageModel = book.createTabPage(3)
+        page_ux.HelpText = "General configuration options"
+        book.insertByIndex(2, page_ux)
+        page_in: UnoControlTabPageModel = book.createTabPage(4)
         page_in.Title = "💬 " + _("About")
-        book.insertByIndex(1, page_in)
+        page_ux.HelpText = "Status of your interactions"
+        book.insertByIndex(3, page_in)
         self.book: UnoControlTabPageContainerModel = dc.getControl("tab_book")
 
         # Dialog placement
@@ -553,7 +586,27 @@ class LibreOfficeInteraction(
             ),
         )
 
-        # Main page placement
+        # Styles page
+        lbl = add_widget(
+            page_st, "FixedText", "label_style", (5, 27, 48, 13), add_now=False
+        )
+        lbl.Label = _("Style")
+        self.lst_style: UnoControlComboBoxModel = add_widget(
+            page_st,
+            "ComboBox",
+            "lst_style",
+            (
+                40,
+                23,
+                69,
+                15,
+            ),
+            add_now=False,
+        )
+        self.lst_style.Dropdown = True
+        self.lst_style.LineCount = 5
+
+        # Advanced page
         lbl = add_widget(
             page_ad, "FixedText", "label_height", (125, 8, 48, 13), add_now=False
         )
@@ -792,25 +845,30 @@ class LibreOfficeInteraction(
         self.dlg.setVisible(True)
 
         # Post visibility setup
-        self.book.ActiveTabPageID = 1
         for pair in self.insert_in:
             pair[0].insertByName(pair[1].Name, pair[1])
 
-        self.lst_model = self.book.getTabPageByID(1).getControl(self.lst_model.Name)
-        lst_rep_model = self.lst_model.getModel()
+        self.lst_model = self.book.getTabPageByID(2).getControl(self.lst_model.Name)
+        lst_rep_model: UnoControlComboBoxModel = self.lst_model.getModel()
         for i in range(len(self.model_choices)):
             lst_rep_model.insertItemText(i, self.model_choices[i])
         self.lst_model.Text = self.default_model
 
-        self.int_width = self.book.getTabPageByID(1).getControl(self.int_width.Name)
+        self.lst_style = self.book.getTabPageByID(1).getControl(self.lst_style.Name)
+        lst_rep_style: UnoControlComboBoxModel = self.lst_style.getModel()
+        for i in range(len(self.style_choices)):
+            lst_rep_style.insertItemText(i, self.style_choices[i])
+        self.lst_style.Text = self.default_style
+
+        self.int_width = self.book.getTabPageByID(2).getControl(self.int_width.Name)
         self.int_width.addTextListener(self)
         self.int_width.addSpinListener(self)
         self.int_width.addFocusListener(self)
-        self.int_height = self.book.getTabPageByID(1).getControl(self.int_height.Name)
+        self.int_height = self.book.getTabPageByID(2).getControl(self.int_height.Name)
         self.int_height.addTextListener(self)
         self.int_height.addSpinListener(self)
         self.int_height.addFocusListener(self)
-        self.lbl_sysinfo = self.book.getTabPageByID(3).getControl(self.lbl_sysinfo.Name)
+        self.lbl_sysinfo = self.book.getTabPageByID(4).getControl(self.lbl_sysinfo.Name)
         self.lbl_sysinfo.addActionListener(self)
         self.txt_prompt = self.dlg.getControl("txt_prompt")
         self.txt_prompt.addTextListener(self)
@@ -821,9 +879,14 @@ class LibreOfficeInteraction(
         self.ctrl_token.getModel().EchoChar
         self.lbl_view_pass = self.dlg.getControl(self.lbl_view_pass.Name)
         if self.options.get("api_key", ANONYMOUS_KEY) == ANONYMOUS_KEY:
+            self.book.ActiveTabPageID = 2
             self.ctrl_token.getModel().EchoChar = 0
             self.lbl_view_pass.setVisible(False)
         else:
+            if self.options.get("default_page", "style") == "style":
+                self.book.ActiveTabPageID = 1
+            else:
+                self.book.ActiveTabPageID = 2
             self.ctrl_token.getModel().EchoChar = self.PASSWORD_MASK
             self.lbl_view_pass.setVisible(True)
 
@@ -1075,11 +1138,24 @@ class LibreOfficeInteraction(
             )
             lbl.Label = _("ApiKey")
 
-        self.model_choices = options.get("local_settings", {"models": MODELS}).get(
-            "models", MODELS
-        )
-        self.model_choices = self.model_choices or MODELS
+        self.__fetch_models_and_styles__(include_remote=False)
+        self.model_choices = options.get(
+            "local_settings", {"models": self.default_models_names}
+        ).get("models", self.default_models_names)
+
+        # This is needed because fetch models and styles were introduced later, helping
+        # people with older settings saved to get the new models
+        self.model_choices = list(set(self.model_choices + self.default_models_names))
+        self.model_choices.sort()
+
         self.default_model = options.get("model", DEFAULT_MODEL)
+
+        self.style_choices = options.get(
+            "local_settings", {"styles": self.default_styles_names}
+        ).get("styles", self.default_styles_names)
+
+        self.default_style = options.get("style", DEFAULT_STYLE)
+        self.style_choices.sort()
 
         self.txt_prompt.Text = self.selected or options.get("prompt", "")
         self.int_width.Value = options.get("image_width", DEFAULT_WIDTH)
@@ -1430,6 +1506,51 @@ class LibreOfficeInteraction(
 
         return Path(config_path)
 
+    def __fetch_models_and_styles__(self, include_remote: bool = True):
+        """
+        Adds Predefined models and styles from local and optionally remote
+        sets values for properties
+        * default_models
+        * default_models_names
+        * default_styles
+        * default_styles_names
+        """
+        models_and_styles = {}
+        with open(LOCAL_MODELS_AND_STYLES) as the_file:
+            models_and_styles = json.loads(the_file.read())
+
+        self.default_models = models_and_styles["models"]
+        if include_remote:
+            with urllib.request.urlopen(URL_MODELS_AND_STYLES) as the_remote:
+                remote_info = json.loads(the_remote.read())
+            self.default_models_names = list(
+                set(list(remote_info["models"].keys()) + MODELS).difference(
+                    set(models_and_styles["forbidden-models"])
+                )
+            )
+            self.default_styles = remote_info["styles"]
+            self.default_styles_names = list(
+                set(remote_info["styles"].keys()).difference(
+                    remote_info["forbidden_styles"]
+                )
+            )
+            self.forbidden_models = remote_info["forbidden-models"]
+            self.forbidden_styles = remote_info["forbidden-styles"]
+        else:
+            self.default_models_names = list(
+                set(list(models_and_styles["models"].keys()) + MODELS).difference(
+                    set(models_and_styles["forbidden-models"])
+                )
+            )
+            self.default_styles = models_and_styles["styles"]
+            self.default_styles_names = list(
+                set(models_and_styles["styles"].keys()).difference(
+                    set(models_and_styles["forbidden-styles"])
+                )
+            )
+            self.forbidden_models = models_and_styles["forbidden-models"]
+            self.forbidden_styles = models_and_styles["forbidden-styles"]
+
 
 def generate_image(desktop=None, context=None):
     """Creates an image from a prompt provided by the user, making use
@@ -1574,6 +1695,19 @@ if __name__ == "__main__":
 # * [ ] Recommend to use a shared key to users
 # * [ ] Automate version propagation when publishing: Wishlist for extensions
 # --- 1.0
+# * [ ] Update styles and models
+#    -  Move from updating models automatically, to let users know there is an update
+#    -  Cache the images or styles and models
+#    -  Force a refresh for images and models, this can run on background
+#       * The download happens to a tmp directory and then everything is copied to the cache
+#    -  Store date of latest update
+#    -  Make a cron job that reviews if there are new models in the reference.
+#    -  Have a switch to autoupdate models
 # * [ ] Use styles support from Horde
+#    +  Default to Styles if has key for the first time, Default to advanced if anonymous
+#    -  Use predefined styles
+#    -  Use an style to generate an imagei
+#    -  Show images in the list
 #    -  Download and cache Styles
+#    -  Update styles
 #

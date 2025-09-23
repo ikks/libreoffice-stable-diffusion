@@ -1,0 +1,95 @@
+{
+  "$defs": {
+    "ImageRecord": {
+      "description": "URLs of images that showcase the item, local_name refers to the downloaded and cached file, if it exists, it's not mandatory to be downloaded.  When refreshing, is expected to be downloaded replacing if existed locally.",
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "object"
+        },
+        "local_name": {
+          "type": "string"
+        }
+      }
+    },
+    "ModelRecord": {
+      "description": "Models that should be present to the user, no matter if they are popular or not. Will be filtered out according to the absence of workers.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "homepage": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "samples": {
+          "type": "array",
+          "items": {
+            "type": "#/$defs/ImageRecord"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "homepage",
+        "description",
+        "samples"
+      ]
+    },
+    "StyleRecord": {
+      "description": "Styles that should be present, no matter if they are popular or not.  Will be filtered out according to the absence of workers.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "homepage": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "samples": {
+          "type": "array",
+          "items": {
+            "type": "#/$defs/ImageRecord"
+          }
+        }
+      },
+      "required": [
+        "type",
+        "homepage",
+        "description",
+        "samples"
+      ]
+    },
+    "ForbiddenArray": {
+      "description": "In case of need to ban models or styles, according to disputes, the model expects a name, and for styles, the ID is referred",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "DateRecord": {
+      "description": "Aimed to be a date in YYYY-MM-DD format to validate if there is need of doing changes to the default ones.",
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-1][0-9]-[0-3][0-9]$"
+    }
+  },
+  "additionalProperties": {
+    "models": {
+      "$ref": "#/$defs/ModelRecord"
+    },
+    "styles": {
+      "$ref": "#/$defs/StyleRecord"
+    },
+    "forbidden-models": "#/$defs/ForbiddenArray",
+    "forbidden-styles": "#/$defs/ForbiddenArray",
+    "latest-update": "#/$defs/DateRecord"
+  },
+  "title": "InitialConfigurationDefinitions",
+  "type": "object"
+}
