@@ -1,76 +1,191 @@
 {
   "models": {
-    "App Icon Diffusion": {
-      "id": "",
-      "homepage": "",
-      "description": "",
-      "samples": []
-    },
     "AIO Pixel Art": {
       "id": "",
-      "homepage": "",
-      "description": "",
+      "homepage": "https://huggingface.co/PublicPrompts/All-In-One-Pixel-Model",
+      "description": "Stable Diffusion fine tuned on pixel art sprites and scenes",
+      "samples": [
+        "showcase/aio_pixel_art/01_monarch.webp"
+      ]
+    },
+    "AlbedoBase XL (SDXL)": {
+      "id": "",
+      "homepage": "https://civitai.com/models/140737?modelVersionId=329420",
+      "description": "SDXL Model that doesn't require a refiner.",
       "samples": []
     },
-    "ModernArt Diffusion": {
+    "Anime Pencil Diffusion": {
       "id": "",
-      "homepage": "",
-      "description": "",
-      "samples": []
+      "homepage": "https://huggingface.co/yehiaserag/anime-pencil-diffusion",
+      "description": "A dreambooth finetune of stable diffusion 1.5 model that will output stuff in anime pencil concept drawing style.",
+      "samples": [
+        "showcase/anime_pencil_diffusion/01_anipen.webp"
+      ]
+    },
+    "App Icon Diffusion": {
+      "id": "",
+      "homepage": "https://huggingface.co/jvkape/IconsMI-AppIconsModelforSD",
+      "description": "Dreambooth model fine tuned on mobile app icons",
+      "samples": [
+        "showcase/app_icon_diffusion/01_bigdowg.webp"
+      ]
     },
     "Cheese Daddys Landscape Mix": {
       "id": "",
-      "homepage": "",
-      "description": "",
-      "samples": []
+      "homepage": "https://civitai.com/models/5041/cheese-daddys-landscapes-mix",
+      "description": "This model is tweak and more merges mainly intended for landscapes, but works decent for people",
+      "samples": [
+        "showcase/cheese_daddys_landscape_mix/01_landscape.webp"
+      ]
     },
-    "Unstable Ink Dream": {
+    "Comic-Diffusion": {
       "id": "",
-      "homepage": "",
-      "description": "",
-      "samples": []
-    },
-    "Vector Art": {
-      "id": "",
-      "homepage": "",
-      "description": "",
-      "samples": []
+      "homepage": "https://huggingface.co/ogkalu/Comic-Diffusion",
+      "description": "Western Comic book style",
+      "samples": [
+        "showcase/comic_diffusion/01_gigachad.webp"
+      ]
     },
     "Double Exposure Diffusion": {
       "id": "",
-      "homepage": "",
-      "description": "",
-      "samples": []
+      "homepage": "https://huggingface.co/joachimsallstrom/Double-Exposure-Diffusion",
+      "description": "The Double Exposure Diffusion model, trained specifically on images of people and a few animals",
+      "samples": [
+        "showcase/double_exposure_diffusion/01_gigachad.webp"
+      ]
     },
     "Dreamshaper": {
       "id": "",
-      "homepage": "",
-      "description": "",
-      "samples": []
-    },
-    "iCoMix": {
-      "id": "",
-      "homepage": "",
-      "description": "",
-      "samples": []
-    },
-    "Western Animation Diffusion": {
-      "id": "",
-      "homepage": "",
-      "description": "",
-      "samples": []
+      "homepage": "https://civitai.com/models/4384/dreamshaper",
+      "description": "Merged model mix of Midnight mixer, roboEtics, f222, elldrethSLucidMix, Seek.ART Mega, rpg, hassanBlend, modelshoot and roboDiffusion",
+      "samples": [
+        "showcase/dreamshaper/01_gigachad.webp"
+      ]
     },
     "Dungeons and Diffusion": {
       "id": "",
-      "homepage": "",
-      "description": "",
+      "homepage": "https://huggingface.co/0xJustin/Dungeons-and-Diffusion",
+      "description": "Generates D&D styled characters, trained on art commissions. *many* species and classes available, see homepage",
+      "samples": [
+        "showcase/dungeons_and_diffusion/01_bigdowg.webp",
+        "showcase/dungeons_and_diffusion/02_bigdowg.webp"
+      ]
+    },
+    "FaeTastic": {
+      "id": "",
+      "homepage": "https://civitai.com/models/14065",
+      "description": "A beautiful mixed model (22 mixes) including Noise Offset to create a wide-range of images",
+      "samples": []
+    },
+    "Flux.1-Schnell fp8 (Compact)": {
+      "id": "",
+      "homepage": "https://civitai.com/models/637170?modelVersionId=714945",
+      "description": "FLUX.1 [schnell] is a 12 billion parameter rectified flow transformer capable of generating images from text descriptions. For more information, please read our blog post. https://blackforestlabs.ai/",
       "samples": []
     },
     "Graphic-Art": {
       "id": "",
-      "homepage": "",
-      "description": "",
+      "homepage": "https://civitai.com/models/7884/graphic-art",
+      "description": "Style model for Stable Diffusion. Mainly focusing on graphic design.",
+      "samples": [
+        "showcase/graphic_art/01_graphicart.webp"
+      ]
+    },
+    "iCoMix": {
+      "id": "",
+      "homepage": "https://civitai.com/models/16164/icomix",
+      "description": "Comic style mix",
+      "samples": [
+        "showcase/icomix/01.webp"
+      ]
+    },
+    "Inkpunk Diffusion": {
+      "id": "",
+      "homepage": "https://huggingface.co/Envvi/Inkpunk-Diffusion",
+      "description": "inspired by Gorillaz art, FLCL and Yoji Shinkawa. Trained on images generated from Midjourney",
+      "samples": [
+        "showcase/inkpunk_diffusion/01_bigdowg.webp"
+      ]
+    },
+    "Midjourney PaintArt": {
+      "id": "",
+      "homepage": "https://huggingface.co/ShadoWxShinigamI/Midjourney-v4-PaintArt",
+      "description": "Midjourney v4 painting style",
+      "samples": [
+        "showcase/midjourney_paintart/01_gigachad.webp",
+        "showcase/midjourney_paintart/02_ghostdragon11.webp"
+      ]
+    },
+    "ModernArt Diffusion": {
+      "id": "",
+      "homepage": "https://huggingface.co/theintuitiveye/modernartstyle",
+      "description": "You can use this model to generate modernart style images",
+      "samples": [
+        "showcase/modernart_diffusion/01_voodoocode.webp",
+        "showcase/modernart_diffusion/02_gigachad.webp"
+      ]
+    },
+    "Nova Anime XL": {
+      "id": "",
+      "homepage": "https://civitai.com/models/376130?modelVersionId=1065689",
+      "description": "Anime 2d/2.5d model, emphasis on detailed fur, scales, feathers, etc.",
       "samples": []
+    },
+    "Realism Engine": {
+      "id": "",
+      "homepage": "https://civitai.com/models/17277",
+      "description": "This new model was fine-tuned using a vast collection of public domain images, ensuring that it can generate images across a wide range of contexts. While it may not be as strong in generating abstract or highly stylized images, it excels in generating images that are true to life, visually compelling and that accurately reflect the input textual description",
+      "samples": [
+        "showcase/realism_engine/001_muted001.webp"
+      ]
+    },
+    "SDXL 1.0": {
+      "id": "",
+      "homepage": "https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0",
+      "description": "The base SDXL 1.0 model.",
+      "samples": []
+    },
+    "Something": {
+      "id": "",
+      "homepage": "https://huggingface.co/NoCrypt/SomethingV2_2",
+      "description": "A lot of things are being discovered lately, such as a way to merge model using mbw automatically, offset noise to get much darker result, and even VAE tuning. This anime model is intended to use all of those features as the improvements",
+      "samples": [
+        "showcase/something/01.webp"
+      ]
+    },
+    "stable_diffusion": {
+      "id": "",
+      "homepage": "",
+      "description": "Generalist AI image generating model. The baseline for all finetuned models.",
+      "samples": [
+        "showcase/stable_diffusion/01_racebannin.webp",
+        "showcase/stable_diffusion/02_bigdowg.webp",
+        "showcase/stable_diffusion/03_executivebees24601.webp"
+      ]
+    },
+    "Unstable Ink Dream": {
+      "id": "",
+      "homepage": "https://huggingface.co/Oosayam/UnstableSamInkDream",
+      "description": "Create a variety of styles including realistic photos, realistic drawings, and animations like last three fig",
+      "samples": [
+        "showcase/unstable_ink_dream/01_inkdream.webp"
+      ]
+    },
+    "Vector Art": {
+      "id": "",
+      "homepage": "https://civitai.com/models/4618/vector-art",
+      "description": "This is a style model for Stable Diffusion 2.1 mimicking vector style.",
+      "samples": [
+        "showcase/vector_art/01_vectorart.webp"
+      ]
+    },
+    "Western Animation Diffusion": {
+      "id": "",
+      "homepage": "https://civitai.com/models/86546/western-animation-diffusion",
+      "description": "Comicbook and Western Animation Style Model",
+      "samples": [
+        "showcase/western_animation_diffusion/01.webp"
+      ]
     }
   },
   "styles": {

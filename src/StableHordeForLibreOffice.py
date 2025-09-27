@@ -33,6 +33,7 @@ import webbrowser
 
 from com.sun.star.awt import ActionEvent
 from com.sun.star.awt import FocusEvent
+from com.sun.star.awt import ItemEvent
 from com.sun.star.awt import KeyEvent
 from com.sun.star.awt import MessageBoxButtons as mbb
 from com.sun.star.awt import MessageBoxResults as mbr
@@ -43,6 +44,7 @@ from com.sun.star.awt import SpinEvent
 from com.sun.star.awt import TextEvent
 from com.sun.star.awt import XActionListener
 from com.sun.star.awt import XFocusListener
+from com.sun.star.awt import XItemListener
 from com.sun.star.awt import XKeyListener
 from com.sun.star.awt import XSpinListener
 from com.sun.star.awt import XTextListener
@@ -79,6 +81,7 @@ if TYPE_CHECKING:
     from com.sun.star.awt import UnoControlEditModel
     from com.sun.star.awt import UnoControlFixedHyperlinkModel
     from com.sun.star.awt import UnoControlFixedTextModel
+    from com.sun.star.awt import UnoControlListBoxModel
     from com.sun.star.awt import UnoControlModel
     from com.sun.star.awt import UnoControlNumericFieldModel
     from com.sun.star.awt.tab import UnoControlTabPageContainerModel
@@ -101,6 +104,8 @@ LOGGING_LEVEL = logging.ERROR
 GALLERY_NAME = "aihorde.net"
 
 GALLERY_IMAGE_DIR = GALLERY_NAME + "_images"
+CACHE_DIR = "aihorde.net"
+DEFAULT_MISSING_IMAGE = "missing_image.webp"
 
 LIBREOFFICE_EXTENSION_ID = "org.fectp.StableHordeForLibreOffice"
 GETTEXT_DOMAIN = "stablehordeforlibreoffice"
@@ -272,6 +277,7 @@ class LibreOfficeInteraction(
     unohelper.Base,
     InformerFrontend,
     XActionListener,
+    XItemListener,
     XKeyListener,
     XTextListener,
     XSpinListener,
@@ -354,7 +360,7 @@ class LibreOfficeInteraction(
             # If the selection is not text, let's wait for the user to write down
             self.selected = ""
 
-        self.DEFAULT_DLG_HEIGHT: int = 220
+        self.DEFAULT_DLG_HEIGHT: int = 268
         self.PASSWORD_MASK = 42
         self.displacement: int = 180
         self.ok_btn: UnoControlButtonModel = None
@@ -462,24 +468,20 @@ class LibreOfficeInteraction(
         dc.addKeyListener(self)
 
         book: UnoControlTabPageContainerModel = add_widget(
-            dm, "TabPageContainer", "tab_book", (18, 63, 233, 100)
+            dm, "TabPageContainer", "tab_book", (18, 106, 233, 100)
         )
-        page_st: UnoControlTabPageModel = book.createTabPage(1)
-        page_st.Title = "✨ " + _("Simple")
-        page_st.HelpText = "Generate images from predefined styles"
-        book.insertByIndex(0, page_st)
-        page_ad: UnoControlTabPageModel = book.createTabPage(2)
+        page_ad: UnoControlTabPageModel = book.createTabPage(1)
         page_ad.Title = "🪄 " + _("Advanced")
         page_ad.HelpText = "Generate images from models"
-        book.insertByIndex(1, page_ad)
-        page_ux: UnoControlTabPageModel = book.createTabPage(3)
+        book.insertByIndex(0, page_ad)
+        page_ux: UnoControlTabPageModel = book.createTabPage(2)
         page_ux.Title = "🛠️ " + _("Configure")
         page_ux.HelpText = "General configuration options"
-        book.insertByIndex(2, page_ux)
-        page_in: UnoControlTabPageModel = book.createTabPage(4)
+        book.insertByIndex(1, page_ux)
+        page_in: UnoControlTabPageModel = book.createTabPage(3)
         page_in.Title = "💬 " + _("About")
         page_ux.HelpText = "Status of your interactions"
-        book.insertByIndex(3, page_in)
+        book.insertByIndex(2, page_in)
         self.book: UnoControlTabPageContainerModel = dc.getControl("tab_book")
 
         # Dialog placement
@@ -492,10 +494,8 @@ class LibreOfficeInteraction(
         dm.Moveable = True
         dm.Title = _("AI Horde for LibreOffice - ") + VERSION
 
-        lbl = add_widget(dm, "FixedText", "label_prompt", (28, 18, 48, 10))
-        lbl.Label = _("Prompt")
         self.bool_trans: UnoControlCheckBoxModel = add_widget(
-            dm, "CheckBox", "bool_trans", (29, 33, 30, 10)
+            dm, "CheckBox", "bool_trans", (29, self.DEFAULT_DLG_HEIGHT - 52, 30, 10)
         )
         self.bool_trans.Label = "🌏"
         self.bool_trans.HelpText = _("""           Translate the prompt to English, wishing for the best.  If the result is not
@@ -513,22 +513,113 @@ class LibreOfficeInteraction(
             "Edit",
             "txt_prompt",
             (
-                60,
-                16,
-                188,
-                42,
+                10,
+                8,
+                148,
+                38,
             ),
             add_now=False,
-        )
-        self.txt_prompt.MultiLine = True
-        self.txt_prompt.TabIndex = 1
-        self.txt_prompt.HelpText = _("""        Let your imagination run wild or put a proper description of your
+            additional_properties=(
+                ("MultiLine", True),
+                ("AutoVScroll", True),
+                ("TabIndex", 1),
+                (
+                    "HelpText",
+                    _("""        Let your imagination run wild or put a proper description of your
         desired output. Use full grammar for Flux, use tag-like language
         for sd15, use short phrases for sdxl.
-        Write at least 5 words or 10 characters.""")
+        Write at least 5 words or 10 characters."""),
+                ),
+            ),
+        )
+        ht = _("""       Here you let the model know what you are forbidding to show in the image
+        """)
+        self.txt_np: UnoControlEditModel = add_widget(
+            dm,
+            "Edit",
+            "txt_np",
+            (
+                10,
+                48,
+                148,
+                38,
+            ),
+            add_now=False,
+            additional_properties=(
+                ("MultiLine", True),
+                ("TabIndex", 1),
+                ("HelpText", ht),
+            ),
+        )
+
+        self.txt_name: UnoControlFixedTextModel = create_widget(
+            dm,
+            "FixedText",
+            "txt_name",
+            (10, 92, 120, 40),
+            additional_properties=(
+                ("Label", "Esta cosa cómo es?"),
+                ("Tabstop", False),
+            ),
+        )
+
+        self.lst_selectimage: UnoControlListBoxModel = create_widget(
+            dm,
+            "ListBox",
+            "lst_selectimage",
+            (160, 6, 94, 94),
+            (("LineCount", 2), ("Dropdown", True), ("Tabstop", True), ("TabIndex", 0)),
+        )
+
+        def prepare_data(
+            json_file_data: Path,
+            images_base_dir: Path,
+            lst_selectimage,
+        ) -> List[str]:
+            i = -1
+            data = {}
+            with open(json_file_data) as the_file:
+                config_data = json.loads(the_file.read())
+
+            content = config_data["models"]
+            missing_image = "file://" + str(
+                Path(images_base_dir, "assets", "showcase", DEFAULT_MISSING_IMAGE)
+            )
+            shutil.copy(
+                Path("assets", "showcase", DEFAULT_MISSING_IMAGE),
+                Path(images_base_dir, "assets", "showcase", DEFAULT_MISSING_IMAGE),
+            )
+            for key in sorted(list(content.keys()), key=lambda k: k.upper()):
+                i += 1
+                dir_name = key.replace(" ", "_").replace("-", "_").lower()
+                source_path = Path("assets", "showcase", dir_name)
+                os.makedirs(source_path, exist_ok=True)
+                if not content[key]["samples"]:
+                    data[key] = i
+                    lst_selectimage.insertItemImage(i, missing_image)
+                    lst_selectimage.setItemData(i, (key,))
+                    continue
+                target_path = Path(images_base_dir, "assets", "showcase", dir_name)
+                os.makedirs(target_path, exist_ok=True)
+                image_filename = content[key]["samples"][0].split("/")[-1]
+
+                shutil.copy(
+                    Path(source_path, image_filename), Path(target_path, image_filename)
+                )
+                the_file = "file://" + str(Path(target_path, image_filename))
+                lst_selectimage.insertItemImage(i, the_file)
+                lst_selectimage.setItemData(i, (key,))
+                data[key] = i
+            return data
+
+        self.model_index = prepare_data(
+            "resources/models_and_styles.json",
+            self.path_cache_directory(),
+            self.lst_selectimage,
+        )
 
         button_ok: UnoControlButtonModel = add_widget(
-            dm, "Button", "btn_ok", (73, 186, 49, 13)
+            dm, "Button", "btn_ok", (73, self.DEFAULT_DLG_HEIGHT - 34, 49, 13)
         )
         button_ok.Label = _("Process")
         button_ok.TabIndex = 4
@@ -537,7 +628,9 @@ class LibreOfficeInteraction(
         btn_ok.setActionCommand("btn_ok_OnClick")
         self.ok_btn: UnoControlButtonModel = button_ok
 
-        button_cancel = add_widget(dm, "Button", "btn_cancel", (145, 186, 49, 13))
+        button_cancel = add_widget(
+            dm, "Button", "btn_cancel", (145, self.DEFAULT_DLG_HEIGHT - 34, 49, 13)
+        )
         button_cancel.Label = _("Cancel")
         button_cancel.TabIndex = 13
         btn_cancel = dc.getControl("btn_cancel")
@@ -545,7 +638,11 @@ class LibreOfficeInteraction(
         btn_cancel.setActionCommand("btn_cancel_OnClick")
 
         self.ctrl_token: UnoControlEditModel = add_widget(
-            dm, "Edit", "txt_token", (170, 168, 80, 10), add_now=False
+            dm,
+            "Edit",
+            "txt_token",
+            (170, self.DEFAULT_DLG_HEIGHT - 52, 80, 10),
+            add_now=False,
         )
         self.ctrl_token.TabIndex = 11
         self.ctrl_token.HelpText = _("""        Get yours at https://aihorde.net/ for free. Recommended:
@@ -553,14 +650,17 @@ class LibreOfficeInteraction(
         self.ctrl_token.EchoChar = self.PASSWORD_MASK
 
         self.lbl_view_pass: UnoControlFixedHyperlinkModel = add_widget(
-            dm, "FixedHyperlink", "lbl_view_pass", (241, 168, 10, 10)
+            dm,
+            "FixedHyperlink",
+            "lbl_view_pass",
+            (241, self.DEFAULT_DLG_HEIGHT - 52, 10, 10),
         )
         self.lbl_view_pass.Label = "👀"
         self.lbl_view_pass.HelpText = _("""Click to view your AiHorde API Key""")
         dc.getControl("lbl_view_pass").addActionListener(self)
 
         self.btn_toggle: UnoControlButtonModel = add_widget(
-            dm, "Button", "btn_toggle", (2, 208, 12, 10)
+            dm, "Button", "btn_toggle", (2, self.DEFAULT_DLG_HEIGHT - 12, 12, 10)
         )
         self.btn_toggle.Label = "_"
         self.btn_toggle.HelpText = _("Toggle")
@@ -570,7 +670,12 @@ class LibreOfficeInteraction(
         self.btn_toggle.addActionListener(self)
         self.btn_toggle.setActionCommand("btn_toggle_OnClick")
 
-        lbl = add_widget(dm, "FixedText", "label_progress", (20, 208, 150, 10))
+        lbl = add_widget(
+            dm,
+            "FixedText",
+            "label_progress",
+            (20, self.DEFAULT_DLG_HEIGHT - 12, 150, 10),
+        )
         lbl.Label = ""
         self.progress_label = lbl
 
@@ -580,31 +685,11 @@ class LibreOfficeInteraction(
             "prog_status",
             (
                 14,
-                206,
+                self.DEFAULT_DLG_HEIGHT - 14,
                 250,
                 13,
             ),
         )
-
-        # Styles page
-        lbl = add_widget(
-            page_st, "FixedText", "label_style", (5, 27, 48, 13), add_now=False
-        )
-        lbl.Label = _("Style")
-        self.lst_style: UnoControlComboBoxModel = add_widget(
-            page_st,
-            "ComboBox",
-            "lst_style",
-            (
-                40,
-                23,
-                69,
-                15,
-            ),
-            add_now=False,
-        )
-        self.lst_style.Dropdown = True
-        self.lst_style.LineCount = 5
 
         # Advanced page
         lbl = add_widget(
@@ -848,31 +933,37 @@ class LibreOfficeInteraction(
         for pair in self.insert_in:
             pair[0].insertByName(pair[1].Name, pair[1])
 
-        self.lst_model = self.book.getTabPageByID(2).getControl(self.lst_model.Name)
+        self.lst_model = self.book.getTabPageByID(1).getControl(self.lst_model.Name)
         lst_rep_model: UnoControlComboBoxModel = self.lst_model.getModel()
         for i in range(len(self.model_choices)):
             lst_rep_model.insertItemText(i, self.model_choices[i])
         self.lst_model.Text = self.default_model
 
-        self.lst_style = self.book.getTabPageByID(1).getControl(self.lst_style.Name)
-        lst_rep_style: UnoControlComboBoxModel = self.lst_style.getModel()
-        for i in range(len(self.style_choices)):
-            lst_rep_style.insertItemText(i, self.style_choices[i])
-        self.lst_style.Text = self.default_style
+        if self.default_model not in self.model_index:
+            self.default_model = DEFAULT_MODEL
+        self.lst_selectimage.SelectedItems = [self.model_index[self.default_model]]
+        self.txt_name.Label = (
+            self.default_model.replace("_", " ").replace("-", "").title()
+        )
 
-        self.int_width = self.book.getTabPageByID(2).getControl(self.int_width.Name)
+        self.int_width = self.book.getTabPageByID(1).getControl(self.int_width.Name)
         self.int_width.addTextListener(self)
         self.int_width.addSpinListener(self)
         self.int_width.addFocusListener(self)
-        self.int_height = self.book.getTabPageByID(2).getControl(self.int_height.Name)
+        self.int_height = self.book.getTabPageByID(1).getControl(self.int_height.Name)
         self.int_height.addTextListener(self)
         self.int_height.addSpinListener(self)
         self.int_height.addFocusListener(self)
-        self.lbl_sysinfo = self.book.getTabPageByID(4).getControl(self.lbl_sysinfo.Name)
+        self.lbl_sysinfo = self.book.getTabPageByID(3).getControl(self.lbl_sysinfo.Name)
         self.lbl_sysinfo.addActionListener(self)
         self.txt_prompt = self.dlg.getControl("txt_prompt")
         self.txt_prompt.addTextListener(self)
         self.txt_prompt.addKeyListener(self)
+        self.lst_selectimage: UnoControlListBoxModel = self.dlg.getControl(
+            "lst_selectimage"
+        )
+        self.lst_selectimage.addItemListener(self)
+        self.txt_name.FontHeight = 14
         self.ctrl_token = self.dlg.getControl(self.ctrl_token.Name)
 
         # UI tweaks
@@ -977,6 +1068,15 @@ class LibreOfficeInteraction(
             logger.info(ex, stack_info=True)
         finally:
             prompt_control.Text = translated_text or text
+
+    def itemStateChanged(self, evt: ItemEvent) -> None:
+        self.txt_name.Label = (
+            self.lst_selectimage.getModel()
+            .getItemData(evt.value.Selected)[0]
+            .replace("_", " ")
+            .replace("-", " ")
+            .title()
+        )
 
     def focusLost(self, oFocusEvent: FocusEvent) -> None:
         element = oFocusEvent.Source.getModel()
@@ -1128,13 +1228,19 @@ class LibreOfficeInteraction(
             self.ctrl_token.Text = ""
             self.ctrl_token.TabIndex = 1
             lbl = create_widget(
-                self.dlg.getModel(), "FixedHyperlink", "label_token", (110, 168, 48, 10)
+                self.dlg.getModel(),
+                "FixedHyperlink",
+                "label_token",
+                (110, self.DEFAULT_DLG_HEIGHT - 52, 48, 10),
             )
             lbl.Label = _("ApiKey (Optional)")
             lbl.URL = REGISTER_AI_HORDE_URL
         else:
             lbl = create_widget(
-                self.dlg.getModel(), "FixedText", "label_token", (130, 168, 48, 10)
+                self.dlg.getModel(),
+                "FixedText",
+                "label_token",
+                (130, self.DEFAULT_DLG_HEIGHT - 52, 48, 10),
             )
             lbl.Label = _("ApiKey")
 
@@ -1451,6 +1557,23 @@ class LibreOfficeInteraction(
 
         return Path(images_local_path)
 
+    def path_cache_directory(self) -> str:
+        """
+        Returns the basepath for the store objects directory
+        to store images. Created if did not exist
+        """
+        # https://api.libreoffice.org/docs/idl/ref/singletoncom_1_1sun_1_1star_1_1util_1_1thePathSettings.html
+
+        psettings = self.context.getByName(
+            "/singletons/com.sun.star.util.thePathSettings"
+        )
+        cache_path = (
+            Path(uno.fileUrlToSystemPath(psettings.Storage_writable)) / CACHE_DIR
+        )
+        os.makedirs(cache_path, exist_ok=True)
+
+        return Path(cache_path)
+
     def add_image_to_gallery(self, image_info: List[str]) -> None:
         """
         Adds the image in image_path to the gallery theme, the image
@@ -1695,19 +1818,23 @@ if __name__ == "__main__":
 # * [ ] Recommend to use a shared key to users
 # * [ ] Automate version propagation when publishing: Wishlist for extensions
 # --- 1.0
+# * [ ] Open an httpserver to receive post hooks from hordeai with gradio
 # * [ ] Update styles and models
 #    -  Move from updating models automatically, to let users know there is an update
-#    -  Cache the images or styles and models
+#    -  Cache the images of styles and models
 #    -  Force a refresh for images and models, this can run on background
 #       * The download happens to a tmp directory and then everything is copied to the cache
 #    -  Store date of latest update
-#    -  Make a cron job that reviews if there are new models in the reference.
+#    -  Make a cron job that reviews if there are new models in the reference, this is a github action.
 #    -  Have a switch to autoupdate models
 # * [ ] Use styles support from Horde
 #    +  Default to Styles if has key for the first time, Default to advanced if anonymous
-#    -  Use predefined styles
-#    -  Use an style to generate an imagei
-#    -  Show images in the list
+#    -  Store locally the models with description, homepage and file thing
+#    -  Retrieve from local the models, description and all things...
+#    -  Fetch model's styles according to the most used
+#    -  When generated a new image and model did not have, save it in cache
+#    -  Update models from remote when there is an update
+#    -  Load models
+#    -  When generating an image, load the default values from styles
 #    -  Download and cache Styles
 #    -  Update styles
-#

@@ -12,16 +12,17 @@ from zipfile import ZipFile, ZIP_DEFLATED
 
 scriptdir = os.path.dirname(os.path.abspath(sys.argv[0]))
 
-dirs = [
+dirs = (
     ("python_path", "aihordeclient"),
     ("python_path", "sseclient"),
     ("resources",),
-]
+    (Path("assets", "showcase"), Path("assets", "showcase")),
+)
 
 for cur_dir in dirs:
     os.makedirs(Path(scriptdir, *cur_dir), exist_ok=True)
 
-files = [
+files = (
     (("..", "LICENSE"), ("description", "license.txt")),
     (("..", "src", "StableHordeForLibreOffice.py"), ("",)),
     (("..", "docs", "README.md"), ("README",)),
@@ -33,7 +34,8 @@ files = [
         ("..", "modules", "sseclient-py", "README.rst"),
         ("python_path", "sseclient", "README.rst"),
     ),
-]
+    (("", "..", "assets", "showcase", "missing_image.webp"), ("assets", "showcase")),
+)
 
 for pair in files:
     shutil.copy(Path(scriptdir, *pair[0]), Path(scriptdir, *pair[1]))
@@ -44,7 +46,8 @@ my_dirs = [
         ("python_path", "aihordeclient"),
     ),
     (("..", "modules", "sseclient-py", "sseclient"), ("python_path", "sseclient")),
-    (("..", "resources/"), ("resources",)),
+    (("..", "resources"), ("resources",)),
+    (("..", "assets", "showcase"), ("assets", "showcase")),
 ]
 
 for pair in my_dirs:

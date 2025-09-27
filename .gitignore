@@ -4,6 +4,7 @@ oxt/StableHordeForLibreOffice.py
 oxt/README
 oxt/python_path
 oxt/resources
+oxt/assets
 *.mo
 *~
 o.bak
