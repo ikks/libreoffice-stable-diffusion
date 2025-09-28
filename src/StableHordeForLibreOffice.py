@@ -95,7 +95,7 @@ if TYPE_CHECKING:
 # Change the next line replacing False to True if you need to debug. Case matters
 DEBUG = False
 
-VERSION = "1.0"
+VERSION = "0.10"
 
 import_message_error = None
 
@@ -130,9 +130,7 @@ from aihordeclient import (  # noqa: E402
     MIN_PROMPT_LENGTH,
     MAX_MP,
     MIN_WIDTH,
-    MAX_WIDTH,
     MIN_HEIGHT,
-    MAX_HEIGHT,
     MODELS,
     OPUSTM_SOURCE_LANGUAGES,
     REGISTER_AI_HORDE_URL,
@@ -191,6 +189,8 @@ Name of the client sent to API
 DEFAULT_HEIGHT = 384
 DEFAULT_WIDTH = 384
 
+MAX_WIDTH = 1664  # 11 inches, typical presentation width 150DPI
+MAX_HEIGHT = 1728  # A4 length 150DPI
 
 CLIPBOARD_TEXT_FORMAT = "text/plain;charset=utf-16"
 
@@ -492,7 +492,7 @@ class LibreOfficeInteraction(
         dm.Title = _("AI Horde for LibreOffice - ") + VERSION
 
         self.bool_trans: UnoControlCheckBoxModel = add_widget(
-            dm, "CheckBox", "bool_trans", (29, current_height - 52, 30, 10)
+            dm, "CheckBox", "bool_trans", (134, 56, 30, 10)
         )
         self.bool_trans.Label = "🌏"
         self.bool_trans.HelpText = _("""           Translate the prompt to English, wishing for the best.  If the result is not
@@ -512,8 +512,8 @@ class LibreOfficeInteraction(
             (
                 10,
                 8,
-                148,
-                38,
+                144,
+                48,
             ),
             add_now=False,
             additional_properties=(
@@ -529,51 +529,41 @@ class LibreOfficeInteraction(
                 ),
             ),
         )
-        ht = _("""       Here you let the model know what you are forbidding to show in the image
-        """)
-        self.txt_np: UnoControlEditModel = add_widget(
-            dm,
-            "Edit",
-            "txt_np",
-            (
-                10,
-                48,
-                148,
-                38,
-            ),
-            add_now=False,
-            additional_properties=(
-                ("MultiLine", True),
-                ("TabIndex", 1),
-                ("HelpText", ht),
-            ),
-        )
 
         self.lbl_model: UnoControlFixedTextModel = create_widget(
             dm,
             "FixedText",
             "lbl_model",
-            (10, 92, 120, 40),
+            (10, 72, 140, 40),
             additional_properties=(
-                ("Label", "Esta cosa cómo es?"),
+                ("Label", "Esta cosa cómo es?".center(40, " ")),
                 ("Tabstop", False),
+                ("Align", 1),
             ),
         )
 
+        ht = _("""up/arrow keys or mouse scroll to change the model""")
         self.lst_selectimage: UnoControlListBoxModel = create_widget(
             dm,
             "ListBox",
             "lst_selectimage",
             (160, 6, 94, 94),
-            (("LineCount", 2), ("Dropdown", True), ("Tabstop", True), ("TabIndex", 0)),
+            (
+                ("LineCount", 2),
+                ("Dropdown", True),
+                ("Tabstop", True),
+                ("TabIndex", 0),
+                ("HelpText", ht),
+            ),
         )
 
+        ht = _("""Change the size and other parameters, View Model description, ...""")
         btn_do = create_widget(
             dm,
             "Button",
             "btn_more",
             (148, 92, 10, 10),
-            additional_properties=(("Label", "+"),),
+            additional_properties=(("Label", "+"), ("HelpText", ht)),
         )
         btn_more = dc.getControl("btn_more")
         btn_more.addActionListener(self)
@@ -729,8 +719,9 @@ class LibreOfficeInteraction(
             "label_strength",
             (5, 46, 49, 13),
             add_now=False,
+            additional_properties=(("Label", _("Strength")), ("Align", 2)),
         )
-        lbl.Label = _("Strength")
+
         lbl = add_widget(
             page_ad, "FixedText", "label_steps", (5, 27, 49, 13), add_now=False
         )
@@ -1080,7 +1071,6 @@ class LibreOfficeInteraction(
             "label_token",
             "txt_token",
             "lbl_view_pass",
-            "bool_trans",
             "btn_ok",
             "btn_cancel",
         ]
@@ -1143,7 +1133,7 @@ class LibreOfficeInteraction(
 
     def show_model_info(self, item_data: Tuple) -> None:
         self.lbl_model.Label = item_data[0].replace("_", " ").replace("-", " ").title()
-        self.lbl_description.Label = textwrap.fill(item_data[1])
+        self.lbl_description.Label = textwrap.fill(item_data[1], width=66)
         self.lbl_description.URL = item_data[2]
 
     def itemStateChanged(self, evt: ItemEvent) -> None:
