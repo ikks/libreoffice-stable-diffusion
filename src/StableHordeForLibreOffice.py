@@ -18,6 +18,7 @@
 #
 
 import gettext
+import hashlib
 import json
 import logging
 import os
@@ -93,7 +94,7 @@ if TYPE_CHECKING:
     from com.sun.star.datatransfer.clipboard import SystemClipboard
 
 # Change the next line replacing False to True if you need to debug. Case matters
-DEBUG = False
+DEBUG = True
 
 VERSION = "0.10"
 
@@ -120,8 +121,8 @@ logging.basicConfig(
 )
 
 script_path = os.path.realpath(__file__)
-file_path = os.path.dirname(script_path)
-submodule_path = os.path.join(file_path, "python_path")
+script_dir = os.path.dirname(script_path)
+submodule_path = Path(script_dir, "python_path")
 sys.path.append(str(submodule_path))
 
 from aihordeclient import (  # noqa: E402
@@ -189,6 +190,7 @@ Name of the client sent to API
 DEFAULT_HEIGHT = 384
 DEFAULT_WIDTH = 384
 
+# TODO: Review the page size to adjust according to it
 MAX_WIDTH = 1664  # 11 inches, typical presentation width 150DPI
 MAX_HEIGHT = 1728  # A4 length 150DPI
 
@@ -542,6 +544,7 @@ class LibreOfficeInteraction(
             ),
         )
 
+        logger.debug("Creating ListBox")
         ht = _("""up/arrow keys or mouse scroll to change the model""")
         self.lst_selectimage: UnoControlListBoxModel = create_widget(
             dm,
@@ -575,6 +578,7 @@ class LibreOfficeInteraction(
             images_base_dir: Path,
             lst_selectimage,
         ) -> List[str]:
+            logger.debug("Populate listbox")
             i = -1
             data = {}
             with open(json_file_data) as the_file:
@@ -969,6 +973,7 @@ class LibreOfficeInteraction(
 
         if self.default_model not in self.model_index:
             self.default_model = DEFAULT_MODEL
+        logger.debug("Getting default option for listbox")
         self.lst_selectimage.SelectedItems = [self.model_index[self.default_model]]
         self.show_model_info(
             self.lst_selectimage.getItemData(self.model_index[self.default_model])
@@ -987,11 +992,13 @@ class LibreOfficeInteraction(
         self.txt_prompt = self.dlg.getControl("txt_prompt")
         self.txt_prompt.addTextListener(self)
         self.txt_prompt.addKeyListener(self)
+
+        logger.debug("Add change listener to listbox")
         self.lst_selectimage: UnoControlListBoxModel = self.dlg.getControl(
             "lst_selectimage"
         )
         self.lst_selectimage.addItemListener(self)
-        # Todo: Change font size percentually
+        # TODO: Change font size percentually
         self.lbl_model.FontHeight = 14
         self.ctrl_token = self.dlg.getControl(self.ctrl_token.Name)
 
@@ -1750,7 +1757,7 @@ def generate_image(desktop=None, context=None):
             "/singletons/com.sun.star.deployment.PackageInformationProvider"
         )
         extpath = pip.getPackageLocation(LIBREOFFICE_EXTENSION_ID)
-        locdir = os.path.join(uno.fileUrlToSystemPath(extpath), "locale")
+        locdir = Path(uno.fileUrlToSystemPath(extpath), "locale")
 
         return locdir
 
@@ -1797,8 +1804,16 @@ class AiHordeForLibreOffice(unohelper.Base, XJobExecutor, XEventListener):
         log_file = os.path.realpath(
             Path(tempfile.gettempdir(), "libreoffice_shotd.log")
         )
+        build_info = {}
+        with open(Path(script_dir, "buildinfo.json")) as thef:
+            build_info = json.loads(thef.read())
+        with open(Path(script_dir, "StableHordeForLibreOffice.py")) as thef:
+            md5sum = hashlib.md5(thef.read().encode("utf-8")).hexdigest()
         if DEBUG:
-            print(f"your log is at {log_file}")
+            print(
+                f' - md5sum: {build_info["md5sum"][-6:]} - githash: {build_info["githash"][-6:]} - version: {VERSION} \n - locals: {md5sum[-6:]}\n\n'
+                + f" Your log is at {log_file}"
+            )
         else:
             message = (
                 _("To view debugging messages, edit")

@@ -3,11 +3,14 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+import json
+import hashlib
 import os
 import os.path
 import sys
 import shutil
 from pathlib import Path
+from subprocess import run, PIPE
 from zipfile import ZipFile, ZIP_DEFLATED
 
 scriptdir = os.path.dirname(os.path.abspath(sys.argv[0]))
@@ -54,6 +57,12 @@ for pair in my_dirs:
     shutil.copytree(
         Path(scriptdir, *pair[0]), Path(scriptdir, *pair[1]), dirs_exist_ok=True
     )
+
+githash = run(["git", "rev-parse", "HEAD"], stdout=PIPE).stdout.strip().decode()
+with open(Path(scriptdir, "..", "src", "StableHordeForLibreOffice.py")) as thef:
+    md5sum = hashlib.md5(thef.read().encode("utf-8")).hexdigest()
+with open(Path(scriptdir, "buildinfo.json"), "w") as thef:
+    json.dump({"githash": githash, "md5sum": md5sum}, thef, indent=2)
 
 extensionname = (
     open(os.path.join(scriptdir, "extensionname.txt")).readlines()[0].rstrip("\n")

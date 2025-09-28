@@ -5,6 +5,7 @@ oxt/README
 oxt/python_path
 oxt/resources
 oxt/assets
+buildinfo.json
 *.mo
 *~
 o.bak
