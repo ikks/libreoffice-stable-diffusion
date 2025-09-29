@@ -174,7 +174,7 @@ Style samples preview
 
 DEFAULT_STYLE = "flux"
 
-LOCAL_MODELS_AND_STYLES = "resources/models_and_styles.json"
+LOCAL_MODELS_AND_STYLES = ("resources", "models_and_styles.json")
 """
 File that holds the predefined models and styles
 """
@@ -293,12 +293,19 @@ class LibreOfficeInteraction(
             "web": "com.sun.star.text.WebDocument",
             "writer": "com.sun.star.text.TextDocument",
         }
-        for k, v in TYPE_DOC.items():
-            if doc.supportsService(v):
-                return k
-        return "new-writer"
+        try:
+            for k, v in TYPE_DOC.items():
+                if doc.supportsService(v):
+                    return k
+            return "new-writer"
+        except Exception:
+            logger.error(
+                "Make sure a document is open, this error happens when impress is not using a template yet"
+            )
+            self.failed = True
 
     def __init__(self, desktop, context):
+        self.failed = False
         self.desktop: Desktop = desktop
         self.context = context
         self.cp = self.context.getServiceManager().createInstanceWithContext(
@@ -558,7 +565,7 @@ class LibreOfficeInteraction(
                 ("HelpText", ht),
             ),
         )
-
+        logger.debug("Created the thing")
         ht = _("""Change the size and other parameters, View Model description, ...""")
         btn_do = create_widget(
             dm,
@@ -579,29 +586,70 @@ class LibreOfficeInteraction(
         ) -> List[str]:
             i = -1
             data = {}
-            with open(json_file_data) as the_file:
-                config_data = json.loads(the_file.read())
+            logger.debug(str(json_file_data))
+            current_dirname = os.path.dirname(__file__)
+            self.extension_dirname = current_dirname
+            try:
+                logger.info("About to read the thing from disk")
+                fn = Path(current_dirname, *json_file_data)
+                logger.info(fn)
+                with open(fn) as the_file:
+                    config_data = json.loads(the_file.read())
+                logger.info("I just read the data completely")
+                content = config_data["models"]
+                logger.debug("Populating list")
+                source_image_dir = Path(current_dirname, "assets", "showcase")
+                target_image_dir = Path(images_base_dir, "assets", "showcase")
+                os.makedirs(target_image_dir, exist_ok=True)
+                logger.debug(Path(source_image_dir, DEFAULT_MISSING_IMAGE))
+                logger.debug(Path(target_image_dir, DEFAULT_MISSING_IMAGE))
 
-            content = config_data["models"]
-            logger.debug("Populating list")
-            missing_image = uno.systemPathToFileUrl(
-                str(Path(images_base_dir, "assets", "showcase", DEFAULT_MISSING_IMAGE))
-            )
-            logger.debug(missing_image)
-            shutil.copy(
-                Path("assets", "showcase", DEFAULT_MISSING_IMAGE),
-                Path(images_base_dir, "assets", "showcase", DEFAULT_MISSING_IMAGE),
-            )
+                shutil.copy(
+                    Path(source_image_dir, DEFAULT_MISSING_IMAGE),
+                    Path(target_image_dir, DEFAULT_MISSING_IMAGE),
+                )
 
-            logger.debug("Copying samples tree")
-            for key in sorted(list(content.keys()), key=lambda k: k.upper()):
-                i += 1
-                dir_name = key.replace(" ", "_").replace("-", "_").lower()
-                source_path = Path("assets", "showcase", dir_name)
-                os.makedirs(source_path, exist_ok=True)
-                if not content[key]["samples"]:
-                    data[key] = i
-                    lst_selectimage.insertItemImage(i, missing_image)
+                missing_image = uno.systemPathToFileUrl(
+                    str(Path(source_image_dir, DEFAULT_MISSING_IMAGE))
+                )
+                logger.debug(missing_image)
+                logger.debug("Copying samples tree")
+                for key in sorted(list(content.keys()), key=lambda k: k.upper()):
+                    i += 1
+                    dir_name = key.replace(" ", "_").replace("-", "_").lower()
+                    source_path = Path(source_image_dir, dir_name)
+                    logger.debug(f"processing {dir_name}")
+                    if not content[key]["samples"]:
+                        logger.debug(
+                            f"{key} does not have image, placing {missing_image}"
+                        )
+                        data[key] = i
+                        lst_selectimage.insertItemImage(i, missing_image)
+                        lst_selectimage.setItemData(
+                            i,
+                            (
+                                key,
+                                content[key]["description"],
+                                content[key].get("homepage", HELP_URL),
+                            ),
+                        )
+                        continue
+                    target_path = Path(target_image_dir, dir_name)
+                    logger.debug(f"{target_path} to be created")
+                    os.makedirs(target_path, exist_ok=True)
+                    image_filename = content[key]["samples"][0].split("/")[-1]
+                    logger.debug(f"{source_path} -> {target_path}")
+                    shutil.copy(
+                        Path(source_path, image_filename),
+                        Path(target_path, image_filename),
+                    )
+                    the_file = uno.systemPathToFileUrl(
+                        str(Path(target_path, image_filename))
+                    )
+
+                    logger.debug(f"{the_file} to be added")
+
+                    lst_selectimage.insertItemImage(i, the_file)
                     lst_selectimage.setItemData(
                         i,
                         (
@@ -610,33 +658,17 @@ class LibreOfficeInteraction(
                             content[key].get("homepage", HELP_URL),
                         ),
                     )
-                    continue
-                target_path = Path(images_base_dir, "assets", "showcase", dir_name)
-                os.makedirs(target_path, exist_ok=True)
-                image_filename = content[key]["samples"][0].split("/")[-1]
-
-                shutil.copy(
-                    Path(source_path, image_filename), Path(target_path, image_filename)
-                )
-                the_file = uno.systemPathToFileUrl(
-                    str(Path(target_path, image_filename))
-                )
-
-                lst_selectimage.insertItemImage(i, the_file)
-                lst_selectimage.setItemData(
-                    i,
-                    (
-                        key,
-                        content[key]["description"],
-                        content[key].get("homepage", HELP_URL),
-                    ),
-                )
-                data[key] = i
+                    data[key] = i
+            except Exception:
+                logger.error("Borked", stack_info=True)
+            logger.debug("Success 🪄🪄🪄🪄🪄🪄🪄")
             return data
 
+        cache_dir = self.path_cache_directory()
+
         self.model_index = prepare_model_and_styles_data(
-            "resources/models_and_styles.json",
-            self.path_cache_directory(),
+            ("resources", "models_and_styles.json"),
+            cache_dir,
             self.lst_selectimage,
         )
 
@@ -1005,6 +1037,7 @@ class LibreOfficeInteraction(
         self.txt_prompt.addKeyListener(self)
 
         logger.debug("Adding change listener to listbox")
+        logger.debug(str(__file__))
         self.lst_selectimage: UnoControlListBoxModel = self.dlg.getControl(
             "lst_selectimage"
         )
@@ -1787,7 +1820,8 @@ class LibreOfficeInteraction(
         * default_styles_names
         """
         models_and_styles = {}
-        with open(LOCAL_MODELS_AND_STYLES) as the_file:
+        logger.debug("opening models and styles")
+        with open(Path(self.extension_dirname, *LOCAL_MODELS_AND_STYLES)) as the_file:
             models_and_styles = json.loads(the_file.read())
 
         self.default_models = models_and_styles["models"]
@@ -1837,8 +1871,14 @@ def generate_image(desktop=None, context=None):
         return locdir
 
     gettext.bindtextdomain(GETTEXT_DOMAIN, get_locale_dir())
+    logger.info(os.path.realpath(__file__))
 
     lo_manager = LibreOfficeInteraction(desktop, context)
+    if lo_manager.failed:
+        print(
+            "Please open a document, if in impress, make sure you select a template first"
+        )
+        return
     st_manager = HordeClientSettings(lo_manager.path_store_directory())
     logger.debug("opening saved user data")
     saved_options = st_manager.load()
