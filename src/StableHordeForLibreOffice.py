@@ -67,7 +67,7 @@ from com.sun.star.uno import XComponentContext
 
 from collections import OrderedDict
 from collections.abc import Iterable
-from math import sqrt
+from math import ceil, sqrt
 from pathlib import Path
 from typing import Any, Dict, List, TYPE_CHECKING, Tuple, Union
 from threading import Thread
@@ -92,6 +92,7 @@ if TYPE_CHECKING:
     from com.sun.star.gallery import GalleryTheme
     from com.sun.star.gallery import GalleryThemeProvider
     from com.sun.star.datatransfer.clipboard import SystemClipboard
+    from com.sun.star.style import PageProperties
 
 # Change the next line replacing False to True if you need to debug. Case matters
 DEBUG = True
@@ -190,7 +191,6 @@ Name of the client sent to API
 DEFAULT_HEIGHT = 384
 DEFAULT_WIDTH = 384
 
-# TODO: Review the page size to adjust according to it
 MAX_WIDTH = 1664  # 11 inches, typical presentation width 150DPI
 MAX_HEIGHT = 1728  # A4 length 150DPI
 
@@ -365,7 +365,6 @@ class LibreOfficeInteraction(
         self.DEFAULT_DLG_HEIGHT: int = 274
         self.BOOK_HEIGHT: int = 100
         self.PASSWORD_MASK = 42
-        self.displacement: int = 180
         self.ok_btn: UnoControlButtonModel = None
         self.local_language: str = ""
         self.initial_prompt: str = ""
@@ -458,7 +457,7 @@ class LibreOfficeInteraction(
             self.local_language = current_language
             logger.info(f"locale is «{self.local_language}»")
         else:
-            logger.warning("locale is «{current_locale}», non translatable")
+            logger.warning(f"locale is «{current_language}», non translatable")
 
         dc: UnoControlDialog = self.context.ServiceManager.createInstanceWithContext(
             "com.sun.star.awt.UnoControlDialog", self.context
@@ -578,20 +577,23 @@ class LibreOfficeInteraction(
             images_base_dir: Path,
             lst_selectimage,
         ) -> List[str]:
-            logger.debug("Populate listbox")
             i = -1
             data = {}
             with open(json_file_data) as the_file:
                 config_data = json.loads(the_file.read())
 
             content = config_data["models"]
-            missing_image = "file://" + str(
-                Path(images_base_dir, "assets", "showcase", DEFAULT_MISSING_IMAGE)
+            logger.debug("Populating list")
+            missing_image = uno.systemPathToFileUrl(
+                str(Path(images_base_dir, "assets", "showcase", DEFAULT_MISSING_IMAGE))
             )
+            logger.debug(missing_image)
             shutil.copy(
                 Path("assets", "showcase", DEFAULT_MISSING_IMAGE),
                 Path(images_base_dir, "assets", "showcase", DEFAULT_MISSING_IMAGE),
             )
+
+            logger.debug("Copying samples tree")
             for key in sorted(list(content.keys()), key=lambda k: k.upper()):
                 i += 1
                 dir_name = key.replace(" ", "_").replace("-", "_").lower()
@@ -616,7 +618,10 @@ class LibreOfficeInteraction(
                 shutil.copy(
                     Path(source_path, image_filename), Path(target_path, image_filename)
                 )
-                the_file = "file://" + str(Path(target_path, image_filename))
+                the_file = uno.systemPathToFileUrl(
+                    str(Path(target_path, image_filename))
+                )
+
                 lst_selectimage.insertItemImage(i, the_file)
                 lst_selectimage.setItemData(
                     i,
@@ -677,15 +682,21 @@ class LibreOfficeInteraction(
         dc.getControl("lbl_view_pass").addActionListener(self)
 
         self.btn_toggle: UnoControlButtonModel = add_widget(
-            dm, "Button", "btn_toggle", (2, current_height - 12, 12, 10)
+            dm,
+            "Button",
+            "btn_toggle",
+            (2, current_height - 13, 12, 10),
+            additional_properties=(
+                ("Label", "-"),
+                ("HelpText", _("Toggle")),
+                ("TabIndex", 15),
+            ),
         )
-        self.btn_toggle.Label = "_"
-        self.btn_toggle.HelpText = _("Toggle")
-        self.btn_toggle.TabIndex = 15
 
-        self.btn_toggle = dc.getControl("btn_toggle")
-        self.btn_toggle.addActionListener(self)
-        self.btn_toggle.setActionCommand("btn_toggle_OnClick")
+        do_toggle: UnoControlButtonModel = dc.getControl("btn_toggle")
+        do_toggle.addActionListener(self)
+        do_toggle.setActionCommand("btn_toggle_OnClick")
+        do_toggle.setVisible(False)
 
         lbl = add_widget(
             dm,
@@ -993,7 +1004,7 @@ class LibreOfficeInteraction(
         self.txt_prompt.addTextListener(self)
         self.txt_prompt.addKeyListener(self)
 
-        logger.debug("Add change listener to listbox")
+        logger.debug("Adding change listener to listbox")
         self.lst_selectimage: UnoControlListBoxModel = self.dlg.getControl(
             "lst_selectimage"
         )
@@ -1017,17 +1028,25 @@ class LibreOfficeInteraction(
             self.ctrl_token.getModel().EchoChar = self.PASSWORD_MASK
             self.lbl_view_pass.setVisible(True)
 
-        self.btn_toggle.setVisible(False)
-
         size = self.dlg.getPosSize()
-        self.DEFAULT_DLG_HEIGHT = size.Height
-        self.displacement = self.dlg.getControl("label_progress").getPosSize().Y - 5
+        self.difference = size.Height - self.DEFAULT_DLG_HEIGHT
 
     def toggle_dialog(self):
         """
-        Un/shrink the dialog to have the progressbar visible
+        Un/shrink the dialog to show only the progressbar
         """
-        size = self.dlg.getPosSize()
+
+        def __set_y_control__(control_name, displacement):
+            control = self.dlg.getControl(control_name)
+            size = control.getPosSize()
+            control.setPosSize(
+                size.X,
+                displacement,
+                size.Height,
+                size.Width,
+                PosSize.Y,
+            )
+
         control_names = (
             "label_progress",
             "btn_toggle",
@@ -1035,29 +1054,24 @@ class LibreOfficeInteraction(
         )
 
         self.book.setVisible(self.btn_more.Label == "-")
-        self.txt_prompt.setVisible(size.Height == self.DEFAULT_DLG_HEIGHT)
-        self.lst_selectimage.setVisible(size.Height == self.DEFAULT_DLG_HEIGHT)
-        if size.Height == self.DEFAULT_DLG_HEIGHT:
-            self.heighten_dialog(30)
-            roll = -1
-        else:
-            self.heighten_dialog(self.DEFAULT_DLG_HEIGHT)
+        self.txt_prompt.setVisible(self.btn_toggle.Label == "+")
+        self.lst_selectimage.setVisible(self.btn_toggle.Label == "+")
+        if self.btn_toggle.Label == "+":
+            new_height = self.DEFAULT_DLG_HEIGHT + self.difference
+            if self.btn_more.Label == "-":
+                new_height += 2 * self.BOOK_HEIGHT
             roll = 1
+            self.btn_toggle.Label = "-"
+        else:
+            new_height = 30
+            roll = -1
+            self.btn_toggle.Label = "+"
+        self.__heighten_dialog__(new_height)
+        displacement = self.dlg.getPosSize().Height - 30
         for control in control_names:
-            self.move_control(control, roll * self.displacement)
+            __set_y_control__(control, roll * displacement)
 
-    def move_control(self, control_name, displacement):
-        control = self.dlg.getControl(control_name)
-        size = control.getPosSize()
-        control.setPosSize(
-            size.X,
-            size.Y + displacement,
-            size.Height,
-            size.Width,
-            PosSize.Y,
-        )
-
-    def heighten_dialog(self, height):
+    def __heighten_dialog__(self, height):
         size = self.dlg.getPosSize()
         self.dlg.setPosSize(
             size.X,
@@ -1069,8 +1083,20 @@ class LibreOfficeInteraction(
 
     def toggle_more(self):
         """
-        Un/shrink the dialog to have the progressbar visible
+        Un/show advanced controls
         """
+
+        def __move_control__(control_name, displacement):
+            control = self.dlg.getControl(control_name)
+            size = control.getPosSize()
+            control.setPosSize(
+                size.X,
+                size.Y + displacement,
+                size.Height,
+                size.Width,
+                PosSize.Y,
+            )
+
         control_names = [
             "label_progress",
             "btn_toggle",
@@ -1082,18 +1108,18 @@ class LibreOfficeInteraction(
             "btn_cancel",
         ]
         if self.btn_more.Label == "+":
-            self.heighten_dialog(self.DEFAULT_DLG_HEIGHT + 2 * self.BOOK_HEIGHT)
+            new_height = self.DEFAULT_DLG_HEIGHT + 2 * self.BOOK_HEIGHT
             self.book.setVisible(True)
             self.btn_more.Label = "-"
             roll = 1
         else:
-            self.heighten_dialog(self.DEFAULT_DLG_HEIGHT)
+            new_height = self.DEFAULT_DLG_HEIGHT
             self.book.setVisible(False)
             self.btn_more.Label = "+"
             roll = -1
-
+        self.__heighten_dialog__(new_height + self.difference)
         for control in control_names:
-            self.move_control(control, roll * 2 * self.BOOK_HEIGHT)
+            __move_control__(control, roll * 2 * self.BOOK_HEIGHT)
 
     def validate_fields(self) -> None:
         if self.in_progress:
@@ -1239,11 +1265,11 @@ class LibreOfficeInteraction(
         return self
 
     def start_processing(self) -> None:
-        self.toggle_dialog()
         if self.inside in ["writer", "web"]:
             self.curview = self.model.CurrentController.ViewCursor
         self.ok_btn.Enabled = False
-        self.btn_toggle.setVisible(True)
+        self.dlg.getControl("btn_toggle").setVisible(True)
+        self.toggle_dialog()
         cancel_button = self.dlg.getControl("btn_cancel")
         cancel_button.setLabel(_("Close"))
         cancel_button.getModel().HelpText = _(
@@ -1261,6 +1287,7 @@ class LibreOfficeInteraction(
             logger.debug(images_paths)
             if images_paths:
                 self.update_status("", 100)
+                self.dlg.setVisible(False)
                 self.show_message(
                     _("Your image was generated consuming {} kudos").format(
                         self.sh_client.kudos_cost
@@ -1293,6 +1320,7 @@ class LibreOfficeInteraction(
         st_manager: HordeClientSettings,
         options: List[Dict[str, Any]],
     ) -> None:
+        logger.debug("Preparing options")
         self.options.update(options)
         self.sh_client = sh_client
         self.st_manager = st_manager
@@ -1348,6 +1376,52 @@ class LibreOfficeInteraction(
         self.bool_trans.State = options.get("translate", 1)
         self.bool_add_to_gallery.State = options.get("add_to_gallery", 1)
         self.bool_add_frame.State = options.get("add_text", 0)
+
+        def __determine_max_image_size__():
+            # set MAX_WIDTH according to document page size
+            logger.debug("Determining max image size")
+            try:
+                # Writer and Calc
+                first_page_style: PageProperties = (
+                    self.model.getStyleFamilies().getByName("PageStyles")[0]
+                )
+
+                # Size is stored in milimeters, normalizing to inches and then pixels, taking care on
+                # making divisible by 64
+                self.int_height.ValueMax = min(
+                    64 * ceil(first_page_style.Height * (1.0 * 15) / (254 * 64)),
+                    MAX_HEIGHT,
+                )
+                self.int_width.ValueMax = min(
+                    64 * ceil(first_page_style.Width * (1.0 * 15) / (254 * 64)),
+                    MAX_WIDTH,
+                )
+            except Exception:
+                # Presentation and Draw fallback
+                try:
+                    self.int_height.ValueMax = min(
+                        64
+                        * ceil(
+                            self.model.DrawPages[0].Height * (1.0 * 15) / (254 * 64)
+                        ),
+                        MAX_HEIGHT,
+                    )
+                    self.int_width.ValueMax = min(
+                        64
+                        * ceil(self.model.DrawPages[0].Width * (1.0 * 15) / (254 * 64)),
+                        MAX_WIDTH,
+                    )
+                except Exception:
+                    if self.inside == "impress":
+                        self.show_message(
+                            _("Please make sure to first choose an impress template")
+                        )
+                    else:
+                        logger.error(
+                            "When trying to determine MAX_SIZE", stack_info=True
+                        )
+
+        __determine_max_image_size__()
 
     def free(self):
         self.dlg.dispose()
@@ -1766,7 +1840,9 @@ def generate_image(desktop=None, context=None):
 
     lo_manager = LibreOfficeInteraction(desktop, context)
     st_manager = HordeClientSettings(lo_manager.path_store_directory())
+    logger.debug("opening saved user data")
     saved_options = st_manager.load()
+    logger.debug("Preparing client")
     sh_client = AiHordeClient(
         VERSION,
         URL_VERSION_UPDATE,
