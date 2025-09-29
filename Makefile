@@ -57,7 +57,7 @@ publish:
 run:
 	make
 	make install
-	$(LOBIN) --writer
+	$(LOBIN) --impress
 
 
 .PHONY: clean install langs publish run 

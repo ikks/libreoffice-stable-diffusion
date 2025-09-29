@@ -90,7 +90,7 @@ if TYPE_CHECKING:
 # Change the next line replacing False to True if you need to debug. Case matters
 DEBUG = False
 
-VERSION = "0.9"
+VERSION = "0.9.1"
 
 import_message_error = None
 
@@ -1004,7 +1004,8 @@ class LibreOfficeInteraction(
 
     def start_processing(self) -> None:
         self.toggle_dialog()
-        self.curview = self.model.CurrentController.ViewCursor
+        if self.inside in ["writer", "web"]:
+            self.curview = self.model.CurrentController.ViewCursor
         self.ok_btn.Enabled = False
         self.btn_toggle.setVisible(True)
         cancel_button = self.dlg.getControl("btn_cancel")
