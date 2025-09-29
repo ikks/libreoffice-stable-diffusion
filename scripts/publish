@@ -29,7 +29,7 @@ if [ "$VERSION" != "$XMLVER" ]; then
 fi
 
 CHANGE=$(grep "## \[$VERSION\] - " CHANGELOG.md | sed -E 's/.*\[(.*)].*/\1/')
-echo Currently $CHANGE
+echo Currently $VERSION
 if [ "$VERSION" != "$CHANGE" ]; then
   echo "hx CHANGELOG.md;git add CHANGELOG.md"
   echo "To update the Changelog"

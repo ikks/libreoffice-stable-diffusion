@@ -1240,7 +1240,8 @@ class LibreOfficeInteraction(
 
     def start_processing(self) -> None:
         self.toggle_dialog()
-        self.curview = self.model.CurrentController.ViewCursor
+        if self.inside in ["writer", "web"]:
+            self.curview = self.model.CurrentController.ViewCursor
         self.ok_btn.Enabled = False
         self.btn_toggle.setVisible(True)
         cancel_button = self.dlg.getControl("btn_cancel")
