@@ -1,3 +1,9 @@
+## I can't find in the toolbar the generate image icon
+
+Make sure you have the extension installed and if in the menu
+Insert > Image From Text , follow [these instructions](https://help.libreoffice.org/latest/en-US/text/shared/guide/edit_symbol)
+from LibreOffice itself.
+
 ## Why I am not getting good images?
 
 Maybe the prompt needs some polishing, consider visiting [artbot](https://artbot.site/)
@@ -11,7 +17,7 @@ is bounded by the computing capacity.
 ## I created an image and I want to reuse it, where I can find it?
 
 Starting from Version 0.8, the downloaded images are stored in the `store/aihorde.net_images`
-directory. It's possible to free some space removing the images that you dont want to
+directory. It's possible to free some space removing the images that you don't want to
 have anymore.
 
 
@@ -21,12 +27,12 @@ With the same prompt on different providers and different runs on the same provi
 with the same parameters only changing the seed can make subtle or big differences.
 
 AiHorde incorporate new models as they are produced in the huge ecosystem and the
-computing capacity of any worker in aihorde maybe is not enough for a given model.
+computing capacity of any worker in AiHorde maybe is not enough for a given model.
 
 ## Where can I see some sample of models in action?
 
 [artbot](https://artbot.site/) has descriptions and samples for the models present
-in Aihorde [here](https://artbot.site/info/models).
+in AiHorde [here](https://artbot.site/info/models).
 
 
 ## How can I get an api_key?
