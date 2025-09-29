@@ -26,3 +26,4 @@ jobs:
           with:
             name: ${{ steps.creating_oxt.outputs.output_oxt }}
             path: out/loshd.oxt
+            compression-level: 0
