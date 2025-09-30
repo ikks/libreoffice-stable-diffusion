@@ -69,6 +69,7 @@ from collections import OrderedDict
 from collections.abc import Iterable
 from math import ceil, sqrt
 from pathlib import Path
+from time import gmtime
 from typing import Any, Dict, List, TYPE_CHECKING, Tuple, Union
 from threading import Thread
 
@@ -201,6 +202,11 @@ _ = gettext.gettext
 gettext.textdomain(GETTEXT_DOMAIN)
 
 
+def log_attention(the_text: str):
+    logger.info(f"✨✨✨✨✨✨✨✨ {the_text} ✨✨✨✨✨✨✨✨")
+    print(f"✨✨✨✨✨✨✨✨ {the_text} ✨✨✨✨✨✨✨✨")
+
+
 class DataTransferable(unohelper.Base, XTransferable):
     """Exchange data with Clipboard"""
 
@@ -306,6 +312,7 @@ class LibreOfficeInteraction(
 
     def __init__(self, desktop, context):
         self.failed = False
+        self.extension_dirname = os.path.dirname(__file__)
         self.desktop: Desktop = desktop
         self.context = context
         self.cp = self.context.getServiceManager().createInstanceWithContext(
@@ -579,96 +586,254 @@ class LibreOfficeInteraction(
         btn_more.setActionCommand("btn_more_OnClick")
         self.btn_more: UnoControlButtonModel = btn_do
 
+        def set_cache_image(
+            image_info: List[Dict[str, Any]],
+            copy_files: bool = True,
+            lst_select_image=None,
+            key: str = "",
+            index: int = 0,
+        ) -> str:
+            """
+            Returns the `fileURL` from `image_info`, the images in image_info
+            refer to the extension image dir, if `copy_files` is True the image
+            from `source_image_dir` is copied to the cache image dir, if `lst_select_image`
+            is not None, the fileurl is added to the UI control
+            """
+            dir_name = key.replace(" ", "_").replace("-", "_").lower()
+            target_image_dir = Path(self.path_cache_directory(), "assets", "showcase")
+            target_path = Path(target_image_dir, dir_name)
+            missing_image = uno.systemPathToFileUrl(
+                str(Path(target_image_dir, DEFAULT_MISSING_IMAGE))
+            )
+
+            if not image_info["samples"] or image_info["samples"][0].endswith(
+                DEFAULT_MISSING_IMAGE
+            ):
+                if lst_select_image:
+                    lst_select_image.insertItemImage(index, missing_image)
+                    lst_select_image.setItemData(
+                        index,
+                        (
+                            key,
+                            image_info["description"],
+                            image_info.get("homepage", HELP_URL),
+                        ),
+                    )
+                return missing_image
+            source_image_path = Path(
+                self.extension_dirname, "assets", *image_info["samples"][0].split("/")
+            )
+            image_filename = ""
+            if copy_files:
+                os.makedirs(target_path, exist_ok=True)
+                image_filename = image_info["samples"][0].split("/")[-1]
+                logger.debug(f"{source_image_path} -> {target_path}")
+                shutil.copy(
+                    source_image_path,
+                    Path(target_path, image_filename),
+                )
+            if image_filename == "":
+                the_file = image_info["samples"][0]
+            else:
+                the_file = uno.systemPathToFileUrl(
+                    str(Path(target_path, image_filename))
+                )
+
+            if lst_select_image:
+                lst_select_image.insertItemImage(index, the_file)
+                lst_select_image.setItemData(
+                    index,
+                    (
+                        key,
+                        image_info["description"],
+                        image_info.get("homepage", HELP_URL),
+                    ),
+                )
+            return the_file
+
+        def load_data_from_cache(lst_select_image):
+            """
+            Populates the `lst_select_image` with the images from the cache,
+            and updates the cache directory if needed from incoming
+            extension files.
+            """
+
+            local_cache_file = Path(
+                self.path_cache_directory(), *LOCAL_MODELS_AND_STYLES
+            )
+            incoming_file_info = Path(self.extension_dirname, *LOCAL_MODELS_AND_STYLES)
+            if not os.path.exists(local_cache_file):
+                # Update and Return the data from incoming
+                logger.info("Cache was empty, populating from extension")
+                result = prepare_model_and_styles_data(
+                    incoming_file_info, lst_select_image, copy_files=True
+                )
+                os.makedirs(
+                    Path(self.path_cache_directory(), *LOCAL_MODELS_AND_STYLES[:-1]),
+                    exist_ok=True,
+                )
+                model_index = result["model_index"]
+                del result["model_index"]
+                with open(local_cache_file, "w") as thef:
+                    json.dump(result, thef)
+
+                return model_index
+            log_attention(
+                f"Reading from {incoming_file_info}\nWriting to {local_cache_file}"
+            )
+            with open(local_cache_file) as thef:
+                local_cache = json.loads(thef.read())
+                with open(incoming_file_info) as incf:
+                    incoming = json.loads(incf.read())
+
+            if local_cache["latest-update"] >= incoming["latest-update"]:
+                # Read the data from cache and return the model_index
+                logger.info("Using models from cache")
+                result = prepare_model_and_styles_data(
+                    local_cache_file,
+                    lst_select_image,
+                )
+                return result["model_index"]
+
+            # Update the data from incoming to cache and return
+            # if the cache has already had images, it's not updated
+            log_attention("Merging data from new models version")
+            logger.info("Updating cache entries")
+            for key in incoming["models"]:
+                if key not in local_cache["models"]:
+                    # Create the entry completely
+                    logger.debug(f"Incorporating «{key}» as a new model")
+                    local_cache["models"][key] = incoming["models"][key]
+                    the_file = set_cache_image(
+                        incoming["models"][key],
+                        copy_files=True,
+                    )
+                    local_cache["models"][key]["samples"] = [the_file]
+                    continue
+
+                if incoming["models"][key]["samples"] and local_cache["models"][key][
+                    "samples"
+                ][0].endswith(DEFAULT_MISSING_IMAGE):
+                    # Copy the new image from incoming and set the url, create the new directory
+                    logger.debug(f"Updating image for «{key}»")
+                    the_file = set_cache_image(
+                        incoming["models"][key],
+                        key=key,
+                        copy_files=True,
+                    )
+                    local_cache["models"][key]["samples"] = [the_file]
+                if not local_cache["models"][key]["description"]:
+                    logger.debug(f"Updating description for «{key}»")
+                    local_cache["models"][key]["description"] = incoming["models"][key][
+                        "description"
+                    ]
+                if (
+                    incoming["models"][key]["homepage"]
+                    and local_cache["models"][key]["homepage"] == HELP_URL
+                ):
+                    logger.debug(f"Updating homepage for «{key}»")
+                    local_cache["models"][key]["homepage"] = incoming["models"][key][
+                        "homepage"
+                    ]
+
+            local_cache["latest-update"] = incoming["latest-update"]
+            logger.info("Writing data from the updated cache")
+            with open(local_cache_file, "w") as thef:
+                json.dump(local_cache, thef)
+            logger.info("Populating UI with all images")
+            # Traverse local cache and load the images for the control.
+            result = {}
+            index = 0
+            for key in sorted(
+                list(local_cache["models"].keys()), key=lambda k: k.upper()
+            ):
+                lst_select_image.insertItemImage(
+                    index, local_cache["models"][key]["samples"][0]
+                )
+                lst_select_image.setItemData(
+                    index,
+                    (
+                        key,
+                        local_cache["models"][key]["description"],
+                        local_cache["models"][key]["homepage"],
+                    ),
+                )
+                index += 1
+                result[key] = index
+            return result
+
         def prepare_model_and_styles_data(
             json_file_data: Path,
-            images_base_dir: Path,
-            lst_selectimage,
+            lst_select_image=None,
+            copy_files=False,
         ) -> List[str]:
+            """
+            Reads a the json fulpath file `json_file_data` and extracts the information
+            to update `lst_select_image`, and if copy_files is True stores the images
+            in the cache. Returns a dictionary referring to an orderd index.
+            """
             i = -1
             data = {}
+            result = {}
             logger.debug(str(json_file_data))
-            current_dirname = os.path.dirname(__file__)
-            self.extension_dirname = current_dirname
             try:
-                logger.info("About to read the thing from disk")
-                fn = Path(current_dirname, *json_file_data)
-                logger.info(fn)
-                with open(fn) as the_file:
+                logger.info("About to read incoming from from disk")
+                logger.info(json_file_data)
+                with open(json_file_data) as the_file:
                     config_data = json.loads(the_file.read())
+                result["styles"] = config_data["styles"]
+                result["forbidden-models"] = config_data["forbidden-models"]
+                result["forbidden-styles"] = config_data["forbidden-styles"]
+                tgmt = gmtime()
+                result["latest-update"] = min(
+                    config_data["latest-update"],
+                    f"{tgmt.tm_year}-{tgmt.tm_mon:0>2}-{tgmt.tm_mday:0>2}",
+                )
+                result["models"] = {}
                 logger.info("I just read the data completely")
                 content = config_data["models"]
                 logger.debug("Populating list")
-                source_image_dir = Path(current_dirname, "assets", "showcase")
-                target_image_dir = Path(images_base_dir, "assets", "showcase")
-                os.makedirs(target_image_dir, exist_ok=True)
-                logger.debug(Path(source_image_dir, DEFAULT_MISSING_IMAGE))
-                logger.debug(Path(target_image_dir, DEFAULT_MISSING_IMAGE))
-
-                shutil.copy(
-                    Path(source_image_dir, DEFAULT_MISSING_IMAGE),
-                    Path(target_image_dir, DEFAULT_MISSING_IMAGE),
+                target_image_dir = Path(
+                    self.path_cache_directory(), "assets", "showcase"
                 )
+                source_image_dir = Path(self.extension_dirname, "assets", "showcase")
+                if copy_files:
+                    logger.debug("Preparing folder to store images")
+                    os.makedirs(target_image_dir, exist_ok=True)
+                    logger.debug(Path(source_image_dir, DEFAULT_MISSING_IMAGE))
+                    logger.debug(Path(target_image_dir, DEFAULT_MISSING_IMAGE))
+
+                    shutil.copy(
+                        Path(source_image_dir, DEFAULT_MISSING_IMAGE),
+                        Path(target_image_dir, DEFAULT_MISSING_IMAGE),
+                    )
+                    logger.debug("Copying samples tree")
 
                 missing_image = uno.systemPathToFileUrl(
-                    str(Path(source_image_dir, DEFAULT_MISSING_IMAGE))
+                    str(Path(target_image_dir, DEFAULT_MISSING_IMAGE))
                 )
                 logger.debug(missing_image)
-                logger.debug("Copying samples tree")
                 for key in sorted(list(content.keys()), key=lambda k: k.upper()):
                     i += 1
-                    dir_name = key.replace(" ", "_").replace("-", "_").lower()
-                    source_path = Path(source_image_dir, dir_name)
-                    logger.debug(f"processing {dir_name}")
-                    if not content[key]["samples"]:
-                        logger.debug(
-                            f"{key} does not have image, placing {missing_image}"
-                        )
-                        data[key] = i
-                        lst_selectimage.insertItemImage(i, missing_image)
-                        lst_selectimage.setItemData(
-                            i,
-                            (
-                                key,
-                                content[key]["description"],
-                                content[key].get("homepage", HELP_URL),
-                            ),
-                        )
-                        continue
-                    target_path = Path(target_image_dir, dir_name)
-                    logger.debug(f"{target_path} to be created")
-                    os.makedirs(target_path, exist_ok=True)
-                    image_filename = content[key]["samples"][0].split("/")[-1]
-                    logger.debug(f"{source_path} -> {target_path}")
-                    shutil.copy(
-                        Path(source_path, image_filename),
-                        Path(target_path, image_filename),
-                    )
-                    the_file = uno.systemPathToFileUrl(
-                        str(Path(target_path, image_filename))
-                    )
+                    result["models"][key] = content[key]
 
-                    logger.debug(f"{the_file} to be added")
-
-                    lst_selectimage.insertItemImage(i, the_file)
-                    lst_selectimage.setItemData(
-                        i,
-                        (
-                            key,
-                            content[key]["description"],
-                            content[key].get("homepage", HELP_URL),
-                        ),
+                    the_file = set_cache_image(
+                        content[key],
+                        copy_files=copy_files,
+                        lst_select_image=lst_select_image,
+                        key=key,
+                        index=i,
                     )
+                    result["models"][key]["samples"] = [the_file]
                     data[key] = i
             except Exception:
                 logger.error("Borked", stack_info=True)
-            logger.debug("Success 🪄🪄🪄🪄🪄🪄🪄")
-            return data
 
-        cache_dir = self.path_cache_directory()
+            result["model_index"] = data
+            logger.debug("Done getting models")
+            return result
 
-        self.model_index = prepare_model_and_styles_data(
-            ("resources", "models_and_styles.json"),
-            cache_dir,
+        self.model_index = load_data_from_cache(
             self.lst_selectimage,
         )
 
@@ -2015,6 +2180,7 @@ if __name__ == "__main__":
 # * [ ] Recommend to use a shared key to users
 # * [ ] Automate version propagation when publishing: Wishlist for extensions
 # --- 1.0
+# * [ ] Replace listbox with custom picker
 # * [ ] Open an httpserver to receive post hooks from hordeai with gradio
 # * [ ] Update styles and models
 #    -  Move from updating models automatically, to let users know there is an update
