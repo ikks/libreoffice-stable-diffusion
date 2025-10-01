@@ -69,30 +69,31 @@ from collections import OrderedDict
 from collections.abc import Iterable
 from math import ceil, sqrt
 from pathlib import Path
+from threading import Thread
 from time import gmtime
 from typing import Any, Dict, List, TYPE_CHECKING, Tuple, Union
-from threading import Thread
 
 if TYPE_CHECKING:
     from com.sun.star.awt import ExtToolkit
     from com.sun.star.awt import Toolkit
     from com.sun.star.awt import UnoControlButtonModel
     from com.sun.star.awt import UnoControlCheckBoxModel
+    from com.sun.star.awt import UnoControlComboBoxModel
     from com.sun.star.awt import UnoControlDialog
     from com.sun.star.awt import UnoControlDialogModel
     from com.sun.star.awt import UnoControlEditModel
     from com.sun.star.awt import UnoControlFixedHyperlinkModel
     from com.sun.star.awt import UnoControlFixedTextModel
-    from com.sun.star.awt import UnoControlListBoxModel
+    from com.sun.star.awt import UnoControlImageControlModel
     from com.sun.star.awt import UnoControlModel
     from com.sun.star.awt import UnoControlNumericFieldModel
     from com.sun.star.awt.tab import UnoControlTabPageContainerModel
     from com.sun.star.awt.tab import UnoControlTabPageModel
+    from com.sun.star.datatransfer.clipboard import SystemClipboard
     from com.sun.star.frame import Desktop
     from com.sun.star.frame import DispatchHelper
     from com.sun.star.gallery import GalleryTheme
     from com.sun.star.gallery import GalleryThemeProvider
-    from com.sun.star.datatransfer.clipboard import SystemClipboard
     from com.sun.star.style import PageProperties
 
 # Change the next line replacing False to True if you need to debug. Case matters
@@ -376,7 +377,7 @@ class LibreOfficeInteraction(
             # If the selection is not text, let's wait for the user to write down
             self.selected = ""
 
-        self.DEFAULT_DLG_HEIGHT: int = 274
+        self.DEFAULT_DLG_HEIGHT: int = 284
         self.BOOK_HEIGHT: int = 100
         self.PASSWORD_MASK = 42
         self.ok_btn: UnoControlButtonModel = None
@@ -545,33 +546,39 @@ class LibreOfficeInteraction(
             ),
         )
 
-        self.lbl_model: UnoControlFixedTextModel = create_widget(
+        logger.debug("Creating ListBox")
+        ht = _("""up/arrow keys or mouse scroll to change the model""")
+        self.cmb_select_image: UnoControlComboBoxModel = create_widget(
             dm,
-            "FixedText",
-            "lbl_model",
-            (10, 72, 140, 40),
+            "ComboBox",
+            "cmb_select_image",
+            (160, 5, 94, 25),
             additional_properties=(
-                ("Label", "Esta cosa cómo es?".center(40, " ")),
+                ("Autocomplete", False),
+                ("Dropdown", False),
+                ("LineCount", 3),
+                (
+                    "HelpText",
+                    _("Use up and down arrows or scroll mouse to change the model"),
+                ),
+            ),
+        )
+        self.img_frame: UnoControlImageControlModel = create_widget(
+            dm,
+            "ImageControl",
+            "img_frame",
+            (160, 30, 94, 94),
+            additional_properties=(
                 ("Tabstop", False),
-                ("Align", 1),
+                (
+                    "HelpText",
+                    _(
+                        "These images have been generated with this model. Use the control at top to change the model."
+                    ),
+                ),
             ),
         )
 
-        logger.debug("Creating ListBox")
-        ht = _("""up/arrow keys or mouse scroll to change the model""")
-        self.lst_selectimage: UnoControlListBoxModel = create_widget(
-            dm,
-            "ListBox",
-            "lst_selectimage",
-            (160, 6, 94, 94),
-            (
-                ("LineCount", 2),
-                ("Dropdown", True),
-                ("Tabstop", True),
-                ("TabIndex", 0),
-                ("HelpText", ht),
-            ),
-        )
         logger.debug("Created the thing")
         ht = _("""Change the size and other parameters, View Model description, ...""")
         btn_do = create_widget(
@@ -610,13 +617,14 @@ class LibreOfficeInteraction(
                 DEFAULT_MISSING_IMAGE
             ):
                 if lst_select_image:
-                    lst_select_image.insertItemImage(index, missing_image)
+                    lst_select_image.insertItemText(index, key)
                     lst_select_image.setItemData(
                         index,
                         (
                             key,
                             image_info["description"],
                             image_info.get("homepage", HELP_URL),
+                            missing_image,
                         ),
                     )
                 return missing_image
@@ -640,13 +648,14 @@ class LibreOfficeInteraction(
                 )
 
             if lst_select_image:
-                lst_select_image.insertItemImage(index, the_file)
+                lst_select_image.insertItemText(index, key)
                 lst_select_image.setItemData(
                     index,
                     (
                         key,
                         image_info["description"],
                         image_info.get("homepage", HELP_URL),
+                        the_file,
                     ),
                 )
             return the_file
@@ -678,7 +687,7 @@ class LibreOfficeInteraction(
                     json.dump(result, thef)
 
                 return model_index
-            log_attention(
+            logger.info(
                 f"Reading from {incoming_file_info}\nWriting to {local_cache_file}"
             )
             with open(local_cache_file) as thef:
@@ -697,7 +706,7 @@ class LibreOfficeInteraction(
 
             # Update the data from incoming to cache and return
             # if the cache has already had images, it's not updated
-            log_attention("Merging data from new models version")
+            logger.debug("Merging data from new models version")
             logger.info("Updating cache entries")
             for key in incoming["models"]:
                 if key not in local_cache["models"]:
@@ -747,15 +756,14 @@ class LibreOfficeInteraction(
             for key in sorted(
                 list(local_cache["models"].keys()), key=lambda k: k.upper()
             ):
-                lst_select_image.insertItemImage(
-                    index, local_cache["models"][key]["samples"][0]
-                )
-                lst_select_image.setItemData(
+                self.cmb_select_image.insertItemText(index, key)
+                self.cmb_select_image.setItemData(
                     index,
                     (
                         key,
                         local_cache["models"][key]["description"],
                         local_cache["models"][key]["homepage"],
+                        local_cache["models"][key]["samples"][0],
                     ),
                 )
                 index += 1
@@ -820,7 +828,7 @@ class LibreOfficeInteraction(
                     the_file = set_cache_image(
                         content[key],
                         copy_files=copy_files,
-                        lst_select_image=lst_select_image,
+                        lst_select_image=self.cmb_select_image,
                         key=key,
                         index=i,
                     )
@@ -834,7 +842,7 @@ class LibreOfficeInteraction(
             return result
 
         self.model_index = load_data_from_cache(
-            self.lst_selectimage,
+            self.cmb_select_image,
         )
 
         button_ok: UnoControlButtonModel = add_widget(
@@ -1182,9 +1190,9 @@ class LibreOfficeInteraction(
         if self.default_model not in self.model_index:
             self.default_model = DEFAULT_MODEL
         logger.debug("Getting default option for listbox")
-        self.lst_selectimage.SelectedItems = [self.model_index[self.default_model]]
+        self.cmb_select_image.Text = self.default_model
         self.show_model_info(
-            self.lst_selectimage.getItemData(self.model_index[self.default_model])
+            self.cmb_select_image.getItemData(self.model_index[self.default_model])
         )
 
         self.int_width = self.book.getTabPageByID(1).getControl(self.int_width.Name)
@@ -1203,12 +1211,9 @@ class LibreOfficeInteraction(
 
         logger.debug("Adding change listener to listbox")
         logger.debug(str(__file__))
-        self.lst_selectimage: UnoControlListBoxModel = self.dlg.getControl(
-            "lst_selectimage"
-        )
-        self.lst_selectimage.addItemListener(self)
+        self.cmb_select_image = self.dlg.getControl("cmb_select_image")
+        self.cmb_select_image.addItemListener(self)
         # TODO: Change font size percentually
-        self.lbl_model.FontHeight = 14
         self.ctrl_token = self.dlg.getControl(self.ctrl_token.Name)
 
         # UI tweaks
@@ -1253,7 +1258,8 @@ class LibreOfficeInteraction(
 
         self.book.setVisible(self.btn_more.Label == "-")
         self.txt_prompt.setVisible(self.btn_toggle.Label == "+")
-        self.lst_selectimage.setVisible(self.btn_toggle.Label == "+")
+        self.img_frame.setVisible(self.btn_toggle.Label == "+")
+        self.cmb_select_image.setVisible(self.btn_toggle.Label == "+")
         if self.btn_toggle.Label == "+":
             new_height = self.DEFAULT_DLG_HEIGHT + self.difference
             if self.btn_more.Label == "-":
@@ -1363,14 +1369,16 @@ class LibreOfficeInteraction(
             prompt_control.Text = translated_text or text
 
     def show_model_info(self, item_data: Tuple) -> None:
-        self.lbl_model.Label = item_data[0].replace("_", " ").replace("-", " ").title()
         self.lbl_description.Label = textwrap.fill(item_data[1], width=66)
         self.lbl_description.URL = item_data[2]
+        self.img_frame.ImageURL = item_data[3]
 
     def itemStateChanged(self, evt: ItemEvent) -> None:
-        self.show_model_info(
-            self.lst_selectimage.getModel().getItemData(evt.value.Selected)
-        )
+        source_name = evt.value.Source.getModel().Name
+        if self.cmb_select_image.getModel().Name == source_name:
+            self.show_model_info(
+                self.cmb_select_image.getModel().getItemData(evt.value.Selected)
+            )
 
     def focusLost(self, oFocusEvent: FocusEvent) -> None:
         element = oFocusEvent.Source.getModel()
@@ -1443,13 +1451,13 @@ class LibreOfficeInteraction(
         """
         Updates the options from the dialog ready to be used
         """
-        selected_model = self.lst_selectimage.getModel()
+        selected_model = self.cmb_select_image.Text
         self.options.update(
             {
                 "prompt": self.txt_prompt.Text,
                 "image_width": self.int_width.Value,
                 "image_height": self.int_height.Value,
-                "model": selected_model.getItemData(selected_model.SelectedItems[0])[0],
+                "model": selected_model,
                 "prompt_strength": self.int_strength.Value,
                 "steps": self.int_steps.Value,
                 "nsfw": self.bool_nsfw.State == 1,
@@ -1518,65 +1526,44 @@ class LibreOfficeInteraction(
         st_manager: HordeClientSettings,
         options: List[Dict[str, Any]],
     ) -> None:
-        logger.debug("Preparing options")
-        self.options.update(options)
-        self.sh_client = sh_client
-        self.st_manager = st_manager
-        api_key = options.get("api_key", ANONYMOUS_KEY)
-        self.ctrl_token.Text = api_key
-        if api_key == ANONYMOUS_KEY:
-            self.ctrl_token.Text = ""
-            self.ctrl_token.TabIndex = 1
-            lbl = create_widget(
-                self.dlg.getModel(),
-                "FixedHyperlink",
-                "label_token",
-                (110, self.DEFAULT_DLG_HEIGHT - self.BOOK_HEIGHT - 52, 48, 10),
+        """Sets values for the options in the dialog according to user
+        preferences, if any
+        """
+
+        def __merge_models_with_local_settings__():
+            """
+            Given that there are default models and styles and user might
+            have others and Horde has published new ones, this function
+            updates the options
+            """
+            self.model_choices = options.get(
+                "local_settings", {"models": self.default_models_names}
+            ).get("models", self.default_models_names)
+
+            # This is needed because fetch models and styles were introduced later, helping
+            # people with older settings saved to get the new models
+            self.model_choices = list(
+                set(self.model_choices + self.default_models_names)
             )
-            lbl.Label = _("ApiKey (Optional)")
-            lbl.URL = REGISTER_AI_HORDE_URL
-        else:
-            lbl = create_widget(
-                self.dlg.getModel(),
-                "FixedText",
-                "label_token",
-                (130, self.DEFAULT_DLG_HEIGHT - self.BOOK_HEIGHT - 52, 48, 10),
-            )
-            lbl.Label = _("ApiKey")
+            self.model_choices.sort()
 
-        self.__fetch_models_and_styles__(include_remote=False)
-        self.model_choices = options.get(
-            "local_settings", {"models": self.default_models_names}
-        ).get("models", self.default_models_names)
+            # TODO: Review which models are new and fetch the images
+            # and lower the size, this is the place to add options
+            # to the control, previously only data preparation
 
-        # This is needed because fetch models and styles were introduced later, helping
-        # people with older settings saved to get the new models
-        self.model_choices = list(set(self.model_choices + self.default_models_names))
-        self.model_choices.sort()
+            self.default_model = options.get("model", DEFAULT_MODEL)
 
-        self.default_model = options.get("model", DEFAULT_MODEL)
+            self.style_choices = options.get(
+                "local_settings", {"styles": self.default_styles_names}
+            ).get("styles", self.default_styles_names)
 
-        self.style_choices = options.get(
-            "local_settings", {"styles": self.default_styles_names}
-        ).get("styles", self.default_styles_names)
-
-        self.default_style = options.get("style", DEFAULT_STYLE)
-        self.style_choices.sort()
-
-        self.txt_prompt.Text = self.selected or options.get("prompt", "")
-        self.int_width.Value = options.get("image_width", DEFAULT_WIDTH)
-        self.int_height.Value = options.get("image_height", DEFAULT_HEIGHT)
-        self.int_strength.Value = options.get("prompt_strength", 6.3)
-        self.int_steps.Value = options.get("steps", 25)
-        self.int_waiting.Value = options.get("max_wait_minutes", 15)
-        self.bool_nsfw.State = options.get("nsfw", 0)
-        self.bool_censure.State = options.get("censor_nsfw", 1)
-        self.bool_trans.State = options.get("translate", 1)
-        self.bool_add_to_gallery.State = options.get("add_to_gallery", 1)
-        self.bool_add_frame.State = options.get("add_text", 0)
+            self.default_style = options.get("style", DEFAULT_STYLE)
+            self.style_choices.sort()
 
         def __determine_max_image_size__():
-            # set MAX_WIDTH according to document page size
+            """
+            sets max width and max height according to LibreOffice document page size
+            """
             logger.debug("Determining max image size")
             try:
                 # Writer and Calc
@@ -1619,7 +1606,49 @@ class LibreOfficeInteraction(
                             "When trying to determine MAX_SIZE", stack_info=True
                         )
 
+        logger.debug("Preparing options")
+        self.options.update(options)
+        self.sh_client = sh_client
+        self.st_manager = st_manager
+        api_key = options.get("api_key", ANONYMOUS_KEY)
+        self.ctrl_token.Text = api_key
+        if api_key == ANONYMOUS_KEY:
+            self.ctrl_token.Text = ""
+            self.ctrl_token.TabIndex = 1
+            lbl = create_widget(
+                self.dlg.getModel(),
+                "FixedHyperlink",
+                "label_token",
+                (110, self.DEFAULT_DLG_HEIGHT - self.BOOK_HEIGHT - 52, 48, 10),
+            )
+            lbl.Label = _("ApiKey (Optional)")
+            lbl.URL = REGISTER_AI_HORDE_URL
+        else:
+            lbl = create_widget(
+                self.dlg.getModel(),
+                "FixedText",
+                "label_token",
+                (130, self.DEFAULT_DLG_HEIGHT - self.BOOK_HEIGHT - 52, 48, 10),
+            )
+            lbl.Label = _("ApiKey")
+
+        self.__fetch_models_and_styles__(include_remote=False)
+
+        __merge_models_with_local_settings__()
+
         __determine_max_image_size__()
+
+        self.txt_prompt.Text = self.selected or options.get("prompt", "")
+        self.int_width.Value = options.get("image_width", DEFAULT_WIDTH)
+        self.int_height.Value = options.get("image_height", DEFAULT_HEIGHT)
+        self.int_strength.Value = options.get("prompt_strength", 6.3)
+        self.int_steps.Value = options.get("steps", 25)
+        self.int_waiting.Value = options.get("max_wait_minutes", 15)
+        self.bool_nsfw.State = options.get("nsfw", 0)
+        self.bool_censure.State = options.get("censor_nsfw", 1)
+        self.bool_trans.State = options.get("translate", 1)
+        self.bool_add_to_gallery.State = options.get("add_to_gallery", 1)
+        self.bool_add_frame.State = options.get("add_text", 0)
 
     def free(self):
         self.dlg.dispose()
