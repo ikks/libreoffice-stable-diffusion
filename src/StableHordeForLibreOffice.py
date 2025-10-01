@@ -311,6 +311,7 @@ class LibreOfficeInteraction(
             self.failed = True
 
     def __init__(self, desktop, context):
+        self.insert_in = []
         self.failed = False
         self.extension_dirname = os.path.dirname(__file__)
         self.desktop: Desktop = desktop
@@ -464,7 +465,6 @@ class LibreOfficeInteraction(
                 self.insert_in,
             )
 
-        self.insert_in = []
         current_language = self.get_language()
         self.show_language = current_language in OPUSTM_SOURCE_LANGUAGES
         if self.show_language:
@@ -507,7 +507,7 @@ class LibreOfficeInteraction(
         dm.Title = _("AI Horde for LibreOffice - ") + VERSION
 
         self.bool_trans: UnoControlCheckBoxModel = add_widget(
-            dm, "CheckBox", "bool_trans", (14, 112, 30, 10)
+            dm, "CheckBox", "bool_trans", (14, 100, 30, 10)
         )
         self.bool_trans.Label = "🌏"
         self.bool_trans.HelpText = _("""           Translate the prompt to English, wishing for the best.  If the result is not
@@ -528,7 +528,7 @@ class LibreOfficeInteraction(
                 10,
                 8,
                 144,
-                48,
+                43,
             ),
             add_now=False,
             additional_properties=(
@@ -550,7 +550,7 @@ class LibreOfficeInteraction(
             "txt_np",
             (
                 10,
-                62,
+                52,
                 144,
                 48,
             ),
@@ -572,15 +572,16 @@ class LibreOfficeInteraction(
 
         logger.debug("Creating ListBox")
         ht = _("""up/arrow keys or mouse scroll to change the model""")
-        self.cmb_select_image: UnoControlComboBoxModel = create_widget(
+        self.cmb_select_image: UnoControlComboBoxModel = add_widget(
             dm,
             "ComboBox",
             "cmb_select_image",
-            (160, 5, 94, 25),
+            (160, 5, 94, 15),
+            add_now=False,
             additional_properties=(
                 ("Autocomplete", True),
                 ("Dropdown", True),
-                ("LineCount", 1),
+                ("LineCount", 3),
                 ("TabIndex", 2),
                 (
                     "HelpText",
@@ -588,11 +589,11 @@ class LibreOfficeInteraction(
                 ),
             ),
         )
-        self.img_frame: UnoControlImageControlModel = create_widget(
+        self.img_frame: UnoControlImageControlModel = add_widget(
             dm,
             "ImageControl",
             "img_frame",
-            (160, 30, 94, 94),
+            (160, 20, 94, 94),
             additional_properties=(
                 ("Tabstop", False),
                 (
@@ -606,11 +607,11 @@ class LibreOfficeInteraction(
 
         logger.debug("Created the thing")
         ht = _("""Change the size and other parameters, View Model description, ...""")
-        btn_do = create_widget(
+        btn_do = add_widget(
             dm,
             "Button",
             "btn_more",
-            (148, 114, 10, 10),
+            (148, 102, 10, 10),
             additional_properties=(("Label", "+"), ("HelpText", ht)),
         )
         btn_more = dc.getControl("btn_more")
@@ -796,7 +797,7 @@ class LibreOfficeInteraction(
             return result
 
         def prepare_model_and_styles_data(
-            json_file_data: Path,
+            json_file_data: Path | str,
             lst_select_image=None,
             copy_files=False,
         ) -> List[str]:
@@ -812,8 +813,11 @@ class LibreOfficeInteraction(
             try:
                 logger.info("About to read incoming from from disk")
                 logger.info(json_file_data)
-                with open(json_file_data) as the_file:
-                    config_data = json.loads(the_file.read())
+                if isinstance(json_file_data, Path):
+                    with open(json_file_data) as the_file:
+                        config_data = json.loads(the_file.read())
+                else:
+                    config_data = json_file_data
                 result["styles"] = config_data["styles"]
                 result["forbidden-models"] = config_data["forbidden-models"]
                 result["forbidden-styles"] = config_data["forbidden-styles"]
@@ -1244,7 +1248,6 @@ class LibreOfficeInteraction(
         logger.debug(str(__file__))
         self.cmb_select_image = self.dlg.getControl("cmb_select_image")
         self.cmb_select_image.addItemListener(self)
-        # TODO: Change font size percentually
         self.ctrl_token = self.dlg.getControl(self.ctrl_token.Name)
 
         # UI tweaks
@@ -1262,6 +1265,7 @@ class LibreOfficeInteraction(
             self.ctrl_token.getModel().EchoChar = self.PASSWORD_MASK
             self.lbl_view_pass.setVisible(True)
 
+        self.txt_prompt.setFocus()
         size = self.dlg.getPosSize()
         self.difference = size.Height - self.DEFAULT_DLG_HEIGHT
 
@@ -1343,7 +1347,7 @@ class LibreOfficeInteraction(
             "btn_cancel",
         ]
         if self.btn_more.Label == "+":
-            new_height = self.DEFAULT_DLG_HEIGHT + 2 * self.BOOK_HEIGHT
+            new_height = self.DEFAULT_DLG_HEIGHT + 2 * self.BOOK_HEIGHT + 20
             self.book.setVisible(True)
             self.btn_more.Label = "-"
             roll = 1
@@ -1368,36 +1372,44 @@ class LibreOfficeInteraction(
 
     def translate(self) -> None:
         self.continue_ticking = True
+        text = self.txt_prompt.Text
+
+        def __do_translation__():
+            self.translated_text = text
+            try:
+                self.translated_text = (
+                    opustm_hf_translate(text, self.local_language) or text
+                )
+                logger.debug("Finished translating")
+            except Exception as ex:
+                logger.info(ex, stack_info=True)
+                logger.debug("Failed translating")
+            self.continue_ticking = False
 
         def __emit_ticks__():
-            i = 1.1
+            i = 0.1
             logger.debug(1)
-            while i < 15:
-                time.sleep(0.5)
+            while i < 50:
                 if not self.continue_ticking:
+                    logger.debug("ticker finishing...")
                     return
-                self.update_status(_("Translating"), i)
+                self.update_status(_("Translating.."), i)
                 logger.debug(i)
                 i = i + 0.5
+                time.sleep(0.5)
 
         if not self.show_language:
             return
-        prompt_control = self.txt_prompt
-        text = prompt_control.Text
         self.initial_prompt = text
-        try:
-            self.update_status(_("Translating"), 1.0)
-            logger.info(f"Translating {text} from {self.local_language}")
-            ticker = Thread(target=__emit_ticks__)
-            ticker.start()
-            logger.debug("starting translation")
-            translated_text = opustm_hf_translate(text, self.local_language)
-            logger.debug("Finished translating")
-            self.continue_ticking = False
-        except Exception as ex:
-            logger.info(ex, stack_info=True)
-        finally:
-            prompt_control.Text = translated_text or text
+        self.update_status(_("Translating"), 1.0)
+        logger.info(f"Translating «{text}» from «{self.local_language}»")
+        ticker = Thread(target=__emit_ticks__)
+        ticker.start()
+        logger.debug("starting translation")
+        translator = Thread(target=__do_translation__)
+        translator.start()
+        translator.join()
+        self.txt_prompt.Text = self.translated_text
 
     def show_model_info(self, item_data: Tuple) -> None:
         self.lbl_description.Label = (
