@@ -83,7 +83,6 @@ if TYPE_CHECKING:
     from com.sun.star.awt import UnoControlDialogModel
     from com.sun.star.awt import UnoControlEditModel
     from com.sun.star.awt import UnoControlFixedHyperlinkModel
-    from com.sun.star.awt import UnoControlFixedTextModel
     from com.sun.star.awt import UnoControlImageControlModel
     from com.sun.star.awt import UnoControlModel
     from com.sun.star.awt import UnoControlNumericFieldModel
@@ -377,7 +376,7 @@ class LibreOfficeInteraction(
             # If the selection is not text, let's wait for the user to write down
             self.selected = ""
 
-        self.DEFAULT_DLG_HEIGHT: int = 284
+        self.DEFAULT_DLG_HEIGHT: int = 294
         self.BOOK_HEIGHT: int = 100
         self.PASSWORD_MASK = 42
         self.ok_btn: UnoControlButtonModel = None
@@ -485,7 +484,7 @@ class LibreOfficeInteraction(
         dc.addKeyListener(self)
 
         book: UnoControlTabPageContainerModel = add_widget(
-            dm, "TabPageContainer", "tab_book", (8, 106, 248, self.BOOK_HEIGHT)
+            dm, "TabPageContainer", "tab_book", (8, 123, 248, self.BOOK_HEIGHT)
         )
         page_ad: UnoControlTabPageModel = book.createTabPage(1)
         page_ad.Title = "🪄 " + _("Advanced")
@@ -508,14 +507,14 @@ class LibreOfficeInteraction(
         dm.Title = _("AI Horde for LibreOffice - ") + VERSION
 
         self.bool_trans: UnoControlCheckBoxModel = add_widget(
-            dm, "CheckBox", "bool_trans", (134, 56, 30, 10)
+            dm, "CheckBox", "bool_trans", (14, 112, 30, 10)
         )
         self.bool_trans.Label = "🌏"
         self.bool_trans.HelpText = _("""           Translate the prompt to English, wishing for the best.  If the result is not
         the expected, try toggling or changing the model""")
 
         if self.show_language:
-            self.bool_trans.TabIndex = 2
+            self.bool_trans.TabIndex = 4
         else:
             self.bool_trans.Tabstop = False
         self.bool_trans = dc.getControl(self.bool_trans.Name)
@@ -545,6 +544,31 @@ class LibreOfficeInteraction(
                 ),
             ),
         )
+        self.txt_np: UnoControlEditModel = add_widget(
+            dm,
+            "Edit",
+            "txt_np",
+            (
+                10,
+                62,
+                144,
+                48,
+            ),
+            add_now=False,
+            additional_properties=(
+                ("MultiLine", True),
+                ("AutoVScroll", True),
+                ("TabIndex", 3),
+                ("TextColor", self.txt_prompt.BackgroundColor),
+                ("BackgroundColor", self.txt_prompt.TextColor),
+                (
+                    "HelpText",
+                    _(
+                        """        This is negative prompt: Use words that will guide IA to avoid unwanted objects on the scene"""
+                    ),
+                ),
+            ),
+        )
 
         logger.debug("Creating ListBox")
         ht = _("""up/arrow keys or mouse scroll to change the model""")
@@ -554,9 +578,10 @@ class LibreOfficeInteraction(
             "cmb_select_image",
             (160, 5, 94, 25),
             additional_properties=(
-                ("Autocomplete", False),
-                ("Dropdown", False),
-                ("LineCount", 3),
+                ("Autocomplete", True),
+                ("Dropdown", True),
+                ("LineCount", 1),
+                ("TabIndex", 2),
                 (
                     "HelpText",
                     _("Use up and down arrows or scroll mouse to change the model"),
@@ -585,7 +610,7 @@ class LibreOfficeInteraction(
             dm,
             "Button",
             "btn_more",
-            (148, 92, 10, 10),
+            (148, 114, 10, 10),
             additional_properties=(("Label", "+"), ("HelpText", ht)),
         )
         btn_more = dc.getControl("btn_more")
@@ -1190,10 +1215,16 @@ class LibreOfficeInteraction(
         if self.default_model not in self.model_index:
             self.default_model = DEFAULT_MODEL
         logger.debug("Getting default option for listbox")
+        # Hide/Show is horrible, how to set the selection...
+        sel_image = self.dlg.getControl("cmb_select_image")
+        self.previous_selected_model = self.default_model
+        sel_image.setVisible(False)
         self.cmb_select_image.Text = self.default_model
         self.show_model_info(
             self.cmb_select_image.getItemData(self.model_index[self.default_model])
         )
+        sel_image.setVisible(True)
+        sel_image.addTextListener(self)
 
         self.int_width = self.book.getTabPageByID(1).getControl(self.int_width.Name)
         self.int_width.addTextListener(self)
@@ -1258,7 +1289,7 @@ class LibreOfficeInteraction(
 
         self.book.setVisible(self.btn_more.Label == "-")
         self.txt_prompt.setVisible(self.btn_toggle.Label == "+")
-        self.img_frame.setVisible(self.btn_toggle.Label == "+")
+        self.dlg.getControl("img_frame").setVisible(self.btn_toggle.Label == "+")
         self.cmb_select_image.setVisible(self.btn_toggle.Label == "+")
         if self.btn_toggle.Label == "+":
             new_height = self.DEFAULT_DLG_HEIGHT + self.difference
@@ -1340,13 +1371,13 @@ class LibreOfficeInteraction(
 
         def __emit_ticks__():
             i = 1.1
-            logging.debug(1)
+            logger.debug(1)
             while i < 15:
                 time.sleep(0.5)
                 if not self.continue_ticking:
                     return
                 self.update_status(_("Translating"), i)
-                logging.debug(i)
+                logger.debug(i)
                 i = i + 0.5
 
         if not self.show_language:
@@ -1359,9 +1390,9 @@ class LibreOfficeInteraction(
             logger.info(f"Translating {text} from {self.local_language}")
             ticker = Thread(target=__emit_ticks__)
             ticker.start()
-            logging.debug("starting")
+            logger.debug("starting translation")
             translated_text = opustm_hf_translate(text, self.local_language)
-            logging.debug("Finished translating")
+            logger.debug("Finished translating")
             self.continue_ticking = False
         except Exception as ex:
             logger.info(ex, stack_info=True)
@@ -1369,7 +1400,9 @@ class LibreOfficeInteraction(
             prompt_control.Text = translated_text or text
 
     def show_model_info(self, item_data: Tuple) -> None:
-        self.lbl_description.Label = textwrap.fill(item_data[1], width=66)
+        self.lbl_description.Label = (
+            item_data[0] + ":\n" + textwrap.fill(item_data[1], width=66)
+        )
         self.lbl_description.URL = item_data[2]
         self.img_frame.ImageURL = item_data[3]
 
@@ -1402,13 +1435,24 @@ class LibreOfficeInteraction(
         if oKeyReleased.KeyCode == ESCAPE:
             self.dlg.dispose()
 
+    def process_model_selection(self, control, model) -> None:
+        if not control.Text or self.previous_selected_model == control.Text:
+            return
+        if control.Text in control.getItems():
+            self.show_model_info(model.getItemData(self.model_index[control.Text]))
+        self.previous_selected = control.Text
+
     def textChanged(self, oTextChanged: TextEvent) -> None:
-        if oTextChanged.Source.getModel().Name in [
+        source = oTextChanged.Source
+        name = source.getModel().Name
+        if name in [
             "txt_prompt",
             "int_width",
             "int_height",
         ]:
             self.validate_fields()
+        elif name == "cmb_select_image":
+            self.process_model_selection(source, source.getModel())
 
     def actionPerformed(self, oActionEvent: ActionEvent) -> None:
         """
@@ -1682,7 +1726,7 @@ class LibreOfficeInteraction(
             res = self.toolkit.createMessageBox(
                 self.extoolkit, box_type, buttons, title, message
             ).execute()
-            if res == mbr.OK:
+            if res == mbr.OK or res == mbr.YES:
                 webbrowser.open(url, new=2)
             return res
 
@@ -1818,11 +1862,28 @@ class LibreOfficeInteraction(
                     self.model.getText().insertTextContent(cursor, text_frame, False)
                 except Exception:
                     # This happens if we are inside a frame.
-                    cursor.jumpToStartOfPage()
-                    self.model.getText().insertTextContent(cursor, text_frame, False)
-                    logging.exception(
-                        "Please try to not add the image inside other objects"
-                    )
+                    try:
+                        cursor.jumpToStartOfPage()
+                        self.model.getText().insertTextContent(
+                            cursor, text_frame, False
+                        )
+                        logger.exception(
+                            "Please try to not add the image inside other objects"
+                        )
+
+                    except Exception:
+                        if add_to_gallery:
+                            self.show_message(
+                                _(
+                                    "Please open the gallery, your image is placed there.  Next time, please avoid to have something different than text selected"
+                                )
+                            )
+                        else:
+                            self.show_mesage(
+                                _(
+                                    "Consider selecting gallery to store the image in case there is an issue inserting the image. The image was downloaded, but failed to insert in the document"
+                                )
+                            )
 
                 frame_text = text_frame.getText()
                 frame_cursor = frame_text.createTextCursor()
@@ -1849,12 +1910,28 @@ class LibreOfficeInteraction(
                 except Exception:
                     # This happens if we are inside a frame, or another element that
                     # does not allow to insert an image, then we jump and insert
-                    logging.debug("Trying to insert the image without frame")
-                    self.curview.jumpToStartOfPage()
-                    self.model.getText().insertTextContent(self.curview, image, False)
-                    logging.exception(
-                        "Please try to not add the image inside other objects"
+                    logger.error(
+                        "Failed initially to insert image. Now trying to insert the image without frame"
                     )
+                    try:
+                        self.curview.jumpToStartOfPage()
+                        self.model.getText().insertTextContent(
+                            self.curview, image, False
+                        )
+                    except Exception:
+                        if add_to_gallery:
+                            self.show_message(
+                                _(
+                                    "Please open the gallery, your image is placed there.  Next time please avoid to have something different than text selected"
+                                )
+                            )
+                        else:
+                            self.show_mesage(
+                                _(
+                                    "Consider selecting gallery to store the image in case there is an issue inserting the image"
+                                )
+                            )
+                    logger.error("Please try to not add the image inside other objects")
 
         image_insert_to = {
             "calc": __insert_image_as_draw__,
@@ -1863,12 +1940,15 @@ class LibreOfficeInteraction(
             "web": __insert_image_in_text_doc__,
             "writer": __insert_image_in_text_doc__,
         }
+        # We try to add first to the gallery, in case insertion fails
+
+        if add_to_gallery:
+            self.add_image_to_gallery([img_path, sh_client.get_full_description()])
+
         image_insert_to[self.inside]()
 
         # Add image to gallery
-        if add_to_gallery:
-            self.add_image_to_gallery([img_path, sh_client.get_full_description()])
-        else:
+        if not add_to_gallery:
             # The downloaded image is removed, no gallery, no track of the image
             os.unlink.img_path
 
@@ -1975,7 +2055,7 @@ class LibreOfficeInteraction(
 
         images_dir = self.path_store_images_directory()
         image_filename = os.path.basename(image_info[0])
-        shutil.move(image_info[0], images_dir)
+        shutil.copy(image_info[0], images_dir)
         target_image = str(images_dir / image_filename)
 
         aihorde_theme: GalleryTheme = the_gallery()
@@ -2209,26 +2289,29 @@ if __name__ == "__main__":
 # * [ ] Recommend to use a shared key to users
 # * [ ] Automate version propagation when publishing: Wishlist for extensions
 # --- 1.0
-# * [ ] Replace listbox with custom picker
+# * [X] Replace listbox with custom picker
 # * [ ] Open an httpserver to receive post hooks from hordeai with gradio
 # * [ ] Update styles and models
 #    -  Move from updating models automatically, to let users know there is an update
 #    -  Cache the images of styles and models
 #    -  Force a refresh for images and models, this can run on background
 #       * The download happens to a tmp directory and then everything is copied to the cache
-#    -  Store date of latest update
+#   [X] Store date of latest update
 #    -  Make a cron job that reviews if there are new models in the reference, this is a github action.
 # * [ ] Use styles support from Horde
 #    +  Default to Styles if has key for the first time, Default to advanced if anonymous
-#    -  Store locally the models with description, homepage and file thing
-#    -  Retrieve from local the models, description and all things...
-#    -  Reset MAX_WIDTH and MAX_HEIGHT with sizepage, getting dpi*150 to get the max px
+#   [ ]  Store locally the models with description, homepage and file thing
+#   [ ]  Retrieve from local the models, description and all things...
+#   [ ]  Reset MAX_WIDTH and MAX_HEIGHT with sizepage, getting dpi*150 to get the max px
 #    -  Take the models from the settings the user had and add them to the local models
-#    -  Show advanced settings on demand, simpler interface to generate images
-#    +  Change from Fixed to Link and use description and URL
-#    +  Replace the model control totally
+#   [X] Show advanced settings on demand, simpler interface to generate images
+#   [X]  Replace the model control totally
 #    -  Fetch model's styles according to the most used
 #    -  When generated a new image and model did not have, save it in cache
+#       https://help.libreoffice.org/master/en-US/text/shared/guide/graphic_export_params.html
+#       https://ask.libreoffice.org/t/macro-pyuno-export-png-with-transparency/109818
+#       https://ask.libreoffice.org/t/export-as-png-with-macro/74337/11
+#       file:///usr/share/doc/libreoffice/sdk/docs/idl/ref/servicecom_1_1sun_1_1star_1_1drawing_1_1GraphicExportFilter-members.html
 #    -  Update models from remote when there is an update
 #    -  Load models
 #    -  When generating an image, load the default values from styles
