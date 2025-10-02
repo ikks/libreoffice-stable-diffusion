@@ -186,6 +186,298 @@
       "samples": [
         "showcase/western_animation_diffusion/01.webp"
       ]
+    },
+    "AMPonyXL": {
+      "id": "",
+      "homepage": "https://civitai.com/models/288584?modelVersionId=324619",
+      "description": "Anime model based on Pony Diffusion XL - remember to use the score prompts to get this to go properly",
+      "samples": []
+    },
+    "AbsoluteReality": {
+      "id": "",
+      "homepage": "https://civitai.com/models/81458?modelVersionId=132760",
+      "description": "That feeling when you wake up after a dream.  This is a fantastic sd1.5 realism bought to you by the creator of DreamShaper",
+      "samples": []
+    },
+    "AbyssOrangeMix-AfterDark": {
+      "id": "",
+      "homepage": "https://artbot.site/info/models",
+      "description": "AbyssOrangeMix trained for creating NSFW images",
+      "samples": []
+    },
+    "AlbedoBase XL 3.1": {
+      "id": "",
+      "homepage": "https://civitai.com/models/140737?modelVersionId=1041855",
+      "description": "SDXL Model that doesn't require a refiner. This is the 3.1 version.",
+      "samples": []
+    },
+    "Analog Madness": {
+      "id": "",
+      "homepage": "https://civitai.com/models/8030?modelVersionId=261539",
+      "description": "A very versatile model, the more powerfull prompts you give, the better results. Capable of creating both NSFW and SFW images but also great scenery, both in landscape and portrait.",
+      "samples": []
+    },
+    "Anything Diffusion": {
+      "id": "",
+      "homepage": "https://huggingface.co/andite/anything-v4.0",
+      "description": "Highly detailed Anime styled generations",
+      "samples": [
+        "showcase/anything_diffusion/01.webp"
+      ]
+    },
+    "BB95 Furry Mix": {
+      "id": "",
+      "homepage": "https://civitai.com/models/17649/bb95-furry-mix",
+      "description": "This model is a mix of various furry models.",
+      "samples": [
+        "showcase/bb95_furry_mix/image-grid.webp"
+      ]
+    },
+    "BB95 Furry Mix v14": {
+      "id": "",
+      "homepage": "https://civitai.com/models/17649/bb95-furry-mix",
+      "description": "This model is a mix of various furry models.",
+      "samples": [
+        "showcase/bb95_furry_mix_v14/image-grid.webp"
+      ]
+    },
+    "BlenderMix Pony": {
+      "id": "",
+      "homepage": "https://civitai.com/models/359876?modelVersionId=541561",
+      "description": "This PonyXL checkpoint should create a blender animation style look. Model was merged using my loras (Fugtrup, Nyl2, RadRoachHD) and AutismMix. I also added a tiny pinch of DucHaiten-GameArt to add some more consistency for 3d generations.",
+      "samples": []
+    },
+    "ChilloutMix": {
+      "id": "",
+      "homepage": "https://artbot.site/info/models",
+      "description": "For creating images of nude solo women",
+      "samples": [
+        "showcase/chilloutmix/01_chilloutmix.webp"
+      ]
+    },
+    "Counterfeit": {
+      "id": "",
+      "homepage": "https://civitai.com/models/4468/counterfeit-v30",
+      "description": "Counterfeit is anime style Stable Diffusion model",
+      "samples": [
+        "showcase/counterfeit/01_counterfeit.webp"
+      ]
+    },
+    "CyberRealistic Pony": {
+      "id": "",
+      "homepage": "https://civitai.com/models/443821?modelVersionId=1346181",
+      "description": "Cyberrealistic Pony is a semi-realistic Pony model capable of SFW and NSFW portraits as well as scenery.",
+      "samples": []
+    },
+    "Deliberate": {
+      "id": "",
+      "homepage": "https://civitai.com/models/4823/deliberate",
+      "description": "This model provides you the ability to create anything you want. The more power of prompt knowledges you have, the better results you'll get. It basically means that you'll never get a perfect result with just a few words. You have to fill out your prompt line extremely detailed",
+      "samples": [
+        "showcase/deliberate/01_deliberate.webp"
+      ]
+    },
+    "DucHaiten GameArt (Unreal) Pony": {
+      "id": "",
+      "homepage": "https://civitai.com/models/388321?modelVersionId=692973",
+      "description": "This is a 3D PonyXL model, based on the AAA game quality of Unreal Engine 5.",
+      "samples": []
+    },
+    "Edge Of Realism": {
+      "id": "",
+      "homepage": "https://civitai.com/models/21813/edge-of-realism",
+      "description": "A spin off from Level4. Built to produce high quality photos. Sometimes photos will come out as uncanny as they are on the edge of realism.",
+      "samples": []
+    },
+    "Fustercluck": {
+      "id": "",
+      "homepage": "https://civitai.com/models/230880/fustercluck",
+      "description": "SDXL Model for cartoony style. If it's not cartoony enough, you may need to add 'anime, cartoon' to the front of the positive prompt to push the image in the right direction",
+      "samples": []
+    },
+    "Hassaku XL": {
+      "id": "",
+      "homepage": "https://civitai.com/models/140272/hassaku-xl-illustrious",
+      "description": "Hassaku aims to be a model with a bright, clear anime style.",
+      "samples": []
+    },
+    "Hentai Diffusion": {
+      "id": "",
+      "homepage": "https://github.com/Deltaadams/HentaiDiffusion",
+      "description": "Anime focused model with better hands, obscure poses/camera angles and consistent style",
+      "samples": [
+        "showcase/hentai_diffusion/01_bigdowg.webp"
+      ]
+    },
+    "HolyMix ILXL": {
+      "id": "",
+      "homepage": "https://civitai.com/models/959490?modelVersionId=1074235",
+      "description": "HolyMix Illustrious XL is a high-contrast, flat shading anime model. It supports multiple characters in the same image, as well as many more artist tags and characters as compared to Pony models.",
+      "samples": []
+    },
+    "ICBINP - I Can't Believe It's Not Photography": {
+      "id": "",
+      "homepage": "https://civitai.com/models/28059?modelVersionId=306898",
+      "description": "Following on from Gorilla With A Brick, merged in 10 more photorealistic models at various weights, and some more noise offset to create something that when prompted for photorealism will make you go 'I Can't Believe It's Not Photography'. It will happily create CGI characters and awesome landscapes as well.",
+      "samples": [
+        "showcase/icbinp___i_cant_believe_its_not_photography/image-grid.webp"
+      ]
+    },
+    "ICBINP XL": {
+      "id": "",
+      "homepage": "https://civitai.com/models/229002/icbinp-xl",
+      "description": "The SDXL follow up to ICBINP, now with higher resolution and better realism",
+      "samples": []
+    },
+    "Juggernaut XL": {
+      "id": "",
+      "homepage": "https://civitai.com/models/133005?modelVersionId=1759168",
+      "description": "Realistic yet versatile SDXL model",
+      "samples": []
+    },
+    "KaynegIllustriousXL": {
+      "id": "",
+      "homepage": "https://civitai.com/models/932731?modelVersionId=1044071",
+      "description": "Anime-style model, excellent for close-up portraits.",
+      "samples": []
+    },
+    "NTR MIX IL-Noob XL": {
+      "id": "",
+      "homepage": "https://civitai.com/models/926443?modelVersionId=1166878",
+      "description": "NTR Mix Illustrious Noob XL is a anime model that can generate stylized anime images, both SFW and NSFW. It can generate both singular portraits and images with multiple characters in them.",
+      "samples": []
+    },
+    "NatViS": {
+      "id": "",
+      "homepage": "https://civitai.com/models/617652?modelVersionId=1030169",
+      "description": "Realistic finetune of SDXL, with an emphasis on natural language prompting. Can produce both SFW and NSFW images. ",
+      "samples": []
+    },
+    "Nova Furry Pony": {
+      "id": "",
+      "homepage": "https://civitai.com/models/503815?modelVersionId=1032006",
+      "description": "Stylized 2d/2.5d furry/anthro model, emphasis on detailed fur, scales, feathers, etc.",
+      "samples": []
+    },
+    "Pony Diffusion XL": {
+      "id": "",
+      "homepage": "https://civitai.com/models/257749/pony-diffusion-v6-xl",
+      "description": "Pony Diffusion V6 is a versatile SDXL finetune capable of producing stunning SFW and NSFW visuals of various anthro, feral, or humanoids species and their interactions based on simple natural language prompts.",
+      "samples": []
+    },
+    "Pony Realism": {
+      "id": "",
+      "homepage": "https://civitai.com/models/372465/pony-realism",
+      "description": "Pony Realism is a realistic Pony model that is good at faces for medium-close distances, skin detail, and prompt adherence",
+      "samples": []
+    },
+    "Prefect Pony": {
+      "id": "",
+      "homepage": "https://civitai.com/models/439889?modelVersionId=828380",
+      "description": "Anime Pony model with an emphasis on NSFW and LoRA support",
+      "samples": []
+    },
+    "Realistic Vision": {
+      "id": "",
+      "homepage": "https://civitai.com/models/4201?modelVersionId=29460",
+      "description": "Model for creating photorealistic humans",
+      "samples": [
+        "showcase/realistic_vision/01_realisticvision.webp"
+      ]
+    },
+    "Stable Cascade 1.0": {
+      "id": "",
+      "homepage": "https://github.com/Stability-AI/StableCascade",
+      "description": "This model is built upon the Wurstchen architecture and its main difference to other models like Stable Diffusion is that it is working at a much smaller latent space.",
+      "samples": []
+    },
+    "SwamPonyXL": {
+      "id": "",
+      "homepage": "https://civitai.com/models/416417/swamponyxl",
+      "description": "Realistic finetune of Pony Diffusion V6, with an emphasis on asian likeness.",
+      "samples": []
+    },
+    "TUNIX Pony": {
+      "id": "",
+      "homepage": "https://civitai.com/models/558362?modelVersionId=621563",
+      "description": "Semi-realistic stylized PonyXL finetune",
+      "samples": []
+    },
+    "Ultraspice": {
+      "id": "",
+      "homepage": "https://civitai.com/models/229392",
+      "description": "Ultraspice is a highly realistic SDXL model.",
+      "samples": []
+    },
+    "Unstable Diffusers XL": {
+      "id": "",
+      "homepage": "https://huggingface.co/Yamer-AI/SDXL_Unstable_Diffusers",
+      "description": "the unstable models are a collection of checkpoints where limitations cease to exist and creativity knows no limits. This checkpoint defies restrictions and empowers you to generate anything your imagination desires",
+      "samples": []
+    },
+    "WAI-ANI-NSFW-PONYXL": {
+      "id": "",
+      "homepage": "https://civitai.com/models/404154",
+      "description": "WAI-ANI-NSFW-PONYXL is a Pony finetuned for NSFW anime-style generations",
+      "samples": []
+    },
+    "WAI-CUTE Pony": {
+      "id": "",
+      "homepage": "https://civitai.com/models/451486?modelVersionId=915200",
+      "description": "Anime Pony model, with an emphasis on cute female figures",
+      "samples": []
+    },
+    "WAI-NSFW-illustrious-SDXL": {
+      "id": "",
+      "homepage": "https://civitai.com/models/827184?modelVersionId=1761560",
+      "description": "WAI-NSFW-illustrious-SDXL is a anime model that is designed to generate high-quality anime images with a focus on NSFW content.",
+      "samples": []
+    },
+    "White Pony Diffusion 4": {
+      "id": "",
+      "homepage": "https://civitai.com/models/658304?modelVersionId=1018371",
+      "description": "Realistic Pony model with an incredibly strong emphasis on Asian people.",
+      "samples": []
+    },
+    "Woop-Woop Photo": {
+      "id": "",
+      "homepage": "https://civitai.com/models/4041/woopwoop-photo",
+      "description": "A model trained to make detailed, anatomically-accurate (hands, faces, genitals, etc) illustrations of humans and non-humans alike",
+      "samples": [
+        "showcase/woop_woop_photo/001_muted001.webp"
+      ]
+    },
+    "ZavyChromaXL": {
+      "id": "",
+      "homepage": "https://civitai.com/models/520661?modelVersionId=1656707",
+      "description": "ZavyChromaXL is generalist model with a focus on vibrant colors and detailed renders. It is capable of generating both stylized and realistic images",
+      "samples": []
+    },
+    "Zeipher Female Model": {
+      "id": "",
+      "homepage": "https://huggingface.co/Reachout/F222",
+      "description": "For creating images of nude solo women. Also known as f222",
+      "samples": [
+        "showcase/zeipher_female_model/01_bigdowg.webp"
+      ]
+    },
+    "majicMIX realistic": {
+      "id": "",
+      "homepage": "https://civitai.com/models/43331/majicmix-realistic",
+      "description": "A good looking model, suitable for NSFW and dark scene.",
+      "samples": []
+    },
+    "noobEvo": {
+      "id": "",
+      "homepage": "https://civitai.com/models/916715?modelVersionId=1026052",
+      "description": "Anime-styled model, with an emphasis on vibrant colors and detailed renders",
+      "samples": []
+    },
+    "noob_v_pencil XL": {
+      "id": "",
+      "homepage": "https://civitai.com/models/1027203?modelVersionId=1151993",
+      "description": "Vibrant anime-style images. Based on NoobAI-XL",
+      "samples": []
     }
   },
   "styles": {
@@ -228,5 +520,5 @@
   },
   "forbidden-models": [],
   "forbidden-styles": [],
-  "latest-update": "2025-09-20"
+  "latest-update": "2025-09-24"
 }
