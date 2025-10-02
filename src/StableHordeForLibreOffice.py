@@ -41,6 +41,7 @@ from com.sun.star.awt import MessageBoxButtons as mbb
 from com.sun.star.awt import MessageBoxResults as mbr
 from com.sun.star.awt import Point
 from com.sun.star.awt import PosSize
+from com.sun.star.awt import Selection
 from com.sun.star.awt import Size
 from com.sun.star.awt import SpinEvent
 from com.sun.star.awt import TextEvent
@@ -83,9 +84,11 @@ if TYPE_CHECKING:
     from com.sun.star.awt import UnoControlDialogModel
     from com.sun.star.awt import UnoControlEditModel
     from com.sun.star.awt import UnoControlFixedHyperlinkModel
+    from com.sun.star.awt import UnoControlFixedTextModel
     from com.sun.star.awt import UnoControlImageControlModel
     from com.sun.star.awt import UnoControlModel
     from com.sun.star.awt import UnoControlNumericFieldModel
+    from com.sun.star.awt import UnoControlProgressBarModel
     from com.sun.star.awt.tab import UnoControlTabPageContainerModel
     from com.sun.star.awt.tab import UnoControlTabPageModel
     from com.sun.star.datatransfer.clipboard import SystemClipboard
@@ -380,7 +383,7 @@ class LibreOfficeInteraction(
         self.DEFAULT_DLG_HEIGHT: int = 294
         self.BOOK_HEIGHT: int = 100
         self.PASSWORD_MASK = 42
-        self.ok_btn: UnoControlButtonModel = None
+        self.btn_ok: UnoControlButtonModel = None
         self.local_language: str = ""
         self.initial_prompt: str = ""
         self.dlg: UnoControlDialog = self.__create_dialog__()
@@ -882,7 +885,7 @@ class LibreOfficeInteraction(
         btn_ok = dc.getControl("btn_ok")
         btn_ok.addActionListener(self)
         btn_ok.setActionCommand("btn_ok_OnClick")
-        self.ok_btn: UnoControlButtonModel = button_ok
+        self.btn_ok: UnoControlButtonModel = button_ok
 
         button_cancel = add_widget(
             dm, "Button", "btn_cancel", (145, current_height - 34, 49, 13)
@@ -939,9 +942,9 @@ class LibreOfficeInteraction(
             (20, current_height - 12, 150, 10),
         )
         lbl.Label = ""
-        self.progress_label = lbl
+        self.progress_label: UnoControlFixedTextModel = lbl
 
-        self.progress_meter = add_widget(
+        self.progress_meter: UnoControlProgressBarModel = add_widget(
             dm,
             "ProgressBar",
             "prog_status",
@@ -966,9 +969,9 @@ class LibreOfficeInteraction(
             page_ad,
             "FixedText",
             "label_strength",
-            (5, 46, 49, 13),
+            (5, 46, 48, 13),
             add_now=False,
-            additional_properties=(("Label", _("Strength")), ("Align", 2)),
+            additional_properties=(("Label", _("Strength")),),
         )
 
         lbl = add_widget(
@@ -1005,6 +1008,7 @@ class LibreOfficeInteraction(
         self.int_strength: UnoControlNumericFieldModel = add_widget(
             page_ad, "NumericField", "int_strength", (60, 43, 48, 13), add_now=False
         )
+        self.int_strength.Align = 2
         self.int_strength.ValueMin = 0
         self.int_strength.ValueMax = 20
         self.int_strength.ValueStep = 0.5
@@ -1203,7 +1207,7 @@ class LibreOfficeInteraction(
                 _(
                     "You are debugging, make sure opening LibreOffice from the command line. Consider using"
                 )
-                + f"\n\n   tailf { log_file }"
+                + f"\n\n   tailf {log_file}"
             )
 
         return dc
@@ -1285,10 +1289,10 @@ class LibreOfficeInteraction(
                 PosSize.Y,
             )
 
-        control_names = (
-            "label_progress",
-            "btn_toggle",
-            "prog_status",
+        controls_to_move = (
+            ("label_progress", 4),
+            ("btn_toggle", 4),
+            ("prog_status", 0),
         )
 
         self.book.setVisible(self.btn_more.Label == "-")
@@ -1307,8 +1311,8 @@ class LibreOfficeInteraction(
             self.btn_toggle.Label = "+"
         self.__heighten_dialog__(new_height)
         displacement = self.dlg.getPosSize().Height - 30
-        for control in control_names:
-            __set_y_control__(control, roll * displacement)
+        for control in controls_to_move:
+            __set_y_control__(control[0], roll * displacement + control[1])
 
     def __heighten_dialog__(self, height):
         size = self.dlg.getPosSize()
@@ -1336,7 +1340,7 @@ class LibreOfficeInteraction(
                 PosSize.Y,
             )
 
-        control_names = [
+        controls_to_move = [
             "label_progress",
             "btn_toggle",
             "prog_status",
@@ -1357,7 +1361,7 @@ class LibreOfficeInteraction(
             self.btn_more.Label = "+"
             roll = -1
         self.__heighten_dialog__(new_height + self.difference)
-        for control in control_names:
+        for control in controls_to_move:
             __move_control__(control, roll * 2 * self.BOOK_HEIGHT)
 
     def validate_fields(self) -> None:
@@ -1367,7 +1371,7 @@ class LibreOfficeInteraction(
             len(self.txt_prompt.Text) > MIN_PROMPT_LENGTH
             and self.int_width.Value * self.int_height.Value <= MAX_MP
         )
-        self.ok_btn.Enabled = enable_ok
+        self.btn_ok.Enabled = enable_ok
         self.dlg.getControl("btn_trans").Enable = enable_ok
 
     def translate(self) -> None:
@@ -1393,7 +1397,7 @@ class LibreOfficeInteraction(
                 if not self.continue_ticking:
                     logger.debug("ticker finishing...")
                     return
-                self.update_status(_("Translating.."), i)
+                self.update_status(_("Translating..."), i)
                 logger.debug(i)
                 i = i + 0.5
                 time.sleep(0.5)
@@ -1529,7 +1533,7 @@ class LibreOfficeInteraction(
     def start_processing(self) -> None:
         if self.inside in ["writer", "web"]:
             self.curview = self.model.CurrentController.ViewCursor
-        self.ok_btn.Enabled = False
+        self.btn_ok.Enabled = False
         self.dlg.getControl("btn_toggle").setVisible(True)
         self.toggle_dialog()
         cancel_button = self.dlg.getControl("btn_cancel")
@@ -1546,31 +1550,47 @@ class LibreOfficeInteraction(
         def __real_work_with_api__():
             images_paths = self.sh_client.generate_image(self.options)
 
-            logger.debug(images_paths)
-            if images_paths:
-                self.update_status("", 100)
-                self.dlg.setVisible(False)
-                self.show_message(
-                    _("Your image was generated consuming {} kudos").format(
-                        self.sh_client.kudos_cost
-                    ),
-                    title=_("AIHorde has good news"),
+            if self.sh_client.censored:
+                logger.info(
+                    f"«{self.txt_prompt.Text}» is censored, image not generated"
                 )
+                if self.btn_toggle.Label == "+":
+                    self.toggle_dialog()
+                if self.btn_more.Label == "+":
+                    self.toggle_more()
 
-                self.insert_image(
-                    images_paths[0],
-                    self.options["image_width"],
-                    self.options["image_height"],
-                    self.sh_client,
-                    self.bool_add_to_gallery.State == 1,
-                    self.bool_add_frame.State == 1,
-                )
-                settings_used = self.sh_client.get_settings()
-                settings_used["translate"] = self.bool_trans.State
-                settings_used["add_to_gallery"] = self.bool_add_to_gallery.State
-                settings_used["add_text"] = self.bool_add_frame.State
-                self.st_manager.save(settings_used)
+                self.txt_prompt.setFocus()
+                self.btn_ok.Enabled = True
+                cancel_button = self.dlg.getControl("btn_cancel")
+                cancel_button.setLabel(_("Cancel"))
+                cancel_button.getModel().HelpText = ""
+                self.txt_prompt.Selection = Selection(0, len(self.txt_prompt.Text))
+                self.dlg.getControl("btn_toggle").setVisible(False)
+                self.update_status()
+                return
 
+            if not images_paths:
+                self.free()
+                return
+
+            logger.debug(f"Downloaded {images_paths[0]}")
+
+            self.update_status("", 100)
+            self.dlg.setVisible(False)
+
+            self.insert_image(
+                images_paths[0],
+                self.options["image_width"],
+                self.options["image_height"],
+                self.sh_client,
+                self.bool_add_to_gallery.State == 1,
+                self.bool_add_frame.State == 1,
+            )
+            settings_used = self.sh_client.get_settings()
+            settings_used["translate"] = self.bool_trans.State
+            settings_used["add_to_gallery"] = self.bool_add_to_gallery.State
+            settings_used["add_text"] = self.bool_add_frame.State
+            self.st_manager.save(settings_used)
             self.free()
 
         self.worker = Thread(target=__real_work_with_api__)
@@ -1709,7 +1729,7 @@ class LibreOfficeInteraction(
     def free(self):
         self.dlg.dispose()
 
-    def update_status(self, text: str, progress: float = 0.0):
+    def update_status(self, text: str = "", progress: float = 0.0):
         """
         Updates the status to the frontend and the progress from 0 to 100
         """
@@ -1957,6 +1977,12 @@ class LibreOfficeInteraction(
         if add_to_gallery:
             self.add_image_to_gallery([img_path, sh_client.get_full_description()])
 
+        self.show_message(
+            _("Your image was generated consuming {} kudos").format(
+                self.sh_client.kudos_cost
+            ),
+            title=_("AIHorde has good news"),
+        )
         image_insert_to[self.inside]()
 
         # Add image to gallery
@@ -2214,7 +2240,7 @@ class AiHordeForLibreOffice(unohelper.Base, XJobExecutor, XEventListener):
             md5sum = hashlib.md5(thef.read().encode("utf-8")).hexdigest()
         if DEBUG:
             print(
-                f' - md5sum: {build_info["md5sum"][-6:]} - githash: {build_info["githash"][-6:]} - version: {VERSION} \n - locals: {md5sum[-6:]}\n\n'
+                f" - md5sum: {build_info['md5sum'][-6:]} - githash: {build_info['githash'][-6:]} - version: {VERSION} \n - locals: {md5sum[-6:]}\n\n"
                 + f" Your log is at {log_file}"
             )
         else:
