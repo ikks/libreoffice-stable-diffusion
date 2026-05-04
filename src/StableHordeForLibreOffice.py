@@ -90,7 +90,7 @@ if TYPE_CHECKING:
 # Change the next line replacing False to True if you need to debug. Case matters
 DEBUG = False
 
-VERSION = "0.9.1"
+VERSION = "0.9.2"
 
 import_message_error = None
 

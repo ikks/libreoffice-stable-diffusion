@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 This project is [semver](https://semver.org/) based
 
+## [0.9.2] - sync client with API user-agent policy
+
 ## [0.9.1] - Hotfix from 0.9 that broke impress, calc and draw
 
 Thanks to @amiantos for discovering it
