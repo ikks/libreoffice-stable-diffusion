@@ -1,4 +1,3 @@
-#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
 # To begin with translation process
